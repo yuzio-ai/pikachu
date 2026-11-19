@@ -1,0 +1,1789 @@
+[
+  {
+    "command" : "prompt",
+    "data" : {
+      "disposition" : "started"
+    },
+    "id" : "F4EA36BD-783B-4E4E-A555-D6EB3A5AF1EA",
+    "success" : true,
+    "type" : "response"
+  },
+  {
+    "type" : "agent_start"
+  },
+  {
+    "type" : "turn_start"
+  },
+  {
+    "message" : {
+      "content" : "",
+      "role" : "system",
+      "sections" : {
+        "cwd" : "<cwd>\n\/private\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 9B924734-F058-4F04-89BA-F6059EEF76E8\/agent stop 2\n<\/cwd>",
+        "docs" : "<docs>\nPi documentation (read only when the user asks about the harness itself, its SDK, extensions, themes, skills, or TUI):\n- Main documentation: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/README.md\n- Additional docs: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/docs\n- Examples: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/examples (extensions, custom tools, SDK)\n- When reading pi docs or examples, resolve docs\/... under Additional docs and examples\/... under Examples, not the current working directory\n- When asked about: extensions (docs\/extensions.md, examples\/extensions\/), themes (docs\/themes.md), skills (docs\/skills.md), prompt templates (docs\/prompt-templates.md), TUI components (docs\/tui.md), keybindings (docs\/keybindings.md), SDK integrations (docs\/sdk.md), custom providers (docs\/custom-provider.md), adding models (docs\/models.md), packages (docs\/packages.md), environment variables (docs\/environment-variables.md), MCP servers (docs\/mcp.md), codemode scripts and non-LLM models such as classifiers and image models (docs\/codemode.md)\n- Before implementing harness changes, read the relevant docs and examples in full, following related cross-references.\n<\/docs>",
+        "preamble" : "You are a coding assistant running inside pi, a coding agent harness. Help users inspect files, run commands, and modify code.",
+        "rules" : "<rules>\n- Use bash for file operations like ls, rg, find\n- Use read to examine files instead of cat or sed.\n- You can inspect PI_* environment variables for current model and session details.\n- Use edit for targeted changes. Batch changes to one file in a single call.\n- Each edits[].oldText must exactly and uniquely match the original file. Keep matches short and non-overlapping; merge nearby changes without including large unchanged regions.\n- Use write only for new files or complete rewrites.\n- Be concise in your responses\n- Show file paths clearly when working with files\n<\/rules>",
+        "tools" : "<tools>\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)\n- edit: Make precise file edits with exact text replacement, including multiple disjoint edits in one call\n- write: Create or overwrite files\n\nAdditional tools may be available.\n<\/tools>"
+      },
+      "timestamp" : 1794947082664,
+      "toolsAdded" : [
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset\/limit for large files. When you need the full file, continue with offset until complete.",
+          "name" : "read",
+          "parameters" : {
+            "properties" : {
+              "limit" : {
+                "description" : "Maximum number of lines to read",
+                "type" : "number"
+              },
+              "offset" : {
+                "description" : "Line number to start reading from (1-indexed)",
+                "type" : "number"
+              },
+              "path" : {
+                "description" : "Path to the file to read (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Execute a bash command in the current working directory. Returns stdout and stderr. Output is truncated to last 2000 lines or 50KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds.",
+          "name" : "bash",
+          "parameters" : {
+            "properties" : {
+              "command" : {
+                "description" : "Shell command to execute",
+                "type" : "string"
+              },
+              "timeout" : {
+                "description" : "Timeout in seconds (optional, no default timeout)",
+                "type" : "number"
+              }
+            },
+            "required" : [
+              "command"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Edit a single file using exact text replacement. Every edits[].oldText must match a unique, non-overlapping region of the original file. If two changes affect the same block or nearby lines, merge them into one edit instead of emitting overlapping edits. Do not include large unchanged regions just to connect distant changes.",
+          "name" : "edit",
+          "parameters" : {
+            "properties" : {
+              "edits" : {
+                "description" : "One or more targeted replacements. Each edit is matched against the original file, not incrementally. Do not include overlapping or nested edits. If two changes touch the same block or nearby lines, merge them into one edit instead.",
+                "items" : {
+                  "properties" : {
+                    "newText" : {
+                      "description" : "Replacement text for this targeted edit.",
+                      "type" : "string"
+                    },
+                    "oldText" : {
+                      "description" : "Exact text for one targeted replacement. It must be unique in the original file and must not overlap with any other edits[].oldText in the same call.",
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [
+                    "oldText",
+                    "newText"
+                  ],
+                  "type" : "object"
+                },
+                "type" : "array"
+              },
+              "path" : {
+                "description" : "Path to the file to edit (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path",
+              "edits"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Automatically creates parent directories.",
+          "name" : "write",
+          "parameters" : {
+            "properties" : {
+              "content" : {
+                "description" : "Content to write to the file",
+                "type" : "string"
+              },
+              "path" : {
+                "description" : "Path to the file to write (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path",
+              "content"
+            ],
+            "type" : "object"
+          }
+        }
+      ]
+    },
+    "type" : "message_start"
+  },
+  {
+    "message" : {
+      "content" : "",
+      "role" : "system",
+      "sections" : {
+        "cwd" : "<cwd>\n\/private\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 9B924734-F058-4F04-89BA-F6059EEF76E8\/agent stop 2\n<\/cwd>",
+        "docs" : "<docs>\nPi documentation (read only when the user asks about the harness itself, its SDK, extensions, themes, skills, or TUI):\n- Main documentation: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/README.md\n- Additional docs: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/docs\n- Examples: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/examples (extensions, custom tools, SDK)\n- When reading pi docs or examples, resolve docs\/... under Additional docs and examples\/... under Examples, not the current working directory\n- When asked about: extensions (docs\/extensions.md, examples\/extensions\/), themes (docs\/themes.md), skills (docs\/skills.md), prompt templates (docs\/prompt-templates.md), TUI components (docs\/tui.md), keybindings (docs\/keybindings.md), SDK integrations (docs\/sdk.md), custom providers (docs\/custom-provider.md), adding models (docs\/models.md), packages (docs\/packages.md), environment variables (docs\/environment-variables.md), MCP servers (docs\/mcp.md), codemode scripts and non-LLM models such as classifiers and image models (docs\/codemode.md)\n- Before implementing harness changes, read the relevant docs and examples in full, following related cross-references.\n<\/docs>",
+        "preamble" : "You are a coding assistant running inside pi, a coding agent harness. Help users inspect files, run commands, and modify code.",
+        "rules" : "<rules>\n- Use bash for file operations like ls, rg, find\n- Use read to examine files instead of cat or sed.\n- You can inspect PI_* environment variables for current model and session details.\n- Use edit for targeted changes. Batch changes to one file in a single call.\n- Each edits[].oldText must exactly and uniquely match the original file. Keep matches short and non-overlapping; merge nearby changes without including large unchanged regions.\n- Use write only for new files or complete rewrites.\n- Be concise in your responses\n- Show file paths clearly when working with files\n<\/rules>",
+        "tools" : "<tools>\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)\n- edit: Make precise file edits with exact text replacement, including multiple disjoint edits in one call\n- write: Create or overwrite files\n\nAdditional tools may be available.\n<\/tools>"
+      },
+      "timestamp" : 1794947082664,
+      "toolsAdded" : [
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset\/limit for large files. When you need the full file, continue with offset until complete.",
+          "name" : "read",
+          "parameters" : {
+            "properties" : {
+              "limit" : {
+                "description" : "Maximum number of lines to read",
+                "type" : "number"
+              },
+              "offset" : {
+                "description" : "Line number to start reading from (1-indexed)",
+                "type" : "number"
+              },
+              "path" : {
+                "description" : "Path to the file to read (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Execute a bash command in the current working directory. Returns stdout and stderr. Output is truncated to last 2000 lines or 50KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds.",
+          "name" : "bash",
+          "parameters" : {
+            "properties" : {
+              "command" : {
+                "description" : "Shell command to execute",
+                "type" : "string"
+              },
+              "timeout" : {
+                "description" : "Timeout in seconds (optional, no default timeout)",
+                "type" : "number"
+              }
+            },
+            "required" : [
+              "command"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Edit a single file using exact text replacement. Every edits[].oldText must match a unique, non-overlapping region of the original file. If two changes affect the same block or nearby lines, merge them into one edit instead of emitting overlapping edits. Do not include large unchanged regions just to connect distant changes.",
+          "name" : "edit",
+          "parameters" : {
+            "properties" : {
+              "edits" : {
+                "description" : "One or more targeted replacements. Each edit is matched against the original file, not incrementally. Do not include overlapping or nested edits. If two changes touch the same block or nearby lines, merge them into one edit instead.",
+                "items" : {
+                  "properties" : {
+                    "newText" : {
+                      "description" : "Replacement text for this targeted edit.",
+                      "type" : "string"
+                    },
+                    "oldText" : {
+                      "description" : "Exact text for one targeted replacement. It must be unique in the original file and must not overlap with any other edits[].oldText in the same call.",
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [
+                    "oldText",
+                    "newText"
+                  ],
+                  "type" : "object"
+                },
+                "type" : "array"
+              },
+              "path" : {
+                "description" : "Path to the file to edit (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path",
+              "edits"
+            ],
+            "type" : "object"
+          }
+        },
+        {
+          "constrainedSampling" : {
+            "strict" : "prefer",
+            "type" : "json_schema"
+          },
+          "description" : "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Automatically creates parent directories.",
+          "name" : "write",
+          "parameters" : {
+            "properties" : {
+              "content" : {
+                "description" : "Content to write to the file",
+                "type" : "string"
+              },
+              "path" : {
+                "description" : "Path to the file to write (relative or absolute)",
+                "type" : "string"
+              }
+            },
+            "required" : [
+              "path",
+              "content"
+            ],
+            "type" : "object"
+          }
+        }
+      ]
+    },
+    "type" : "message_end"
+  },
+  {
+    "message" : {
+      "content" : [
+        {
+          "text" : "M0 stop fixture. Run exactly '\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs with bash timeout 60 seconds. Do not run any other tool. After it finishes reply DONE.",
+          "type" : "text"
+        }
+      ],
+      "role" : "user",
+      "timestamp" : 1794947082664
+    },
+    "type" : "message_start"
+  },
+  {
+    "message" : {
+      "content" : [
+        {
+          "text" : "M0 stop fixture. Run exactly '\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs with bash timeout 60 seconds. Do not run any other tool. After it finishes reply DONE.",
+          "type" : "text"
+        }
+      ],
+      "role" : "user",
+      "timestamp" : 1794947082664
+    },
+    "type" : "message_end"
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+
+      ],
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "providerThinkingLevel" : "low",
+      "role" : "assistant",
+      "stopReason" : "pending",
+      "timestamp" : 1794947082669,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "input" : 0,
+        "output" : 0,
+        "totalTokens" : 0
+      }
+    },
+    "type" : "message_start"
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "id" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+      "toolName" : "bash",
+      "type" : "toolcall_start"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "{\"",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "command",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\":\"",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "'\/",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "Users",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "zh",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "ub",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "ow",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "en",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/.",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "n",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "vm",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "versions",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/node",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/v",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "24",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : ".",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "12",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : ".",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "0",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/bin",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\/node",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "'",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : " heartbeat",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : ".c",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "js",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\",\"",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "timeout",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "\":",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "60",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "delta" : "}",
+      "type" : "toolcall_delta"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "assistantMessageEvent" : {
+      "contentIndex" : 0,
+      "toolCall" : {
+        "arguments" : {
+          "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+          "timeout" : 60
+        },
+        "id" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+        "name" : "bash",
+        "type" : "toolCall"
+      },
+      "type" : "toolcall_end"
+    },
+    "type" : "message_update",
+    "usage" : {
+      "cacheRead" : 0,
+      "cacheWrite" : 0,
+      "cost" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "input" : 0,
+        "output" : 0,
+        "total" : 0
+      },
+      "input" : 0,
+      "output" : 0,
+      "totalTokens" : 0
+    }
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+        {
+          "arguments" : {
+            "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+            "timeout" : 60
+          },
+          "id" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+          "name" : "bash",
+          "type" : "toolCall"
+        }
+      ],
+      "durationMs" : 1992,
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "providerThinkingLevel" : "low",
+      "rawStopReason" : "completed",
+      "responseId" : "resp_0fba40f9ed4c1afe016afcb80b223887d0ac52112f50f7f852",
+      "role" : "assistant",
+      "stopReason" : "toolUse",
+      "thinkingLevel" : "low",
+      "timestamp" : 1794947082669,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 1235,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0.0030875,
+          "input" : 6.0000000000000002e-06,
+          "output" : 0.00046000000000000001,
+          "total" : 0.0035534999999999998,
+          "totalFromProvider" : false
+        },
+        "input" : 3,
+        "output" : 46,
+        "reasoning" : 0,
+        "totalTokens" : 1284
+      }
+    },
+    "type" : "message_end"
+  },
+  {
+    "args" : {
+      "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+      "timeout" : 60
+    },
+    "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+    "toolName" : "bash",
+    "type" : "tool_execution_start"
+  },
+  {
+    "args" : {
+      "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+      "timeout" : 60
+    },
+    "partialResult" : {
+      "content" : [
+
+      ]
+    },
+    "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+    "toolName" : "bash",
+    "type" : "tool_execution_update"
+  },
+  {
+    "followUp" : [
+
+    ],
+    "steering" : [
+      "M0 steer 2: say STEER after this tool."
+    ],
+    "type" : "queue_update"
+  },
+  {
+    "command" : "prompt",
+    "data" : {
+      "disposition" : "queued"
+    },
+    "id" : "18474FC0-3CDC-4677-BF07-F1333CEF1E3A",
+    "success" : true,
+    "type" : "response"
+  },
+  {
+    "followUp" : [
+      "M0 follow 2: say FOLLOW only when current task ends."
+    ],
+    "steering" : [
+      "M0 steer 2: say STEER after this tool."
+    ],
+    "type" : "queue_update"
+  },
+  {
+    "command" : "prompt",
+    "data" : {
+      "disposition" : "queued"
+    },
+    "id" : "B1690CB5-0043-4FB5-BF40-CB7C153B13E5",
+    "success" : true,
+    "type" : "response"
+  },
+  {
+    "followUp" : [
+
+    ],
+    "steering" : [
+
+    ],
+    "type" : "queue_update"
+  },
+  {
+    "command" : "clear_queue",
+    "data" : {
+      "followUp" : [
+        "M0 follow 2: say FOLLOW only when current task ends."
+      ],
+      "steering" : [
+        "M0 steer 2: say STEER after this tool."
+      ]
+    },
+    "id" : "21495715-2B2F-4D33-82E2-477FE044ED56",
+    "success" : true,
+    "type" : "response"
+  },
+  {
+    "durationMs" : 124,
+    "isError" : true,
+    "result" : {
+      "content" : [
+        {
+          "text" : "Command aborted",
+          "type" : "text"
+        }
+      ],
+      "details" : {
+
+      }
+    },
+    "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+    "toolName" : "bash",
+    "type" : "tool_execution_end"
+  },
+  {
+    "message" : {
+      "content" : [
+        {
+          "text" : "Command aborted",
+          "type" : "text"
+        }
+      ],
+      "details" : {
+
+      },
+      "durationMs" : 124,
+      "isError" : true,
+      "role" : "toolResult",
+      "timestamp" : 1794947084789,
+      "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+      "toolName" : "bash"
+    },
+    "type" : "message_start"
+  },
+  {
+    "message" : {
+      "content" : [
+        {
+          "text" : "Command aborted",
+          "type" : "text"
+        }
+      ],
+      "details" : {
+
+      },
+      "durationMs" : 124,
+      "isError" : true,
+      "role" : "toolResult",
+      "timestamp" : 1794947084789,
+      "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+      "toolName" : "bash"
+    },
+    "type" : "message_end"
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+        {
+          "arguments" : {
+            "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+            "timeout" : 60
+          },
+          "id" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+          "name" : "bash",
+          "type" : "toolCall"
+        }
+      ],
+      "durationMs" : 1992,
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "providerThinkingLevel" : "low",
+      "rawStopReason" : "completed",
+      "responseId" : "resp_0fba40f9ed4c1afe016afcb80b223887d0ac52112f50f7f852",
+      "role" : "assistant",
+      "stopReason" : "toolUse",
+      "thinkingLevel" : "low",
+      "timestamp" : 1794947082669,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 1235,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0.0030875,
+          "input" : 6.0000000000000002e-06,
+          "output" : 0.00046000000000000001,
+          "total" : 0.0035534999999999998,
+          "totalFromProvider" : false
+        },
+        "input" : 3,
+        "output" : 46,
+        "reasoning" : 0,
+        "totalTokens" : 1284
+      }
+    },
+    "toolResults" : [
+      {
+        "content" : [
+          {
+            "text" : "Command aborted",
+            "type" : "text"
+          }
+        ],
+        "details" : {
+
+        },
+        "durationMs" : 124,
+        "isError" : true,
+        "role" : "toolResult",
+        "timestamp" : 1794947084789,
+        "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+        "toolName" : "bash"
+      }
+    ],
+    "type" : "turn_end"
+  },
+  {
+    "type" : "turn_start"
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+
+      ],
+      "durationMs" : 0,
+      "errorMessage" : "This operation was aborted",
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "role" : "assistant",
+      "stopReason" : "aborted",
+      "thinkingLevel" : "low",
+      "timestamp" : 1794947084790,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "input" : 0,
+        "output" : 0,
+        "totalTokens" : 0
+      }
+    },
+    "type" : "message_start"
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+
+      ],
+      "durationMs" : 0,
+      "errorMessage" : "This operation was aborted",
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "role" : "assistant",
+      "stopReason" : "aborted",
+      "thinkingLevel" : "low",
+      "timestamp" : 1794947084790,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "input" : 0,
+        "output" : 0,
+        "totalTokens" : 0
+      }
+    },
+    "type" : "message_end"
+  },
+  {
+    "message" : {
+      "api" : "openai-responses",
+      "content" : [
+
+      ],
+      "durationMs" : 0,
+      "errorMessage" : "This operation was aborted",
+      "model" : "gpt-6.1-sol",
+      "provider" : "openai",
+      "role" : "assistant",
+      "stopReason" : "aborted",
+      "thinkingLevel" : "low",
+      "timestamp" : 1794947084790,
+      "usage" : {
+        "cacheRead" : 0,
+        "cacheWrite" : 0,
+        "cost" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "input" : 0,
+        "output" : 0,
+        "totalTokens" : 0
+      }
+    },
+    "toolResults" : [
+
+    ],
+    "type" : "turn_end"
+  },
+  {
+    "messages" : [
+      {
+        "content" : "",
+        "role" : "system",
+        "sections" : {
+          "cwd" : "<cwd>\n\/private\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 9B924734-F058-4F04-89BA-F6059EEF76E8\/agent stop 2\n<\/cwd>",
+          "docs" : "<docs>\nPi documentation (read only when the user asks about the harness itself, its SDK, extensions, themes, skills, or TUI):\n- Main documentation: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/README.md\n- Additional docs: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/docs\n- Examples: \/Users\/zhubowen\/.pi\/agent\/install\/releases\/1.5.2\/node_modules\/@earendil-works\/pi-coding-agent\/examples (extensions, custom tools, SDK)\n- When reading pi docs or examples, resolve docs\/... under Additional docs and examples\/... under Examples, not the current working directory\n- When asked about: extensions (docs\/extensions.md, examples\/extensions\/), themes (docs\/themes.md), skills (docs\/skills.md), prompt templates (docs\/prompt-templates.md), TUI components (docs\/tui.md), keybindings (docs\/keybindings.md), SDK integrations (docs\/sdk.md), custom providers (docs\/custom-provider.md), adding models (docs\/models.md), packages (docs\/packages.md), environment variables (docs\/environment-variables.md), MCP servers (docs\/mcp.md), codemode scripts and non-LLM models such as classifiers and image models (docs\/codemode.md)\n- Before implementing harness changes, read the relevant docs and examples in full, following related cross-references.\n<\/docs>",
+          "preamble" : "You are a coding assistant running inside pi, a coding agent harness. Help users inspect files, run commands, and modify code.",
+          "rules" : "<rules>\n- Use bash for file operations like ls, rg, find\n- Use read to examine files instead of cat or sed.\n- You can inspect PI_* environment variables for current model and session details.\n- Use edit for targeted changes. Batch changes to one file in a single call.\n- Each edits[].oldText must exactly and uniquely match the original file. Keep matches short and non-overlapping; merge nearby changes without including large unchanged regions.\n- Use write only for new files or complete rewrites.\n- Be concise in your responses\n- Show file paths clearly when working with files\n<\/rules>",
+          "tools" : "<tools>\n- read: Read file contents\n- bash: Execute bash commands (ls, grep, find, etc.)\n- edit: Make precise file edits with exact text replacement, including multiple disjoint edits in one call\n- write: Create or overwrite files\n\nAdditional tools may be available.\n<\/tools>"
+        },
+        "timestamp" : 1794947082664,
+        "toolsAdded" : [
+          {
+            "constrainedSampling" : {
+              "strict" : "prefer",
+              "type" : "json_schema"
+            },
+            "description" : "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset\/limit for large files. When you need the full file, continue with offset until complete.",
+            "name" : "read",
+            "parameters" : {
+              "properties" : {
+                "limit" : {
+                  "description" : "Maximum number of lines to read",
+                  "type" : "number"
+                },
+                "offset" : {
+                  "description" : "Line number to start reading from (1-indexed)",
+                  "type" : "number"
+                },
+                "path" : {
+                  "description" : "Path to the file to read (relative or absolute)",
+                  "type" : "string"
+                }
+              },
+              "required" : [
+                "path"
+              ],
+              "type" : "object"
+            }
+          },
+          {
+            "constrainedSampling" : {
+              "strict" : "prefer",
+              "type" : "json_schema"
+            },
+            "description" : "Execute a bash command in the current working directory. Returns stdout and stderr. Output is truncated to last 2000 lines or 50KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds.",
+            "name" : "bash",
+            "parameters" : {
+              "properties" : {
+                "command" : {
+                  "description" : "Shell command to execute",
+                  "type" : "string"
+                },
+                "timeout" : {
+                  "description" : "Timeout in seconds (optional, no default timeout)",
+                  "type" : "number"
+                }
+              },
+              "required" : [
+                "command"
+              ],
+              "type" : "object"
+            }
+          },
+          {
+            "constrainedSampling" : {
+              "strict" : "prefer",
+              "type" : "json_schema"
+            },
+            "description" : "Edit a single file using exact text replacement. Every edits[].oldText must match a unique, non-overlapping region of the original file. If two changes affect the same block or nearby lines, merge them into one edit instead of emitting overlapping edits. Do not include large unchanged regions just to connect distant changes.",
+            "name" : "edit",
+            "parameters" : {
+              "properties" : {
+                "edits" : {
+                  "description" : "One or more targeted replacements. Each edit is matched against the original file, not incrementally. Do not include overlapping or nested edits. If two changes touch the same block or nearby lines, merge them into one edit instead.",
+                  "items" : {
+                    "properties" : {
+                      "newText" : {
+                        "description" : "Replacement text for this targeted edit.",
+                        "type" : "string"
+                      },
+                      "oldText" : {
+                        "description" : "Exact text for one targeted replacement. It must be unique in the original file and must not overlap with any other edits[].oldText in the same call.",
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [
+                      "oldText",
+                      "newText"
+                    ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                },
+                "path" : {
+                  "description" : "Path to the file to edit (relative or absolute)",
+                  "type" : "string"
+                }
+              },
+              "required" : [
+                "path",
+                "edits"
+              ],
+              "type" : "object"
+            }
+          },
+          {
+            "constrainedSampling" : {
+              "strict" : "prefer",
+              "type" : "json_schema"
+            },
+            "description" : "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Automatically creates parent directories.",
+            "name" : "write",
+            "parameters" : {
+              "properties" : {
+                "content" : {
+                  "description" : "Content to write to the file",
+                  "type" : "string"
+                },
+                "path" : {
+                  "description" : "Path to the file to write (relative or absolute)",
+                  "type" : "string"
+                }
+              },
+              "required" : [
+                "path",
+                "content"
+              ],
+              "type" : "object"
+            }
+          }
+        ]
+      },
+      {
+        "content" : [
+          {
+            "text" : "M0 stop fixture. Run exactly '\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs with bash timeout 60 seconds. Do not run any other tool. After it finishes reply DONE.",
+            "type" : "text"
+          }
+        ],
+        "role" : "user",
+        "timestamp" : 1794947082664
+      },
+      {
+        "api" : "openai-responses",
+        "content" : [
+          {
+            "arguments" : {
+              "command" : "'\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs",
+              "timeout" : 60
+            },
+            "id" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+            "name" : "bash",
+            "type" : "toolCall"
+          }
+        ],
+        "durationMs" : 1992,
+        "model" : "gpt-6.1-sol",
+        "provider" : "openai",
+        "providerThinkingLevel" : "low",
+        "rawStopReason" : "completed",
+        "responseId" : "resp_0fba40f9ed4c1afe016afcb80b223887d0ac52112f50f7f852",
+        "role" : "assistant",
+        "stopReason" : "toolUse",
+        "thinkingLevel" : "low",
+        "timestamp" : 1794947082669,
+        "usage" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 1235,
+          "cost" : {
+            "cacheRead" : 0,
+            "cacheWrite" : 0.0030875,
+            "input" : 6.0000000000000002e-06,
+            "output" : 0.00046000000000000001,
+            "total" : 0.0035534999999999998,
+            "totalFromProvider" : false
+          },
+          "input" : 3,
+          "output" : 46,
+          "reasoning" : 0,
+          "totalTokens" : 1284
+        }
+      },
+      {
+        "content" : [
+          {
+            "text" : "Command aborted",
+            "type" : "text"
+          }
+        ],
+        "details" : {
+
+        },
+        "durationMs" : 124,
+        "isError" : true,
+        "role" : "toolResult",
+        "timestamp" : 1794947084789,
+        "toolCallId" : "call_NAoltoQjwkcugLWlfcOno6rI|fc_0fba40f9ed4c1afe016afcb80c371887d0a6d8eab305f5f7e0",
+        "toolName" : "bash"
+      },
+      {
+        "api" : "openai-responses",
+        "content" : [
+
+        ],
+        "durationMs" : 0,
+        "errorMessage" : "This operation was aborted",
+        "model" : "gpt-6.1-sol",
+        "provider" : "openai",
+        "role" : "assistant",
+        "stopReason" : "aborted",
+        "thinkingLevel" : "low",
+        "timestamp" : 1794947084790,
+        "usage" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "cost" : {
+            "cacheRead" : 0,
+            "cacheWrite" : 0,
+            "input" : 0,
+            "output" : 0,
+            "total" : 0
+          },
+          "input" : 0,
+          "output" : 0,
+          "totalTokens" : 0
+        }
+      }
+    ],
+    "type" : "agent_end",
+    "willRetry" : false
+  },
+  {
+    "aborted" : true,
+    "type" : "agent_settled"
+  },
+  {
+    "command" : "abort",
+    "id" : "F41DDB7E-9C4C-4FD3-84FF-965121CE7092",
+    "success" : true,
+    "type" : "response"
+  },
+  {
+    "command" : "get_state",
+    "data" : {
+      "autoCompactionEnabled" : true,
+      "followUpMode" : "one-at-a-time",
+      "isCompacting" : false,
+      "isStreaming" : false,
+      "messageCount" : 5,
+      "model" : {
+        "api" : "openai-responses",
+        "baseUrl" : "https:\/\/api.openai.com\/v1",
+        "compat" : {
+          "supportsAdditionalTools" : true,
+          "supportsExplicitPromptCacheMode" : true,
+          "supportsMidConvoEffort" : true,
+          "supportsMidConvoSystemMessages" : true,
+          "supportsOpenAIGrammarTools" : true,
+          "supportsStrictMode" : true,
+          "supportsToolSearch" : true
+        },
+        "contextWindow" : 272000,
+        "cost" : {
+          "cacheRead" : 0.10000000000000001,
+          "cacheWrite" : 2.5,
+          "input" : 2,
+          "output" : 10,
+          "tiers" : [
+            {
+              "cacheRead" : 0.20000000000000001,
+              "cacheWrite" : 5,
+              "input" : 4,
+              "inputTokensAbove" : 272000,
+              "output" : 15
+            }
+          ]
+        },
+        "id" : "gpt-6.1-sol",
+        "input" : [
+          "text",
+          "image"
+        ],
+        "inputLimits" : {
+          "images" : {
+            "maxPerRequest" : 1500,
+            "resize" : {
+              "jpegQuality" : 80,
+              "maxBytes" : 4718592,
+              "maxHeight" : 2000,
+              "maxWidth" : 2000
+            }
+          },
+          "maxRequestBytes" : 536870912
+        },
+        "maxTokens" : 128000,
+        "name" : "GPT-6.1 Sol",
+        "provider" : "openai",
+        "reasoning" : true,
+        "thinkingLevelMap" : {
+          "high" : "high",
+          "low" : "low",
+          "max" : "max",
+          "medium" : "medium",
+          "minimal" : null,
+          "off" : null,
+          "xhigh" : "xhigh"
+        },
+        "type" : "chat"
+      },
+      "pendingMessageCount" : 0,
+      "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 9B924734-F058-4F04-89BA-F6059EEF76E8\/agent stop 2\/sessions\/2026-11-17T20-24-42-635Z_01a1eb2e-e98b-7148-a4e2-548af7184c5d.jsonl",
+      "sessionId" : "01a1eb2e-e98b-7148-a4e2-548af7184c5d",
+      "steeringMode" : "one-at-a-time",
+      "thinkingLevel" : "low"
+    },
+    "id" : "059584C0-10AF-4A9D-AE51-8023C9A9D17B",
+    "success" : true,
+    "type" : "response"
+  }
+]

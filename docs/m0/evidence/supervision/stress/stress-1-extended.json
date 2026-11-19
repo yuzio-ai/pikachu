@@ -1,0 +1,165 @@
+[
+  {
+    "case" : "M0-01\/version",
+    "evidence" : {
+      "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+      "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+      "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+      "piVersion" : "1.5.2",
+      "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+      "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 B5CB1A0B-956A-42E5-93EB-CEFB8DA42538"
+    },
+    "seconds" : 0.42451596260070801,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-07\/branch-compaction-file-read",
+    "evidence" : {
+      "activeBranch" : [
+        "a",
+        "c",
+        "d"
+      ],
+      "compactionContextVerifiedWithPi" : true,
+      "partialTailDetected" : true,
+      "readOnlyProbeUnchanged" : true,
+      "restoreAppendedConfiguration" : true
+    },
+    "seconds" : 0.47716796398162842,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-1",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.7990260124206543,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "0ED68612-FDC4-44D5-96C9-9C8EB2BF6679",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 13583,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 13582,
+          "sweeps" : 13
+        }
+      }
+    },
+    "seconds" : 0.79930603504180908,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-1",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.2018870115280151,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-2",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.81122303009033203,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "1500920C-1AB2-48B7-B414-5C0083CD9290",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 13593,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 13592,
+          "sweeps" : 13
+        }
+      }
+    },
+    "seconds" : 0.81166696548461914,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-2",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.1880369186401367,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-3",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.80316591262817383,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "A9BB8122-9E87-4610-BDD0-69340448A2F1",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 13601,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 13600,
+          "sweeps" : 13
+        }
+      }
+    },
+    "seconds" : 0.80347204208374023,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-3",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.1892850399017334,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02\/large-real-bash-output",
+    "evidence" : {
+      "responseTruncated" : true,
+      "responsiveAfterOutput" : true,
+      "streamChunks" : 160,
+      "summary" : {
+        "elapsedSeconds" : 0.30844700336456299,
+        "events" : {
+          "bash_execution_update" : 160,
+          "response" : 3
+        },
+        "instanceID" : "43EE1E89-CE42-499F-A2CA-A6EF56DD8657",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 13610,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 13609,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 0.54581499099731445,
+    "status" : "pass"
+  }
+]

@@ -1,0 +1,12 @@
+PASS M0-01/version
+PASS M0-S/nested-detached-crash-1
+PASS M0-S/host-SIGKILL-1
+PASS M0-S/nested-detached-crash-2
+PASS M0-S/host-SIGKILL-2
+PASS M0-S/nested-detached-crash-3
+PASS M0-S/host-SIGKILL-3
+PASS M0-S/unrelated-and-second-instance-survive
+PASS M0-S/supervision-unavailable-fails-closed
+PASS M0-S/watchdog-loss-blocks-release
+PASS M0-S/watchdog-SIGTERM-cleans-tree
+Evidence: /Users/zhubowen/Documents/yuzio-ai/pikachu/.m0-runs/2026-11-18T07-35-07Z-supervision

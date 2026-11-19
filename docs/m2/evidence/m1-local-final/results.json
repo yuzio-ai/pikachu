@@ -1,0 +1,239 @@
+[
+  {
+    "case" : "M1\/fake-runtime-contract",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+        "keep follow-up"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:0FCBBD01-8CED-4714-8918-D5FE7A69C2CA",
+          "text" : "demo",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "assistant:7AE9680F-C383-4C4F-99E5-3D6841583C38",
+          "text" : "正在检查项目。\n\n**执行过程**会在这里实时更新。\n\n```swift\nlet result = 1 + 1\n```",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:1FA5C269-9629-47FB-BEF2-3DA8242AB636",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "正在运行测试…",
+            "state" : "interrupted"
+          }
+        },
+        {
+          "delivery" : "recovered",
+          "id" : "user:3D82EF19-B0FC-4CEE-A6EB-D06FABA27719",
+          "text" : "keep follow-up",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.64769196510314941,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-normal",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:AC2F20C1-E3BB-4423-98C8-50B6FD4428C4",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "assistant:1415CC9F-58B6-4D98-B7E0-5819BAFAFF0F",
+          "text" : "canonical fixture result",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 2.0656890869140625,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-rejected",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "model",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+        "Synthetic fixture prompt"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "rejected",
+          "id" : "user:C5A74F8F-2298-4890-893C-80DD343B4F85",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.40594398975372314,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-authentication",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "authentication",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:98898D1C-8191-479C-9EA4-66D50AB02B13",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.37976109981536865,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-timeout",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "outcomeUnknown",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "unknown",
+          "id" : "user:429F01F1-C599-4720-B658-C6E282F2F2F7",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 5.4136220216751099,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-malformed",
+    "evidence" : {
+      "connection" : "blocked",
+      "failureKind" : "protocolError",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "unknown",
+          "id" : "user:AFF3FDDA-1727-4493-BEF3-5B36A5ED56CC",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 4.4455199241638184,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-crash",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "connection",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:0BA4E652-D191-45B2-BDDE-7AE77984A249",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:fixture-tool",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "",
+            "state" : "interrupted"
+          }
+        }
+      ]
+    },
+    "seconds" : 0.74272894859313965,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/unsupported-version",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "unsupportedVersion",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 0.27221000194549561,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/connection-timeout",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "outcomeUnknown",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 15.428812026977539,
+    "status" : "pass"
+  }
+]

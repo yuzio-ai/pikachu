@@ -1,0 +1,60 @@
+{
+  "dateAsiaShanghai": "2026-11-18",
+  "candidatePiVersion": "1.5.2",
+  "minimumMacOS": "27.0",
+  "provider": "openai",
+  "model": "gpt-6.1-sol",
+  "overallGate": "FAIL",
+  "blocker": "Tool descendants survive Pi SIGKILL",
+  "counts": {
+    "final": {
+      "pass": 24,
+      "fail": 6
+    },
+    "unitTests": {
+      "pass": 8,
+      "fail": 0
+    }
+  },
+  "runs": {
+    "final": "2026-11-17T17-34-30Z-all"
+  },
+  "credentialScan": "no known credential values in exported evidence",
+  "hashes": {
+    "/Users/zhubowen/.pi/agent/bin/pi": "da0c6a49fe94aadc9765cc7afc6ba6b17e553eed0247d0385c160bc188f5cfbb",
+    "/Users/zhubowen/.pi/agent/install/releases/1.5.2/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774"
+  },
+  "nodeVersion": "v24.12.0",
+  "xcode": "Xcode 27.2\nBuild version 27B52",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131",
+  "sourceAndBinaryHashes": {
+    "Tools/M0Validation/README.md": "b46060c12afaa78f39551f2489ab2ac34f74435d8c1be2687822a4c5fb6e638b",
+    "Tools/M0Validation/Package.swift": "6f77aef3aa6e3c9a4c2f96fcd8e94fc8a79d7f3c1b9b6d2e1275bdb07d1e6319",
+    "Tools/M0Validation/Fixtures/generate-history.py": "a055748ba0ffff6e1fda7843a2ba03e7ee4dfee1cf10642a1056c90921784a6a",
+    "Tools/M0Validation/Fixtures/control.ts": "80da63072bfd5674207937f1d8e09d02fdcaf3fdd535f10d4ed7e763538a185d",
+    "Tools/M0Validation/Sources/M0Verify/main.swift": "f462ff9db7326939326283bb4c1b072869f18bf53f7c1be35147ef0d11fbdd20",
+    "Tools/M0Validation/Sources/M0Support/RPC.swift": "8a495bfd8c75822a9e5f09d23c5ef3fd0407bee2e13793e956df24f0d93d71cf",
+    "Tools/M0Validation/Sources/M0Support/History.swift": "098b2e9c5a90f48fae426797266adc0a5939887c0ad84b74c01a304610f334f4",
+    "Tools/M0Validation/Tests/M0SupportTests/ProtocolTests.swift": "6cf9d097a2fa909cc563641469ad0f57e5ef55360de512349c8b9a6a7a74c2ff",
+    "compiledExecutable": "596c601ec5e74da7cb3605bc61c37966fd724eef6050acfa8c63ca0063e06850"
+  },
+  "sourceBinding": "Final all-suite run executed from frozen source/binary hashes; no source changes during run.",
+  "fixtureProcessCleanup": "all recorded fixture PIDs absent; all temporary auth directories removed",
+  "codingToolPairChecks": [
+    {
+      "iteration": 1,
+      "toolCalls": 4,
+      "matchingEnds": true
+    },
+    {
+      "iteration": 2,
+      "toolCalls": 4,
+      "matchingEnds": true
+    },
+    {
+      "iteration": 3,
+      "toolCalls": 4,
+      "matchingEnds": true
+    }
+  ]
+}

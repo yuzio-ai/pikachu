@@ -1,0 +1,9 @@
+PASS M3/closed-peer-stdin-does-not-kill-host
+PASS M3/real-pi-four-dialogs-and-once-only-replies
+PASS M3/stop-cancels-dialog-with-pending-command
+PASS M3/expiry-and-unsupported-cost
+PASS M3/nonmodal-ui-preserves-draft
+PASS M3/disconnect-retires-open-dialog
+PASS M3/native-mode-no-dialog-ack-timeout-remains-five-seconds
+PASS M3/large-output-stream-and-main-actor-responsiveness
+Evidence: /Users/zhubowen/Documents/yuzio-ai/pikachu/.m3-runs/2026-11-18T07-45-40Z

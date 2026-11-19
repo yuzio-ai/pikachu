@@ -1,0 +1,63 @@
+[
+  {
+    "case" : "M2\/local-drafts-and-restart",
+    "evidence" : {
+      "independentDrafts" : true,
+      "projectIDsStable" : true,
+      "runtimeStarts" : 0
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/unopened-session-reconnect",
+    "error" : "failed(\"Unopened session became a missing-file dead end\")",
+    "status" : "fail"
+  },
+  {
+    "case" : "M2\/history-branch-compaction-and-read-only-discovery",
+    "evidence" : {
+      "abandonedBranchExcluded" : true,
+      "readOnly" : true,
+      "runtimeIDConfirmed" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/partial-and-corrupt-history-block-execution",
+    "evidence" : {
+      "corruptExplicit" : true,
+      "noRuntimeStarted" : true,
+      "partialVisible" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/resume-cancellation-is-not-success",
+    "evidence" : {
+      "cancelledResponseRejected" : true,
+      "cleanupConfirmed" : true,
+      "sourceUnchanged" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/timeout-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/crash-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  }
+]

@@ -1,0 +1,96 @@
+{
+  "dateAsiaShanghai": "2026-11-18",
+  "runID": "2026-11-17T20-23-30Z-all",
+  "gate": "PASS_WITH_DOCUMENTED_MANAGED_PROCESS_BOUNDARY",
+  "candidatePiVersion": "1.5.2",
+  "minimumMacOS": "27.0",
+  "counts": {
+    "integrationPassed": 40,
+    "integrationFailed": 0,
+    "unitPassed": 9,
+    "stressPassed": 96
+  },
+  "frozenHashes": {
+    "Tools/M0Validation/Package.swift": "3e73062116d82dd3c056036a1ac53b4dfb8028227fd4fc3ee07df892f52838a9",
+    "Tools/M0Validation/Fixtures/process-tree.py": "559e46ede3cb7b2a105fe07611eed634e80a4505be568b190ad2785051c785f6",
+    "Tools/M0Validation/Fixtures/generate-history.py": "a055748ba0ffff6e1fda7843a2ba03e7ee4dfee1cf10642a1056c90921784a6a",
+    "Tools/M0Validation/Fixtures/control.ts": "80da63072bfd5674207937f1d8e09d02fdcaf3fdd535f10d4ed7e763538a185d",
+    "Tools/M0Validation/Sources/M0Verify/main.swift": "0782ce5b871d4f9be39a4bd1a217d6e794b37a5bad5cc8afce469d4e9deb17de",
+    "Tools/M0Validation/Sources/CM0Process/process.c": "793c1001109e3c582d6ae606d563d141cbd3de6faf616c03dcc376eba2441976",
+    "Tools/M0Validation/Sources/M0Supervisor/main.swift": "77f4cc3c1b944a2ea2501711a9e5b394bb5b54de0e0fa768b33c71a520c152d3",
+    "Tools/M0Validation/Sources/M0Support/ProcessIdentity.swift": "41b6553cc81e15b20b0f565da5bb37be296f1e57c3463403d0a14531f6335691",
+    "Tools/M0Validation/Sources/M0Support/RPC.swift": "5ff6f93492a3835bf7e5fbdc602d6ec997b8938893b2c1e8fa43c1f6bc834d38",
+    "Tools/M0Validation/Sources/M0Support/History.swift": "098b2e9c5a90f48fae426797266adc0a5939887c0ad84b74c01a304610f334f4",
+    "Tools/M0Validation/Sources/CM0Process/include/CM0Process.h": "21673a4d9120cebf2f36253d217ffa2dc80b08616d7f943ec5b9506f365d67c4",
+    "Tools/M0Validation/Tests/M0SupportTests/ProtocolTests.swift": "12a54fe544cd5d7e14905aea168eeeefd80def0f10e0f118cd8adbf647291bef",
+    "binary:m0-verify": "ddd1cb827ad2eb4452eec52c28203ba0882cdb879d87b67d203123044b2bbb75",
+    "binary:m0-supervisor": "e4f56705b4e231614b40d24dfded021727e944ce2e82f1b78f0395456618c13e"
+  },
+  "stressRuns": [
+    {
+      "log": "stress-1-extended.log",
+      "runID": "2026-11-17T20-22-26Z-extended",
+      "passed": 9
+    },
+    {
+      "log": "stress-1-local.log",
+      "runID": "2026-11-17T20-22-16Z-local",
+      "passed": 12
+    },
+    {
+      "log": "stress-1-supervision.log",
+      "runID": "2026-11-17T20-22-34Z-supervision",
+      "passed": 11
+    },
+    {
+      "log": "stress-2-extended.log",
+      "runID": "2026-11-17T20-22-53Z-extended",
+      "passed": 9
+    },
+    {
+      "log": "stress-2-local.log",
+      "runID": "2026-11-17T20-22-43Z-local",
+      "passed": 12
+    },
+    {
+      "log": "stress-2-supervision.log",
+      "runID": "2026-11-17T20-23-00Z-supervision",
+      "passed": 11
+    },
+    {
+      "log": "stress-3-extended.log",
+      "runID": "2026-11-17T20-23-19Z-extended",
+      "passed": 9
+    },
+    {
+      "log": "stress-3-local.log",
+      "runID": "2026-11-17T20-23-10Z-local",
+      "passed": 12
+    },
+    {
+      "log": "stress-3-supervision.log",
+      "runID": "2026-11-17T20-23-27Z-supervision",
+      "passed": 11
+    }
+  ],
+  "credentialScan": "no known credential values exported",
+  "cleanup": {
+    "fixturePIDFilesChecked": 238,
+    "liveKnownFixtureProcesses": 0,
+    "temporaryAuthDirectoriesRemoved": true
+  },
+  "scope": "Same-user inspectable processes inheriting execution marker or observed lineage; not an OS sandbox",
+  "baselineFailureEvidence": "../final/results.json",
+  "piArtifactHashes": {
+    "/Users/zhubowen/.pi/agent/bin/pi": "da0c6a49fe94aadc9765cc7afc6ba6b17e553eed0247d0385c160bc188f5cfbb",
+    "/Users/zhubowen/.pi/agent/install/releases/1.5.2/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js": "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774"
+  },
+  "environment": {
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131",
+    "xcode": "Xcode 27.2\nBuild version 27B52",
+    "node": "v24.12.0",
+    "provider": "openai",
+    "model": "gpt-6.1-sol",
+    "proxy": "http://127.0.0.1:7897"
+  }
+}

@@ -1,0 +1,933 @@
+[
+  {
+    "case" : "M0-01\/version",
+    "evidence" : {
+      "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+      "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+      "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+      "piVersion" : "1.5.2",
+      "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+      "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 F5B92F65-222F-4901-BB2D-42750F248F3C"
+    },
+    "seconds" : 0.44963395595550537,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-01\/launch-environments",
+    "evidence" : {
+      "bareGUIPathMissingNode" : true,
+      "configuredGUIPath" : {
+        "elapsedSeconds" : 0.51403999328613281,
+        "events" : {
+          "response" : 2
+        },
+        "instanceID" : "70401479-5342-4A83-8333-E85CBEACC717",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22053,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22052,
+          "sweeps" : 12
+        }
+      },
+      "missingDependencyExit" : 127,
+      "model" : "gpt-6.1-sol",
+      "normal" : {
+        "elapsedSeconds" : 1.5023210048675537,
+        "events" : {
+          "response" : 2
+        },
+        "instanceID" : "63001D15-6C85-420A-9806-000B18087F49",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22047,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22045,
+          "sweeps" : 12
+        }
+      }
+    },
+    "seconds" : 1.5026459693908691,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02\/real-correlation-and-parse-error",
+    "evidence" : {
+      "parseRejected" : true,
+      "requests" : 20,
+      "summary" : {
+        "elapsedSeconds" : 0.18964493274688721,
+        "events" : {
+          "response" : 23
+        },
+        "instanceID" : "F115CF2D-1A4A-4218-8DE8-492C2E3E5E11",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22059,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22057,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 0.42877209186553955,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-08\/configuration-and-empty-stats",
+    "evidence" : {
+      "effectiveThinkingLevel" : "low",
+      "invalidModelRejected" : true,
+      "modelCount" : 56,
+      "stats" : {
+        "assistantMessages" : 0,
+        "contextUsage" : {
+          "contextWindow" : 272000,
+          "percent" : 0,
+          "tokens" : 0
+        },
+        "cost" : 0,
+        "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 F5B92F65-222F-4901-BB2D-42750F248F3C\/configuration\/sessions\/2026-11-17T21-03-29-570Z_01a1eb52-6b22-733d-910e-8346baa4ea81.jsonl",
+        "sessionId" : "01a1eb52-6b22-733d-910e-8346baa4ea81",
+        "tokens" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "toolCalls" : 0,
+        "toolResults" : 0,
+        "totalMessages" : 0,
+        "userMessages" : 0
+      },
+      "thinkingLevels" : {
+        "levels" : [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    "seconds" : 0.50193202495574951,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-09\/dialogs-handled-timeout-switch-cancel",
+    "evidence" : {
+      "agentSideTimeout" : true,
+      "handled" : true,
+      "methodsCancelled" : [
+        "select",
+        "confirm",
+        "input",
+        "editor"
+      ],
+      "summary" : {
+        "elapsedSeconds" : 0.33117794990539551,
+        "events" : {
+          "extension_ui_request" : 8,
+          "response" : 6
+        },
+        "instanceID" : "A18F693B-19A5-4776-B410-DD2FAA64A857",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22065,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22064,
+          "sweeps" : 1
+        }
+      },
+      "switchCancelled" : true
+    },
+    "seconds" : 0.6397850513458252,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02-10\/late-response-deadline-and-instance",
+    "evidence" : {
+      "deadlineUnknown" : true,
+      "isolatedInstances" : true,
+      "lateResponseRecoveredWithoutResend" : true
+    },
+    "seconds" : 1.2117030620574951,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-1",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.83645999431610107,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-1",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "68311A81-CF39-466E-A14C-CF2E1377694B",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.85827898979187012,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-2",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.79421401023864746,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-2",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "73ADC6E1-0A1C-431B-936B-CC689A77DF9B",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.8784630298614502,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-3",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.85617208480834961,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-3",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "2093E1ED-0085-4EF1-97A4-B0C36102F521",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.87437200546264648,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-1",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 22109,
+        "signalsSent" : 20,
+        "state" : "clean",
+        "supervisorPID" : 22108,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.0641030073165894,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-1",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 22115,
+        "signalsSent" : 21,
+        "state" : "clean",
+        "supervisorPID" : 22114,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.0552500486373901,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-2",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 22121,
+        "signalsSent" : 20,
+        "state" : "clean",
+        "supervisorPID" : 22120,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.088068962097168,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-2",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 22128,
+        "signalsSent" : 21,
+        "state" : "clean",
+        "supervisorPID" : 22127,
+        "sweeps" : 22
+      }
+    },
+    "seconds" : 1.100864052772522,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-3",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 22132,
+        "signalsSent" : 18,
+        "state" : "clean",
+        "supervisorPID" : 22131,
+        "sweeps" : 20
+      }
+    },
+    "seconds" : 1.045369029045105,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-3",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 22137,
+        "signalsSent" : 21,
+        "state" : "clean",
+        "supervisorPID" : 22136,
+        "sweeps" : 22
+      }
+    },
+    "seconds" : 1.1054970026016235,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/unrelated-and-second-instance-survive",
+    "evidence" : {
+      "normalCloseClean" : true,
+      "secondInstanceSurvived" : true,
+      "unrelatedSurvived" : true
+    },
+    "seconds" : 1.4715020656585693,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/supervision-unavailable-fails-closed",
+    "evidence" : {
+      "startupRejected" : true,
+      "taskNotStarted" : true
+    },
+    "seconds" : 0.12174499034881592,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/watchdog-loss-blocks-release",
+    "evidence" : {
+      "newCommandsRejected" : true,
+      "slotReleaseRejected" : true,
+      "testOnlyEmergencyCleanup" : true
+    },
+    "seconds" : 0.11340796947479248,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/watchdog-SIGTERM-cleans-tree",
+    "evidence" : {
+      "signalHandled" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 22160,
+        "signalsSent" : 18,
+        "state" : "clean",
+        "supervisorPID" : 22159,
+        "sweeps" : 20
+      }
+    },
+    "seconds" : 1.0224870443344116,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-07\/branch-compaction-file-read",
+    "evidence" : {
+      "activeBranch" : [
+        "a",
+        "c",
+        "d"
+      ],
+      "compactionContextVerifiedWithPi" : true,
+      "partialTailDetected" : true,
+      "readOnlyProbeUnchanged" : true,
+      "restoreAppendedConfiguration" : true
+    },
+    "seconds" : 0.51876795291900635,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-1",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.81208109855651855,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "26AEFEDF-B698-4D23-9832-20D9922E7A3C",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22167,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22166,
+          "sweeps" : 13
+        }
+      }
+    },
+    "seconds" : 0.81228601932525635,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-1",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.2816779613494873,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-2",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.87039005756378174,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "3B913545-0D00-46F7-AE76-9B24F2F9CCA1",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22176,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22174,
+          "sweeps" : 14
+        }
+      }
+    },
+    "seconds" : 0.87067997455596924,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-2",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.2713639736175537,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/EOF-active-tool-3",
+    "evidence" : {
+      "EOFStoppedTool" : true,
+      "summary" : {
+        "elapsedSeconds" : 0.88176405429840088,
+        "events" : {
+          "response" : 1
+        },
+        "instanceID" : "DD0A6B3C-FE0F-4836-A524-A29D70A51225",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22187,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22186,
+          "sweeps" : 14
+        }
+      }
+    },
+    "seconds" : 0.88220798969268799,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-active-tool-3",
+    "evidence" : {
+      "descendantSurvived" : false,
+      "pendingEnded" : true
+    },
+    "seconds" : 1.2150830030441284,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02\/large-real-bash-output",
+    "evidence" : {
+      "responseTruncated" : true,
+      "responsiveAfterOutput" : true,
+      "streamChunks" : 160,
+      "summary" : {
+        "elapsedSeconds" : 0.33023595809936523,
+        "events" : {
+          "bash_execution_update" : 160,
+          "response" : 3
+        },
+        "instanceID" : "C4767AFC-FE90-4B37-A8D6-7489A258965F",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22195,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22194,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 0.63706409931182861,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/agent-crash-active-tool-1",
+    "evidence" : {
+      "agentTool" : true,
+      "descendantSurvived" : false
+    },
+    "seconds" : 3.310204029083252,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/agent-crash-active-tool-2",
+    "evidence" : {
+      "agentTool" : true,
+      "descendantSurvived" : false
+    },
+    "seconds" : 3.1475340127944946,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/agent-crash-active-tool-3",
+    "evidence" : {
+      "agentTool" : true,
+      "descendantSurvived" : false
+    },
+    "seconds" : 3.6481410264968872,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-05\/follow-up-delivery-and-settled",
+    "evidence" : {
+      "agentEndCount" : 1,
+      "settledCount" : 1,
+      "steeringBeforeFollowUp" : true,
+      "summary" : {
+        "elapsedSeconds" : 8.5691570043563843,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 8,
+          "message_start" : 8,
+          "message_update" : 20,
+          "queue_update" : 4,
+          "response" : 5,
+          "tool_execution_end" : 1,
+          "tool_execution_start" : 1,
+          "tool_execution_update" : 1,
+          "turn_end" : 3,
+          "turn_start" : 3
+        },
+        "instanceID" : "0AB791E4-9131-419D-A2D5-5EB901F0A497",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22220,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22219,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 8.8784940242767334,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-1",
+    "evidence" : {
+      "afterTestExit" : 0,
+      "beforeTestExit" : 1,
+      "sessionRestored" : true,
+      "stats" : {
+        "assistantMessages" : 5,
+        "contextUsage" : {
+          "contextWindow" : 272000,
+          "percent" : 0.60036764705882351,
+          "tokens" : 1633
+        },
+        "cost" : 0.0064837999999999996,
+        "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 F5B92F65-222F-4901-BB2D-42750F248F3C\/coding 1\/sessions\/2026-11-17T21-04-12-743Z_01a1eb53-13c6-7772-aaf7-0cd81538b889.jsonl",
+        "sessionId" : "01a1eb53-13c6-7772-aaf7-0cd81538b889",
+        "tokens" : {
+          "cacheRead" : 5438,
+          "cacheWrite" : 1596,
+          "input" : 15,
+          "output" : 192,
+          "total" : 7241
+        },
+        "toolCalls" : 4,
+        "toolResults" : 4,
+        "totalMessages" : 11,
+        "userMessages" : 1
+      },
+      "summary" : {
+        "elapsedSeconds" : 10.704769968986511,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 11,
+          "message_start" : 11,
+          "message_update" : 149,
+          "response" : 5,
+          "session_info_changed" : 1,
+          "tool_execution_end" : 4,
+          "tool_execution_start" : 4,
+          "tool_execution_update" : 3,
+          "turn_end" : 5,
+          "turn_start" : 5
+        },
+        "instanceID" : "53F6421C-845C-46BB-88BC-EE15372C801E",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22239,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22238,
+          "sweeps" : 166
+        }
+      }
+    },
+    "seconds" : 10.952683925628662,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-1",
+    "evidence" : {
+      "cleared" : {
+        "followUp" : [
+          "M0 follow 1: say FOLLOW only when current task ends."
+        ],
+        "steering" : [
+          "M0 steer 1: say STEER after this tool."
+        ]
+      },
+      "heartbeatStable" : true,
+      "stopSeconds" : 0.52016401290893555,
+      "summary" : {
+        "elapsedSeconds" : 3.0999610424041748,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 5,
+          "message_start" : 5,
+          "message_update" : 35,
+          "queue_update" : 3,
+          "response" : 7,
+          "tool_execution_end" : 1,
+          "tool_execution_start" : 1,
+          "tool_execution_update" : 1,
+          "turn_end" : 2,
+          "turn_start" : 2
+        },
+        "instanceID" : "9F15497D-238B-4FE0-9116-742340C32815",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22258,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22256,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 3.4315099716186523,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-2",
+    "evidence" : {
+      "afterTestExit" : 0,
+      "beforeTestExit" : 1,
+      "sessionRestored" : true,
+      "stats" : {
+        "assistantMessages" : 5,
+        "contextUsage" : {
+          "contextWindow" : 272000,
+          "percent" : 0.60257352941176467,
+          "tokens" : 1639
+        },
+        "cost" : 0.0065437999999999998,
+        "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 F5B92F65-222F-4901-BB2D-42750F248F3C\/coding 2\/sessions\/2026-11-17T21-04-27-128Z_01a1eb53-4bf7-76eb-bf02-9de42e8cf9f5.jsonl",
+        "sessionId" : "01a1eb53-4bf7-76eb-bf02-9de42e8cf9f5",
+        "tokens" : {
+          "cacheRead" : 5438,
+          "cacheWrite" : 1596,
+          "input" : 15,
+          "output" : 198,
+          "total" : 7247
+        },
+        "toolCalls" : 4,
+        "toolResults" : 4,
+        "totalMessages" : 11,
+        "userMessages" : 1
+      },
+      "summary" : {
+        "elapsedSeconds" : 12.800341010093689,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 11,
+          "message_start" : 11,
+          "message_update" : 155,
+          "response" : 5,
+          "session_info_changed" : 1,
+          "tool_execution_end" : 4,
+          "tool_execution_start" : 4,
+          "tool_execution_update" : 3,
+          "turn_end" : 5,
+          "turn_start" : 5
+        },
+        "instanceID" : "B1BE60D9-8AF9-4A32-8542-FCEB1F1C3EC8",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 3,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22266,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22265,
+          "sweeps" : 197
+        }
+      }
+    },
+    "seconds" : 13.061291098594666,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-2",
+    "evidence" : {
+      "cleared" : {
+        "followUp" : [
+          "M0 follow 2: say FOLLOW only when current task ends."
+        ],
+        "steering" : [
+          "M0 steer 2: say STEER after this tool."
+        ]
+      },
+      "heartbeatStable" : true,
+      "stopSeconds" : 0.52013707160949707,
+      "summary" : {
+        "elapsedSeconds" : 2.661486029624939,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 5,
+          "message_start" : 5,
+          "message_update" : 35,
+          "queue_update" : 3,
+          "response" : 7,
+          "tool_execution_end" : 1,
+          "tool_execution_start" : 1,
+          "tool_execution_update" : 1,
+          "turn_end" : 2,
+          "turn_start" : 2
+        },
+        "instanceID" : "9D0B237C-6041-4682-940B-0E17D2D60AB6",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22286,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22284,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 2.9955179691314697,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-3",
+    "evidence" : {
+      "afterTestExit" : 0,
+      "beforeTestExit" : 1,
+      "sessionRestored" : true,
+      "stats" : {
+        "assistantMessages" : 5,
+        "contextUsage" : {
+          "contextWindow" : 272000,
+          "percent" : 0.60073529411764703,
+          "tokens" : 1634
+        },
+        "cost" : 0.0064938000000000001,
+        "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 F5B92F65-222F-4901-BB2D-42750F248F3C\/coding 3\/sessions\/2026-11-17T21-04-43-189Z_01a1eb53-8ab5-719a-b8be-c262b3095143.jsonl",
+        "sessionId" : "01a1eb53-8ab5-719a-b8be-c262b3095143",
+        "tokens" : {
+          "cacheRead" : 5438,
+          "cacheWrite" : 1596,
+          "input" : 15,
+          "output" : 193,
+          "total" : 7242
+        },
+        "toolCalls" : 4,
+        "toolResults" : 4,
+        "totalMessages" : 11,
+        "userMessages" : 1
+      },
+      "summary" : {
+        "elapsedSeconds" : 12.00056004524231,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 11,
+          "message_start" : 11,
+          "message_update" : 150,
+          "response" : 5,
+          "session_info_changed" : 1,
+          "tool_execution_end" : 4,
+          "tool_execution_start" : 4,
+          "tool_execution_update" : 3,
+          "turn_end" : 5,
+          "turn_start" : 5
+        },
+        "instanceID" : "9483512D-9188-480D-A5F0-E447B3A3C928",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 2,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 22297,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 22296,
+          "sweeps" : 185
+        }
+      }
+    },
+    "seconds" : 12.252423048019409,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-3",
+    "evidence" : {
+      "cleared" : {
+        "followUp" : [
+          "M0 follow 3: say FOLLOW only when current task ends."
+        ],
+        "steering" : [
+          "M0 steer 3: say STEER after this tool."
+        ]
+      },
+      "heartbeatStable" : true,
+      "stopSeconds" : 0.52070093154907227,
+      "summary" : {
+        "elapsedSeconds" : 3.7635859251022339,
+        "events" : {
+          "agent_end" : 1,
+          "agent_settled" : 1,
+          "agent_start" : 1,
+          "message_end" : 5,
+          "message_start" : 5,
+          "message_update" : 35,
+          "queue_update" : 3,
+          "response" : 7,
+          "tool_execution_end" : 1,
+          "tool_execution_start" : 1,
+          "tool_execution_update" : 1,
+          "turn_end" : 2,
+          "turn_start" : 2
+        },
+        "instanceID" : "9AF3839D-3D2A-43FF-9876-335D35130319",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 22317,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 22315,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 4.046754002571106,
+    "status" : "pass"
+  }
+]

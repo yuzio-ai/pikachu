@@ -1,0 +1,103 @@
+warning: /Users/zhubowen/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'pikachu': failed storing manifest for 'pikachu' in cache: attempt to write a readonly database
+warning: 'pikachu': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/zhubowen/Documents/yuzio-ai/pikachu/Tools/M1Verification/Fixtures/fake-pi.py
+Building for debugging...
+[2 / 19] OrchestrationCore
+[5 / 22] OrchestrationCore
+[13 / 29] Pikachu-product
+[18 / 33] m2-verify-product
+[25 / 40] m2-verify-product
+[28 / 39] m1-verify-product
+[35 / 41] m1-verify-product
+[38 / 46] m2-verify-product
+[44 / 49] PikachuCoreTests-product
+[46 / 51] PikachuCoreTests-product
+[48 / 52] Pikachu-product
+[54 / 56] PikachuCoreTests-product
+Build complete! (2.01秒)
+Test Suite 'All tests' started at 2026-11-18 06:30:23.601.
+Test Suite 'PikachuCoreTests.xctest' started at 2026-11-18 06:30:23.601.
+Test Suite 'RuntimeTests' started at 2026-11-18 06:30:23.601.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearedDuplicateQueueRowsAreReturnedToDrafts]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearedDuplicateQueueRowsAreReturnedToDrafts]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testClearQueueResultSurvivesAbortFailureAndKeepsEditor]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearQueueResultSurvivesAbortFailureAndKeepsEditor]' passed (0.040 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testFakeRuntimeUsesSameControllerAndRetainsStoppedQueue]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testFakeRuntimeUsesSameControllerAndRetainsStoppedQueue]' passed (0.080 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testFinalMessageOverridesDeltasAndBlocksArePerMessage]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testFinalMessageOverridesDeltasAndBlocksArePerMessage]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testHandledPromptDoesNotBecomeRunning]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testHandledPromptDoesNotBecomeRunning]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testLargeToolOutputHasBoundedPresentationAndNotice]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testLargeToolOutputHasBoundedPresentationAndNotice]' passed (0.106 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperIgnoresSystemAndUserMessages]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperIgnoresSystemAndUserMessages]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperPartialToolResultReplacesPreviousSnapshot]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperPartialToolResultReplacesPreviousSnapshot]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMarkdownKeepsCodeAndUnicode]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMarkdownKeepsCodeAndUnicode]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testOldInstanceCannotMutateCurrentConversation]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testOldInstanceCannotMutateCurrentConversation]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testProviderErrorsDoNotExposeCredentials]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testProviderErrorsDoNotExposeCredentials]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testQueuedAcknowledgementDoesNotUseOlderEmptySnapshot]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testQueuedAcknowledgementDoesNotUseOlderEmptySnapshot]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testReconnectAfterCleanedCrashIgnoresOldCloseEvents]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testReconnectAfterCleanedCrashIgnoresOldCloseEvents]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testRepeatedRecoveryEventIsDeduplicated]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testRepeatedRecoveryEventIsDeduplicated]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testSettledInterruptsUnfinishedToolsWithoutClaimingSuccess]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testSettledInterruptsUnfinishedToolsWithoutClaimingSuccess]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testUnexpectedStreamEndBlocksExecution]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testUnexpectedStreamEndBlocksExecution]' passed (0.035 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testUnknownCleanupBlocksNewConnectionAndSending]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testUnknownCleanupBlocksNewConnectionAndSending]' passed (0.000 seconds).
+Test Suite 'RuntimeTests' passed at 2026-11-18 06:30:23.867.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.265 (0.266) seconds
+Test Suite 'WorkspaceTests' started at 2026-11-18 06:30:23.867.
+Test Case '-[PikachuCoreTests.WorkspaceTests testBrowseAndDraftsDoNotCreateRuntimeOrStopCurrentTask]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testBrowseAndDraftsDoNotCreateRuntimeOrStopCurrentTask]' passed (0.002 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testConcurrentActivationCannotCreateTwoExecutionInstances]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testConcurrentActivationCannotCreateTwoExecutionInstances]' passed (0.174 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testCorruptAndBrokenParentAreRejectedRatherThanEmptyHistory]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testCorruptAndBrokenParentAreRejectedRatherThanEmptyHistory]' passed (0.004 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoricalErrorsAreVisibleWithoutCredentialDetail]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoricalErrorsAreVisibleWithoutCredentialDetail]' passed (0.003 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryPartialTailVisibleAndUnknownVersionRejected]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryPartialTailVisibleAndUnknownVersionRejected]' passed (0.002 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryPreservesActiveBranchAndCompactionHistoryWithoutMutation]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryPreservesActiveBranchAndCompactionHistoryWithoutMutation]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryUnfinishedToolIsInterruptedAndResultReplacesIt]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testHistoryUnfinishedToolIsInterruptedAndResultReplacesIt]' passed (0.002 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testLateOldRuntimeEventCannotPolluteNewTarget]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testLateOldRuntimeEventCannotPolluteNewTarget]' passed (0.002 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testMissingMaterializedHistoryDoesNotBecomeANewEmptySession]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testMissingMaterializedHistoryDoesNotBecomeANewEmptySession]' passed (0.032 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testMovedHistoryIsRejectedBeforeAnyExecutableStarts]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testMovedHistoryIsRejectedBeforeAnyExecutableStarts]' passed (0.002 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testRelocationKeepsProjectAndSessionIdentity]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testRelocationKeepsProjectAndSessionIdentity]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testRestartMarksPendingUnknownWithoutStartingRuntime]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testRestartMarksPendingUnknownWithoutStartingRuntime]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testStorageFailurePreventsPromptAndPreservesEditor]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testStorageFailurePreventsPromptAndPreservesEditor]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testSwiftDataReopenRestoresIDsDraftsAndRejectsStaleSave]' started.
+CoreData: error: unable to check registration for posting store changed notification
+Test Case '-[PikachuCoreTests.WorkspaceTests testSwiftDataReopenRestoresIDsDraftsAndRejectsStaleSave]' passed (0.031 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testSwitchRequiresExplicitStopAndDoesNotSendOnFailedCleanup]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testSwitchRequiresExplicitStopAndDoesNotSendOnFailedCleanup]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.WorkspaceTests testTypingDuringActivationDoesNotReplaceSubmittedContent]' started.
+Test Case '-[PikachuCoreTests.WorkspaceTests testTypingDuringActivationDoesNotReplaceSubmittedContent]' passed (0.188 seconds).
+Test Suite 'WorkspaceTests' passed at 2026-11-18 06:30:24.314.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.446 (0.447) seconds
+Test Suite 'PikachuCoreTests.xctest' passed at 2026-11-18 06:30:24.315.
+	 Executed 33 tests, with 0 failures (0 unexpected) in 0.711 (0.714) seconds
+Test Suite 'All tests' passed at 2026-11-18 06:30:24.315.
+	 Executed 33 tests, with 0 failures (0 unexpected) in 0.711 (0.714) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 2403
+􀄵  Target Platform: arm64e-apple-macos14.0
+􁁛  Test run with 0 tests in 0 suites passed after 0.001 seconds.

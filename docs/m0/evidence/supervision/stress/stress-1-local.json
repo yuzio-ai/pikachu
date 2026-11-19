@@ -1,0 +1,234 @@
+[
+  {
+    "case" : "M0-01\/version",
+    "evidence" : {
+      "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+      "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+      "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+      "piVersion" : "1.5.2",
+      "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+      "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 523B205C-C6B5-4764-A83A-FE1E518AE83D"
+    },
+    "seconds" : 0.43938899040222168,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-01\/launch-environments",
+    "evidence" : {
+      "bareGUIPathMissingNode" : true,
+      "configuredGUIPath" : {
+        "elapsedSeconds" : 0.49942100048065186,
+        "events" : {
+          "response" : 2
+        },
+        "instanceID" : "1A431811-0EC7-41A7-8CA4-8A4692784803",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 13520,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 13519,
+          "sweeps" : 12
+        }
+      },
+      "missingDependencyExit" : 127,
+      "model" : "gpt-6.1-sol",
+      "normal" : {
+        "elapsedSeconds" : 1.4684619903564453,
+        "events" : {
+          "response" : 2
+        },
+        "instanceID" : "A217C64A-1D77-43CD-8373-E21F2ED0B424",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "runtimeExited",
+          "remaining" : 0,
+          "runtimePID" : 13514,
+          "signalsSent" : 0,
+          "state" : "clean",
+          "supervisorPID" : 13513,
+          "sweeps" : 12
+        }
+      }
+    },
+    "seconds" : 1.4687250852584839,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02\/real-correlation-and-parse-error",
+    "evidence" : {
+      "parseRejected" : true,
+      "requests" : 20,
+      "summary" : {
+        "elapsedSeconds" : 0.18313801288604736,
+        "events" : {
+          "response" : 23
+        },
+        "instanceID" : "B531975B-5C89-457C-8ABB-C83F6CE7EEC2",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 13524,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 13523,
+          "sweeps" : 1
+        }
+      }
+    },
+    "seconds" : 0.42007696628570557,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-08\/configuration-and-empty-stats",
+    "evidence" : {
+      "effectiveThinkingLevel" : "low",
+      "invalidModelRejected" : true,
+      "modelCount" : 56,
+      "stats" : {
+        "assistantMessages" : 0,
+        "contextUsage" : {
+          "contextWindow" : 272000,
+          "percent" : 0,
+          "tokens" : 0
+        },
+        "cost" : 0,
+        "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 523B205C-C6B5-4764-A83A-FE1E518AE83D\/configuration\/sessions\/2026-11-17T20-22-19-419Z_01a1eb2c-ba1a-74d8-875e-465d577d53be.jsonl",
+        "sessionId" : "01a1eb2c-ba1a-74d8-875e-465d577d53be",
+        "tokens" : {
+          "cacheRead" : 0,
+          "cacheWrite" : 0,
+          "input" : 0,
+          "output" : 0,
+          "total" : 0
+        },
+        "toolCalls" : 0,
+        "toolResults" : 0,
+        "totalMessages" : 0,
+        "userMessages" : 0
+      },
+      "thinkingLevels" : {
+        "levels" : [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    },
+    "seconds" : 0.47890591621398926,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-09\/dialogs-handled-timeout-switch-cancel",
+    "evidence" : {
+      "agentSideTimeout" : true,
+      "handled" : true,
+      "methodsCancelled" : [
+        "select",
+        "confirm",
+        "input",
+        "editor"
+      ],
+      "summary" : {
+        "elapsedSeconds" : 0.32658910751342773,
+        "events" : {
+          "extension_ui_request" : 8,
+          "response" : 6
+        },
+        "instanceID" : "BAC8DC69-28D7-4447-8697-5F6515D9DA36",
+        "stderrBytes" : 0,
+        "supervision" : {
+          "ownedIdentities" : 1,
+          "reason" : "",
+          "remaining" : -1,
+          "runtimePID" : 13532,
+          "signalsSent" : 0,
+          "state" : "running",
+          "supervisorPID" : 13531,
+          "sweeps" : 1
+        }
+      },
+      "switchCancelled" : true
+    },
+    "seconds" : 0.627297043800354,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-02-10\/late-response-deadline-and-instance",
+    "evidence" : {
+      "deadlineUnknown" : true,
+      "isolatedInstances" : true,
+      "lateResponseRecoveredWithoutResend" : true
+    },
+    "seconds" : 1.1881129741668701,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-1",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.82700598239898682,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-1",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "8A936FEB-5793-4E8C-935E-5587AE3B0DCD",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.85293698310852051,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-2",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.81757593154907227,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-2",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "45CE117C-57FF-4A53-AFFD-66566C584082",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.84876108169555664,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-06\/direct-bash-stop-3",
+    "evidence" : {
+      "heartbeatStable" : true,
+      "note" : "Direct RPC bash uses abort_bash, not agent abort",
+      "records" : 2
+    },
+    "seconds" : 0.82898497581481934,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-10\/crash-idle-and-reconnect-3",
+    "evidence" : {
+      "automaticReplay" : false,
+      "newInstance" : "80658A92-DAC9-4B89-A38F-50AECEBAECA0",
+      "pendingEnded" : true
+    },
+    "seconds" : 0.84913098812103271,
+    "status" : "pass"
+  }
+]

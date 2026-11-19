@@ -1,0 +1,24 @@
+Building for production...
+[7 / 29]
+[15 / 35] AgentRuntimeCore
+[16 / 34] AgentRuntimeCore
+[21 / 37] M0Support
+[28 / 44] m0-supervisor-product
+[30 / 44] m0-supervisor-product
+[30 / 44] OrchestrationCore
+[34 / 42] WorkspacePersistence
+[36 / 42] PiRuntimeAdapter
+[45 / 53] m3-verify-product
+[49 / 56] m1-verify-product
+[51 / 56] m2-verify-product
+[55 / 56] m2-verify-product
+[55 / 56] Pikachu-product
+[57 / 59] Pikachu-product
+[58 / 59] Pikachu-product
+[63 / 63] m1-verify-product
+[66 / 66] m2-verify-product
+[69 / 69] m3-verify-product
+Build complete! (6.86秒)
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Release/Pikachu.app/Contents/MacOS/m0-supervisor: replacing existing signature
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Release/Pikachu.app: replacing existing signature
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Release/Pikachu.app

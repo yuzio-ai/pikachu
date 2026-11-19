@@ -1,0 +1,315 @@
+[
+  {
+    "case" : "M1\/fake-runtime-contract",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+        "keep follow-up"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:92FED4DE-66A7-41E6-9CCC-EBAC63128C14",
+          "text" : "demo",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "assistant:43F035F8-BDD6-4AF2-95AA-CA50096E9D7E",
+          "text" : "正在检查项目。\n\n**执行过程**会在这里实时更新。\n\n```swift\nlet result = 1 + 1\n```",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:F0EC4A76-EC08-4C86-92D6-204CBC63470C",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "正在运行测试…",
+            "state" : "interrupted"
+          }
+        },
+        {
+          "delivery" : "recovered",
+          "id" : "user:2BE97B4F-031C-41BD-8563-ACC3F81D9F17",
+          "text" : "keep follow-up",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.63714492321014404,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-normal",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:5B0AB9E1-B60A-4CA2-A445-ADA56BA9E471",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "assistant:83A39E03-8C23-42BE-99D0-28C4A220070D",
+          "text" : "canonical fixture result",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 2.2394169569015503,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-rejected",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "model",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+        "Synthetic fixture prompt"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "rejected",
+          "id" : "user:6D5738A4-85E3-4C63-82F1-04335A331F06",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.8520280122756958,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-authentication",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "authentication",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:EFB9F05F-ADA6-451D-90F6-FDADE09AF6F3",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 1.0458570718765259,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-timeout",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "outcomeUnknown",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "unknown",
+          "id" : "user:CF4E1753-01F4-43D2-816A-14EBEF727AF3",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 6.1993629932403564,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-malformed",
+    "evidence" : {
+      "connection" : "blocked",
+      "failureKind" : "protocolError",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "unknown",
+          "id" : "user:F5D0003D-3A97-4727-9539-3ED10112EF24",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 7.4420939683914185,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-crash",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "connection",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:B6304130-200F-4ED7-A9CC-F49176B317EF",
+          "text" : "Synthetic fixture prompt",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:fixture-tool",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "",
+            "state" : "interrupted"
+          }
+        }
+      ]
+    },
+    "seconds" : 0.72138094902038574,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/unsupported-version",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "unsupportedVersion",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 0.03086698055267334,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/connection-timeout",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "outcomeUnknown",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 15.384737968444824,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/real-extension-cancellation",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+        {
+          "delivery" : "handled",
+          "id" : "user:451287F8-CA08-4D29-B1F8-FC641CBABF64",
+          "text" : "\/m0-dialogs",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.69889199733734131,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/real-coding-1",
+    "error" : "failed(\"Real task failed or tools missing\")",
+    "seconds" : 34.394591927528381,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/real-coding-2",
+    "error" : "failed(\"Real task failed or tools missing\")",
+    "seconds" : 34.405700087547302,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/real-stop-and-crash",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "connection",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+        "M1 follow-up retained"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:D937613E-5285-4FA8-A28E-DBD51264B5BD",
+          "text" : "Run exactly '\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node' heartbeat.cjs in bash with timeout 60 seconds. No other tools. Reply DONE after completion.",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:call_sBmxdQ85NoouzrTYxYzfkpvv|fc_081f990d57245462016afccfb4b88c87d08c7c3e8c1533c866",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "Command aborted",
+            "state" : "failed"
+          }
+        },
+        {
+          "delivery" : "recovered",
+          "id" : "user:9AFBC5FC-EDD7-45ED-A6E4-DDD67814840B",
+          "text" : "M1 follow-up retained",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 12.4427570104599,
+    "status" : "pass"
+  }
+]

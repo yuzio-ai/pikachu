@@ -1,0 +1,170 @@
+[
+  {
+    "case" : "M0-01\/version",
+    "evidence" : {
+      "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+      "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+      "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+      "piVersion" : "1.5.2",
+      "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+      "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 EEE3BFB5-77E5-4BA0-873F-7337340AA85C"
+    },
+    "seconds" : 0.42256200313568115,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-1",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 13947,
+        "signalsSent" : 20,
+        "state" : "clean",
+        "supervisorPID" : 13946,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.039775013923645,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-1",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 13953,
+        "signalsSent" : 19,
+        "state" : "clean",
+        "supervisorPID" : 13952,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.0554659366607666,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-2",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 13957,
+        "signalsSent" : 18,
+        "state" : "clean",
+        "supervisorPID" : 13956,
+        "sweeps" : 20
+      }
+    },
+    "seconds" : 1.0292379856109619,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-2",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 13965,
+        "signalsSent" : 21,
+        "state" : "clean",
+        "supervisorPID" : 13964,
+        "sweeps" : 22
+      }
+    },
+    "seconds" : 1.0223679542541504,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/nested-detached-crash-3",
+    "evidence" : {
+      "nestedDescendantsStopped" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "runtimeExited",
+        "remaining" : 0,
+        "runtimePID" : 13984,
+        "signalsSent" : 20,
+        "state" : "clean",
+        "supervisorPID" : 13983,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 1.0092990398406982,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/host-SIGKILL-3",
+    "evidence" : {
+      "hostSIGKILL" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "ownerExited",
+        "remaining" : 0,
+        "runtimePID" : 13996,
+        "signalsSent" : 21,
+        "state" : "clean",
+        "supervisorPID" : 13995,
+        "sweeps" : 22
+      }
+    },
+    "seconds" : 1.0146670341491699,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/unrelated-and-second-instance-survive",
+    "evidence" : {
+      "normalCloseClean" : true,
+      "secondInstanceSurvived" : true,
+      "unrelatedSurvived" : true
+    },
+    "seconds" : 1.3121770620346069,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/supervision-unavailable-fails-closed",
+    "evidence" : {
+      "startupRejected" : true,
+      "taskNotStarted" : true
+    },
+    "seconds" : 0.1141049861907959,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/watchdog-loss-blocks-release",
+    "evidence" : {
+      "newCommandsRejected" : true,
+      "slotReleaseRejected" : true,
+      "testOnlyEmergencyCleanup" : true
+    },
+    "seconds" : 0.10710501670837402,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-S\/watchdog-SIGTERM-cleans-tree",
+    "evidence" : {
+      "signalHandled" : true,
+      "supervision" : {
+        "ownedIdentities" : 3,
+        "reason" : "supervisorStopRequested",
+        "remaining" : 0,
+        "runtimePID" : 14028,
+        "signalsSent" : 20,
+        "state" : "clean",
+        "supervisorPID" : 14027,
+        "sweeps" : 21
+      }
+    },
+    "seconds" : 0.94848001003265381,
+    "status" : "pass"
+  }
+]

@@ -1,0 +1,119 @@
+[
+  {
+    "case" : "M1\/fake-runtime-contract",
+    "evidence" : {
+      "connection" : "connected",
+      "failureKind" : "none",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+        "keep follow-up"
+      ],
+      "transcript" : [
+        {
+          "delivery" : "accepted",
+          "id" : "user:02230732-7EB9-4461-B8F6-02290B32C0A6",
+          "text" : "demo",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "assistant:538DBC20-3DFE-4FE4-8BB3-8F06378D71FC",
+          "text" : "正在检查项目。\n\n**执行过程**会在这里实时更新。\n\n```swift\nlet result = 1 + 1\n```",
+          "tool" : {
+
+          }
+        },
+        {
+          "delivery" : "accepted",
+          "id" : "tool:ED89353E-8D1F-4CCE-A66D-C08BAF5ADB24",
+          "text" : "",
+          "tool" : {
+            "name" : "bash",
+            "output" : "正在运行测试…",
+            "state" : "interrupted"
+          }
+        },
+        {
+          "delivery" : "recovered",
+          "id" : "user:C6844F56-914E-438E-A125-423910BE8FE8",
+          "text" : "keep follow-up",
+          "tool" : {
+
+          }
+        }
+      ]
+    },
+    "seconds" : 0.63482296466827393,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/wire-normal",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.893952965736389,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/wire-rejected",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.419304013252258,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/wire-authentication",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.465517044067383,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/wire-timeout",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.394600987434387,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/wire-malformed",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.459035992622375,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/wire-crash",
+    "error" : "failed(\"Fault peer failed to connect\")",
+    "seconds" : 15.444392085075378,
+    "status" : "fail"
+  },
+  {
+    "case" : "M1\/unsupported-version",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "unsupportedVersion",
+      "phase" : "idle",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 0.27586400508880615,
+    "status" : "pass"
+  },
+  {
+    "case" : "M1\/connection-timeout",
+    "evidence" : {
+      "connection" : "disconnected",
+      "failureKind" : "outcomeUnknown",
+      "phase" : "uncertain",
+      "recoveredDrafts" : [
+
+      ],
+      "transcript" : [
+
+      ]
+    },
+    "seconds" : 15.429964065551758,
+    "status" : "pass"
+  }
+]

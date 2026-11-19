@@ -1,0 +1,11 @@
+{
+  "unchangedFiles": {
+    "Tools/M0Validation/Sources/M0Verify/main.swift": true,
+    "Tools/M0Validation/Sources/CM0Process/process.c": true,
+    "Tools/M0Validation/Sources/M0Supervisor/main.swift": true,
+    "Tools/M0Validation/Sources/M0Support/ProcessIdentity.swift": true,
+    "Tools/M0Validation/Sources/M0Support/History.swift": true,
+    "Tools/M0Validation/Sources/CM0Process/include/CM0Process.h": true
+  },
+  "RPCWithOnlyObservationRemovedMatchesM0": true
+}

@@ -1,0 +1,15 @@
+warning: /Users/zhubowen/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'pikachu': failed storing manifest for 'pikachu' in cache: attempt to write a readonly database
+warning: 'pikachu': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/zhubowen/Documents/yuzio-ai/pikachu/Tools/M1Verification/Fixtures/fake-pi.py
+Building for debugging...
+[1 / 25]
+Build complete! (0.26秒)
+warning: /Users/zhubowen/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Pikachu.app/Contents/MacOS/m0-supervisor: replacing existing signature
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Pikachu.app: replacing existing signature
+/Users/zhubowen/Documents/yuzio-ai/pikachu/dist/Pikachu.app

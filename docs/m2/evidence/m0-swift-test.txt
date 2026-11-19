@@ -1,0 +1,37 @@
+warning: /Users/zhubowen/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'm0validation': failed storing manifest for 'm0validation' in cache: attempt to write a readonly database
+Building for debugging...
+Build complete! (0.23秒)
+Test Suite 'All tests' started at 2026-11-18 06:11:04.317.
+Test Suite 'M0SupportTests.xctest' started at 2026-11-18 06:11:04.318.
+Test Suite 'ProtocolTests' started at 2026-11-18 06:11:04.318.
+Test Case '-[M0SupportTests.ProtocolTests testEveryByteBoundaryAndUnicodeSeparators]' started.
+Test Case '-[M0SupportTests.ProtocolTests testEveryByteBoundaryAndUnicodeSeparators]' passed (0.001 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testHistoryBranchTailAndCorruption]' started.
+Test Case '-[M0SupportTests.ProtocolTests testHistoryBranchTailAndCorruption]' passed (0.000 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testLargeOutputAndLongHistory]' started.
+Test Case '-[M0SupportTests.ProtocolTests testLargeOutputAndLongHistory]' passed (0.380 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testMalformedAndNonObjectFail]' started.
+Test Case '-[M0SupportTests.ProtocolTests testMalformedAndNonObjectFail]' passed (0.000 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testMalformedOutputAndEOFEndPendingCalls]' started.
+Test Case '-[M0SupportTests.ProtocolTests testMalformedOutputAndEOFEndPendingCalls]' passed (0.046 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testMessageIndexesResetAndFinalOverrides]' started.
+Test Case '-[M0SupportTests.ProtocolTests testMessageIndexesResetAndFinalOverrides]' passed (0.000 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testOutOfOrderAndEventInterleavingOverRealPipes]' started.
+Test Case '-[M0SupportTests.ProtocolTests testOutOfOrderAndEventInterleavingOverRealPipes]' passed (0.045 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testPartialAndMultipleRecords]' started.
+Test Case '-[M0SupportTests.ProtocolTests testPartialAndMultipleRecords]' passed (0.000 seconds).
+Test Case '-[M0SupportTests.ProtocolTests testReusedPIDIdentityCannotBeSignalled]' started.
+Test Case '-[M0SupportTests.ProtocolTests testReusedPIDIdentityCannotBeSignalled]' passed (0.000 seconds).
+Test Suite 'ProtocolTests' passed at 2026-11-18 06:11:04.791.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.472 (0.473) seconds
+Test Suite 'M0SupportTests.xctest' passed at 2026-11-18 06:11:04.791.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.472 (0.473) seconds
+Test Suite 'All tests' passed at 2026-11-18 06:11:04.791.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.472 (0.474) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 2403
+􀄵  Target Platform: arm64e-apple-macos14.0
+􁁛  Test run with 0 tests in 0 suites passed after 0.001 seconds.

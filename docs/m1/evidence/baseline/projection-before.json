@@ -1,0 +1,51 @@
+{
+  "configuration": "SwiftPM debug",
+  "method": "Direct domain event projection; 900-character completed rows; 100 delta/draft turns with Task.yield; three fresh stores per size. Excludes RPC, SwiftUI rendering, OS input and network.",
+  "os": "Version 27.2.1 (Build 26B131)",
+  "physicalMemoryBytes": 25769803776,
+  "processorCount": 12,
+  "samples": [
+    {
+      "maxMilliseconds": 0.143333,
+      "projectionMilliseconds": 3.779084,
+      "round": 1,
+      "rows": 100,
+      "streamAndDraftTurnP95Milliseconds": 0.074042
+    },
+    {
+      "maxMilliseconds": 0.063625,
+      "projectionMilliseconds": 2.426917,
+      "round": 2,
+      "rows": 100,
+      "streamAndDraftTurnP95Milliseconds": 0.056
+    },
+    {
+      "maxMilliseconds": 0.054042,
+      "projectionMilliseconds": 2.103875,
+      "round": 3,
+      "rows": 100,
+      "streamAndDraftTurnP95Milliseconds": 0.050417
+    },
+    {
+      "maxMilliseconds": 0.962542,
+      "projectionMilliseconds": 2578.947792,
+      "round": 1,
+      "rows": 5000,
+      "streamAndDraftTurnP95Milliseconds": 0.82325
+    },
+    {
+      "maxMilliseconds": 0.875667,
+      "projectionMilliseconds": 2588.859,
+      "round": 2,
+      "rows": 5000,
+      "streamAndDraftTurnP95Milliseconds": 0.813208
+    },
+    {
+      "maxMilliseconds": 0.859167,
+      "projectionMilliseconds": 2572.558583,
+      "round": 3,
+      "rows": 5000,
+      "streamAndDraftTurnP95Milliseconds": 0.83475
+    }
+  ]
+}

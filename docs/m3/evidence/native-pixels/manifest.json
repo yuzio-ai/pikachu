@@ -1,0 +1,129 @@
+{
+  "dateAsiaShanghai": "2026-11-18",
+  "gate": "M3_PASS_FINAL_NATIVE_PERFORMANCE",
+  "gateReason": "Final release fingerprint passed all frozen native and domain targets after the desktop was unlocked.",
+  "scope": "Phase 1 M3 window presentation; no Phase 2 implementation",
+  "implementations": {
+    "pilot": {
+      "path": "dist/M3PixelPilot/Pikachu.app/Contents/MacOS/Pikachu",
+      "sha256": "773819c4fa6e30e36d613b0d8f7d0fae2a3adbde1804f75822161f6d08b713f1",
+      "uuid": "2EDEC4F5-A584-3365-9CC5-9AEA2DE475BC"
+    },
+    "before": {
+      "path": "/tmp/Pikachu-M3-Pixels.pIl7G1/before/Pikachu.app/Contents/MacOS/Pikachu",
+      "sha256": "7e988575bfdb6c189df0206cf473714e146f20256c9164b1d3a32b0a9bce630b",
+      "uuid": "F2778377-D992-37CB-B235-F1DBB1228D48"
+    },
+    "allHeights": {
+      "path": "/tmp/Pikachu-M3-Pixels.pIl7G1/all-heights/Pikachu.app/Contents/MacOS/Pikachu",
+      "sha256": "695f7f447b865f1b3e51d9493b76623389784b4e4c52f1b7969cc5007bf22f57",
+      "uuid": "25A2714C-CFB0-3D9D-AC6B-AF20E0D6505C"
+    },
+    "finalDiagnostic": {
+      "path": "dist/M3ValidationFixed/Pikachu.app/Contents/MacOS/Pikachu",
+      "sha256": "3952c61eb550500271cbe68e4b6fb530ac91a551678736a8c918ba5d0133f78d",
+      "uuid": "1DDADE64-83BE-398A-901D-7A6230126DA9"
+    },
+    "release": {
+      "path": "dist/Release/Pikachu.app/Contents/MacOS/Pikachu",
+      "sha256": "2c1033d6f593f7b465a46c18a7185990faad4b0bd7d7f070d994bcd9fb8aa1ca",
+      "uuid": "1DDADE64-83BE-398A-901D-7A6230126DA9"
+    }
+  },
+  "sourceHashes": {
+    "Packages/OrchestrationCore/SessionController.swift": "7e4c78358f15581f8cdac7b4d012b9ec649bce8d056ad7e8a31df5de11785c0a",
+    "Packages/OrchestrationCore/WorkspaceController.swift": "31cd59ea74d4df0645df55f661e02b0ed72cec502d65968e7feb5f8f5f1e5826",
+    "PikachuApp/DiagnosticMetrics.swift": "ada2027513194f8d84bf658bd17c46a2e020fa0bd0ce645c62acb102bf20ec08",
+    "PikachuApp/NativeTranscript.swift": "551a44cb4b7dcaf2af50dbb4ca6f52ffedb59f46b1f5ca6e27ea429e75c097a6",
+    "PikachuApp/WindowPixelCapture.swift": "e6ce9d8b00599bf36483450256f3dc32b388f80267c185e51110cab8f438792b",
+    "PikachuApp/WorkbenchView.swift": "ef2ed02ef803e62261703e5cfc82d4dc4f849e2fe0a9c481600f43b9842203bc",
+    "Scripts/analyze-m3-pixels.py": "bae461c20cc0fb47a4192f46eaf9af48616c7c73bb150e03c2ea6ad715bad9ab",
+    "Tests/PikachuCoreTests/WorkspaceTests.swift": "6445ad20436759f7f48777b01f6ef83ca0b74a309c8a8311d5421ba78afa5e34"
+  },
+  "fixtureHashes": {
+    "sessions/ordinary.jsonl": "c49f4810b8b3fd2344a517b1591d7fe2ff7f450e1f6254f1f54cdc6dbd94d72a",
+    "sessions/long.jsonl": "3b4b395b696a60770ac885936dfb0f0b3092c183d5dee27e2d45fce347f4f986",
+    "sessions/large-output.txt": "462a12a876c0364e4f1f3d12ed33dcae125f1198010ff78d8f4c3f4de0412d49",
+    "fixtures/stream-pi": "e689f2d4192c4d73caa806b889bbeaac8d5b6ff9ddcd2ca386d7cfd875bd9369"
+  },
+  "regressionSummary": {
+    "unit": 47,
+    "m1Local": 9,
+    "m2Real": 11,
+    "m3": 8
+  },
+  "sameSupervisionSourceAsM3": true,
+  "presentedEndpoint": "SCStreamFrameInfo.displayTime (WindowServer host time), display ID 2 60 Hz, 1099x930 pt, 2x backing; LCD scanout not measured",
+  "originalTraceLocations": {
+    "scroll.trace": "/tmp/Pikachu-M3-Pixels.pIl7G1/scroll.trace",
+    "scroll-repeat.trace": "/tmp/Pikachu-M3-Pixels.pIl7G1/scroll-repeat.trace",
+    "continuous.trace": "/tmp/Pikachu-M3-Pixels.pIl7G1/continuous.trace",
+    "final-scroll.trace": "/tmp/Pikachu-M3-Pixels.pIl7G1/final-scroll.trace",
+    "finalBinaryRetest": "/tmp/Pikachu-M3-Pixels.pIl7G1/retest-hangs.trace"
+  },
+  "rawFrameRetention": "JSONL timing and pixel statistics, no image buffers persisted",
+  "evidenceHashes": {
+    "all-heights-events.jsonl.gz": "5cc2be21478d9c5e815be41089df31deb7ab3669d1f26a6c95e69979c9a0dba6",
+    "all-heights-hangs.md": "2e412c2c755cd2352369bf36f031980079117fcd82f12cc5e872b1483f669347",
+    "all-heights-pixels.jsonl.gz": "1d196e54332dd44a49e377efdcfc47e5c69261457843ddfc8017118ca90e4d2f",
+    "all-heights-scroll-signposts.md": "00c3d6f00eb483e640cef2ef78f012bef7c45a3aa61cdf7414f33c9b246e1631",
+    "all-heights-summary.json": "a8b668518baa07e6e0fb564e69e4dd5e35dcbbaea0456bcdb0edd16ea0e141f4",
+    "before-events.jsonl.gz": "3df81ed3c774bea533bcf1d909a4ada78d3bc97511d0fcfe69fc590b649f558b",
+    "before-pixels.jsonl.gz": "fcc7fceafe498a8209fdef1bcc77c1f1c8e60a3784f351c14dc8b44378caf439",
+    "before-rss.jsonl.gz": "996c1bf2f5e8adf21c8e3f049be824ea61396d43d23a8136c1d89c8510fdb6ea",
+    "before-summary.json": "42023ea6b828aaec2217758689cac770513c5092f55c2c01d1654061758b0f5d",
+    "continuous-hangs.md": "2e412c2c755cd2352369bf36f031980079117fcd82f12cc5e872b1483f669347",
+    "continuous-scroll-signposts.md": "66485c69b8a69dacc8632a498b9673cb38e6a9118dedf2ea8af529381ed0caf3",
+    "domain-projection.json": "1173a503b7b874ee584b531a23fcea0729d0375060be9888a1a029c2b1795b7a",
+    "m2-regression.json": "33345780debcf4383d541731a695da91a257bfabe534721a52f6827a62e66fc4",
+    "m3-regression.json": "70e7725c29c5d00d1b6961d40165f7eb68e4c77a89ce1c82bb666ddbb1dfa657",
+    "pilot-events.jsonl.gz": "6f955bcc98893e7fef336b52610ed8429deb6c3dca47071a65fcccd300a8db3a",
+    "pilot-pixels.jsonl.gz": "563957b65fea828e8bd8eae4ef2037392b24e6b1e4d1b00c27274ab0ea3596ac",
+    "pilot-summary.json": "7032b490e35cab20f7ee6920d7ab268db15755debf4d5b1b89e87619f8302060",
+    "regression-counts.json": "2888f0c24fa50a4c16c98d8d3db24de283927f6428a4b5957f1cf468706cb5fd",
+    "retest-events.jsonl.gz": "90040cd93305486e22235cebd9fa936238ca5294fbf21a65064c8a4450f11d23",
+    "retest-hangs.log": "83075cda2d572f0a88a5fcd55931ada5d0d33da2a7aaf2228d2bb6360e796e7b",
+    "retest-hangs.md": "2e412c2c755cd2352369bf36f031980079117fcd82f12cc5e872b1483f669347",
+    "retest-pixels.jsonl.gz": "8e2ef082a6337f36fd9399c0f7648419e91eb78bd79a607e355de86aca68036a",
+    "retest-rss.jsonl.gz": "700a1756a70a5987c25784b3657912bbe692d8721987e88df47cbdd9960ebc47",
+    "retest-scroll-signposts.md": "98ac173e2a0a88214afebd0e7610ec14c6a96c8f772a6c1a93284b69f115e45f",
+    "retest-summary.json": "fb242e039826e86501bd943e6136ff0dc3721a50851cca14c69cea6ea9a8e013",
+    "retest-toc.txt": "2dae14eb52e5c1574a0303f15c639c390d646b415c3f6ce4b43232bad224be04"
+  },
+  "priorGate": "PIXEL_ENDPOINTS_ESTABLISHED_FINAL_NATIVE_RETEST_INCOMPLETE",
+  "finalRetest": {
+    "buildUUID": "1DDADE64-83BE-398A-901D-7A6230126DA9",
+    "scrollAndInputHostPID": 26195,
+    "supplementalHistoryPID": 27878,
+    "scroll": {
+      "count": 712,
+      "p95MS": 17.780334048438817,
+      "maxMS": 50.09879101999104,
+      "capturedHangs": 0,
+      "traceDurationSeconds": 45,
+      "startEndSignposts": 6
+    },
+    "inputBeforeVisibleFinalOutput": {
+      "count": 55,
+      "p95MS": 47.884207975585014,
+      "maxMS": 55.105125007685274
+    },
+    "inputAll": {
+      "count": 60,
+      "p95MS": 46.645291964523494,
+      "maxMS": 55.105125007685274
+    },
+    "coldProcesses": 10,
+    "shortAndLongHistoryMeasuredPerCohort": 20,
+    "historySelectionsWithoutPixelsAfterCap": 20,
+    "largestRetainedRSSDeltaBytes": 42860544.0,
+    "runtimeDisconnected": true,
+    "diagnosticAppExited": true,
+    "fullResults": "retest-summary.json",
+    "rawData": [
+      "retest-events.jsonl.gz",
+      "retest-pixels.jsonl.gz",
+      "retest-rss.jsonl.gz"
+    ]
+  }
+}

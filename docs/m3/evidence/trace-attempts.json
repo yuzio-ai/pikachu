@@ -1,0 +1,55 @@
+{
+  "acceptance": "INCOMPLETE",
+  "logs": [
+    {
+      "source": "/tmp/pikachu-m3-trace-before.log",
+      "export": "trace-trace-before.log",
+      "sha256": "7cba6c7d7f1a8a66e7986d372b6147f3925c1cfdfb154f95085609a7af4b3827"
+    },
+    {
+      "source": "/tmp/pikachu-m3-trace-fixed.log",
+      "export": "trace-trace-fixed.log",
+      "sha256": "39416fa432ca30d60e8e3dc37264d9b7da4c085e445ced1d079ef6a6c7bfe6f2"
+    },
+    {
+      "source": "/tmp/pikachu-m3-native-final-trace.log",
+      "export": "trace-native-final-trace.log",
+      "sha256": "2d62ccf92c5c226461b86a956c0c2aaf9b01b69ef3695b78102dc4fc7d195de8"
+    },
+    {
+      "source": "/tmp/pikachu-m3-acceptance-scroll.log",
+      "export": "trace-acceptance-scroll.log",
+      "sha256": "bf4b2b7693ab982ce67d96ca6e73a5d1af81a5cd25b09f52d3faf3c449923385"
+    },
+    {
+      "source": "/tmp/pikachu-m3-foreground-scroll-ready.log",
+      "export": "trace-foreground-scroll-ready.log",
+      "sha256": "58e75d5ee2c9e4f5ed2cdd5051f524d812e6a62d3999f5d567a47f058b9dff30"
+    },
+    {
+      "source": "/tmp/pikachu-m3-front-final.log",
+      "export": "trace-front-final.log",
+      "sha256": "8ca1481de56dbe77d391abb60dea41b33547e80a00d936cb161442f247ba08f8"
+    }
+  ],
+  "rawTraceRoot": "/tmp/pikachu-m3-*.trace",
+  "rawTracePolicy": "temporary local artifacts; cross-app display surfaces are not copied into project evidence",
+  "displayResolutionOnly": {
+    "builtIn": [
+      3024,
+      1964
+    ],
+    "external": [
+      3840,
+      2160
+    ]
+  },
+  "refreshRate": "not fixed or reliably recorded; cannot establish frozen frame condition",
+  "limitations": [
+    "Core Animation FPS unsupported on macOS",
+    "tagged-backtrace internal instrument error",
+    "no attributable Pikachu display surface",
+    "CA Server recording made CUA window unavailable despite live process"
+  ],
+  "olderPausesNotBoundToFinalCandidate": true
+}

@@ -1,0 +1,26 @@
+{
+  "errors" : [
+    "provider error (detail omitted from diagnostics)",
+    "provider error (detail omitted from diagnostics)",
+    "provider error (detail omitted from diagnostics)",
+    "provider error (detail omitted from diagnostics)"
+  ],
+  "summary" : {
+    "elapsedSeconds" : 56.268493056297302,
+    "events" : {
+      "agent_end" : 4,
+      "agent_settled" : 1,
+      "agent_start" : 4,
+      "auto_retry_end" : 1,
+      "auto_retry_start" : 3,
+      "entry_appended" : 3,
+      "message_end" : 6,
+      "message_start" : 6,
+      "response" : 2,
+      "turn_end" : 4,
+      "turn_start" : 4
+    },
+    "instanceID" : "0C2F75F2-D04F-4F4F-A6FA-3FB2FD7BE43E",
+    "stderrBytes" : 0
+  }
+}

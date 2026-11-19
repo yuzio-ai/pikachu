@@ -1,0 +1,21 @@
+{
+  "agentTool" : true,
+  "descendantSurvivedPiSIGKILL" : true,
+  "explicitKnownPIDCleanupSucceeded" : true,
+  "piExited" : true,
+  "summary" : {
+    "elapsedSeconds" : 3.5545859336853027,
+    "events" : {
+      "agent_start" : 1,
+      "message_end" : 3,
+      "message_start" : 3,
+      "message_update" : 35,
+      "response" : 2,
+      "tool_execution_start" : 1,
+      "tool_execution_update" : 1,
+      "turn_start" : 1
+    },
+    "instanceID" : "FA309921-D2C3-4A85-AB00-16D8A3F510C9",
+    "stderrBytes" : 0
+  }
+}

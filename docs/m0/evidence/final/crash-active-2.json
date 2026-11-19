@@ -1,0 +1,13 @@
+{
+  "descendantSurvivedPiSIGKILL" : true,
+  "explicitKnownPIDCleanupSucceeded" : true,
+  "pendingEnded" : true,
+  "summary" : {
+    "elapsedSeconds" : 0.9350130558013916,
+    "events" : {
+      "response" : 1
+    },
+    "instanceID" : "E6C8DEB6-3FC4-447B-B82D-A3022CA4FB03",
+    "stderrBytes" : 0
+  }
+}

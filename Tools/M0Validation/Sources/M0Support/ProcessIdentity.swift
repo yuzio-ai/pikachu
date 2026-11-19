@@ -1,0 +1,34 @@
+import Foundation
+import Darwin
+import CM0Process
+
+public struct ProcessIdentity: Hashable, Sendable {
+    public let pid: Int32
+    public let parent: Int32
+    public let seconds: UInt64
+    public let microseconds: UInt64
+    public let status: UInt32
+    public static func read(_ pid: Int32) -> ProcessIdentity? {
+        var value = m0_identity()
+        guard m0_identity_for(pid, &value) == 0, value.uid == getuid() || value.status == 5 else { return nil }
+        return .init(pid: pid, parent: value.ppid, seconds: value.seconds,
+                     microseconds: value.microseconds, status: value.status)
+    }
+    public func sameProcess(as other: ProcessIdentity) -> Bool {
+        pid == other.pid && seconds == other.seconds && microseconds == other.microseconds
+    }
+    public var live: Bool { status != 5 } // SZOMB: no execution remains, may await reaping.
+    public func signal(_ value: Int32) -> Bool {
+        guard let now = Self.read(pid), sameProcess(as: now), now.live else { return false }
+        return kill(pid, value) == 0
+    }
+    public static func snapshot() throws -> [ProcessIdentity] {
+        var pids = [Int32](repeating: 0, count: 32768)
+        let count = m0_pids(&pids, Int32(pids.count))
+        guard count > 0, count < pids.count else { throw ProbeError.failure("Process enumeration unavailable or overflowed") }
+        return pids.prefix(Int(count)).filter { $0 > 0 }.compactMap(Self.read)
+    }
+    public static func marked(_ identities: [ProcessIdentity], token: String) -> [ProcessIdentity] {
+        identities.filter { entry in token.withCString { m0_has_marker(entry.pid, $0) == 1 } }
+    }
+}

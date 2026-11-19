@@ -1,0 +1,43 @@
+{
+  "method": "CUA native accessibility, actual key events and screenshots; fixture output files independently read. UI tests use isolated bundle ID and empty auth.",
+  "checks": [
+    {
+      "case": "four-dialogs",
+      "status": "pass",
+      "observed": {
+        "choice": "Beta",
+        "confirmed": false,
+        "input": "M3 final input",
+        "editor": "M3 final editor\n第二行"
+      },
+      "notes": "Return did not accept confirmation; editor prefill was separate from previous input. UI-dialog candidate precedes quit-route-only changes."
+    },
+    {
+      "case": "cancel-and-stop",
+      "status": "pass",
+      "observed": "Escape/stop retire request, pending prompt settles, history draft preserved; pending entry names executing session."
+    },
+    {
+      "case": "keyboard-and-accessibility",
+      "status": "pass",
+      "observed": "Cmd L/N/Shift R/Shift U, native code copy pasted exact code; visible tool arguments/output exposed to AX; expanded rows measured without overlap. Not a complete VoiceOver audit."
+    },
+    {
+      "case": "quit-waiting-input",
+      "status": "pass",
+      "pid": 12948,
+      "observed": "Cmd Q from extension sheet opens stop/quit confirmation; null reply written; App and supervisor absent after confirmation. RunLoop candidate."
+    },
+    {
+      "case": "dark-native-load",
+      "status": "pass",
+      "pid": 13353,
+      "observed": "30 real a key presses retained during streaming; canonical result and completed tool; expanded 10 MiB result shows 输出过长，仅显示部分内容。; stop/quit confirms and app/supervisor exit."
+    }
+  ],
+  "unverified": [
+    "pixel presentation latency",
+    "attributable frame p95 and no >100ms stalls on final candidate",
+    "full VoiceOver traversal"
+  ]
+}

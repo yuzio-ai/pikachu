@@ -1,0 +1,97 @@
+{
+  "dateAsiaShanghai": "2026-11-18",
+  "gate": "M1_FUNCTIONAL_PASS_WITH_DOCUMENTED_SCOPE",
+  "milestoneBoundary": "M1 only; no M2 implementation",
+  "counts": {
+    "unitPassed": 17,
+    "integrationPassed": 13,
+    "M0IntegrationPassed": 40,
+    "M0UnitPassed": 9
+  },
+  "integrationRun": "2026-11-17T21-18-27Z",
+  "M0RegressionRun": "2026-11-17T21-03-27Z-all",
+  "sourceHashes": {
+    "Package.swift": "1536912c84e1e9be7c4f606444cbb8d940a7145dddc5d3e4eb42e35d0460abd2",
+    "Packages/AgentRuntimeCore/FakeRuntime.swift": "70520e72a3a73603dd479334b413b3ae140a0cce101baaf5db38489dd3fc5c11",
+    "Packages/AgentRuntimeCore/Runtime.swift": "57dba19b64f588d0b5de4cadf660b763ce1aeb75d6894bd653543aeadfac0d05",
+    "Packages/OrchestrationCore/MarkdownBlocks.swift": "22a59df72d64d8aafb713d3a3cd1e7cd1be5b680228d513e819396a3e5658f07",
+    "Packages/OrchestrationCore/SessionController.swift": "eeea12239015d06b3a3e4a1cf9baabb5db5f74a9c81ad0ab0f147e417baff690",
+    "Packages/PiRuntimeAdapter/PiConfiguration.swift": "a193d0ff6f54529ba8eedbb4d5347070c608e85d46a04f4819a0fee339239cde",
+    "Packages/PiRuntimeAdapter/PiEventMapper.swift": "e512ff46da84c494fb89ab38271ec98956b97aef1ce6f745823aa65511980679",
+    "Packages/PiRuntimeAdapter/PiRuntime.swift": "e3df712e3b954e86e1c784635e2c9f8773cf4a5c60af98d5b48f4df13afd31fc",
+    "PikachuApp/AppSettings.swift": "0f7fbd98493ca9d88958fe1dee31517af5d4c5882c4a97a2581afef3ab647bf9",
+    "PikachuApp/ComposerView.swift": "55f58b719cab22dc93233c450370ed176040cbe3d8cb84abf6a51fce991dbcfd",
+    "PikachuApp/PikachuApp.swift": "39babd67fb22a59f069364385bc610a205fbff8003fb2abc9bef190b4be59fab",
+    "PikachuApp/TranscriptView.swift": "31b427d625aabde580a463050de5aa726ba64da0828e5a2020705b1a2836c66e",
+    "PikachuApp/WorkbenchView.swift": "edf5e143f8089de8e1a6376731028feba48818788fb005e477cfa1770724a9a8",
+    "Scripts/build-app.py": "68b8100f413585ec0bdbe35245b928695cc2b1ac596def07036c8882f6bd4111",
+    "Tests/PikachuCoreTests/RuntimeTests.swift": "aeb2a023a440ab995d0766d1a087f3f344868dfda23f00173723e1cced7a9c2f",
+    "Tools/M0Validation/Sources/CM0Process/include/CM0Process.h": "21673a4d9120cebf2f36253d217ffa2dc80b08616d7f943ec5b9506f365d67c4",
+    "Tools/M0Validation/Sources/CM0Process/process.c": "793c1001109e3c582d6ae606d563d141cbd3de6faf616c03dcc376eba2441976",
+    "Tools/M0Validation/Sources/M0Supervisor/main.swift": "77f4cc3c1b944a2ea2501711a9e5b394bb5b54de0e0fa768b33c71a520c152d3",
+    "Tools/M0Validation/Sources/M0Support/History.swift": "098b2e9c5a90f48fae426797266adc0a5939887c0ad84b74c01a304610f334f4",
+    "Tools/M0Validation/Sources/M0Support/ProcessIdentity.swift": "41b6553cc81e15b20b0f565da5bb37be296f1e57c3463403d0a14531f6335691",
+    "Tools/M0Validation/Sources/M0Support/RPC.swift": "90555b6d62c2c44f01949fefcef31d676a69a40f9f897fdd31f1012fb7d4bd61",
+    "Tools/M0Validation/Sources/M0Verify/main.swift": "0782ce5b871d4f9be39a4bd1a217d6e794b37a5bad5cc8afce469d4e9deb17de",
+    "Tools/M1Verification/Baseline.swift": "3db71442d3f37bb70a2216724f16b4cd6d068b58870114ee7fce5db91e1aee70",
+    "Tools/M1Verification/Fixtures/fake-pi.py": "447be33f6c219e3c09bad6374a98e9a9df7e3b40e3217c02bbd36321aad0649d",
+    "Tools/M1Verification/main.swift": "7c47275102dda204b43ec7d24c3566f34857590cf2f22e8a3a6bbfe23b5817e0"
+  },
+  "artifactHashes": {
+    "dist/Pikachu.app/Contents/MacOS/Pikachu": "9b4b62b26263c5e36d1707b172693cc7819e11b7243c6c6742f85aff67c0189a",
+    "dist/Pikachu.app/Contents/MacOS/m0-supervisor": "80745ed6e3818e2c23d64b69d61feecc792e0a7d28d069dcd5d6d3e83506e7d9",
+    ".build/debug/m1-verify": "bfe4f19e8c597216f1df6c09bbc359ec47003057786ec92405f7830f15c2d9c4"
+  },
+  "supervisionSourceCheck": {
+    "unchangedFiles": {
+      "Tools/M0Validation/Sources/M0Verify/main.swift": true,
+      "Tools/M0Validation/Sources/CM0Process/process.c": true,
+      "Tools/M0Validation/Sources/M0Supervisor/main.swift": true,
+      "Tools/M0Validation/Sources/M0Support/ProcessIdentity.swift": true,
+      "Tools/M0Validation/Sources/M0Support/History.swift": true,
+      "Tools/M0Validation/Sources/CM0Process/include/CM0Process.h": true
+    },
+    "RPCWithOnlyObservationRemovedMatchesM0": true
+  },
+  "credentialScan": {
+    "knownValuesChecked": 3,
+    "filesChecked": 22,
+    "matches": 0,
+    "temporaryAuthRemoved": true
+  },
+  "nativeFinalWorkerInactive": true,
+  "performanceScope": "Domain projection baseline only; native metrics not claimed",
+  "environment": {
+    "cpu": "Apple M4 Pro",
+    "hardwareModel": "Mac16,8",
+    "OS": "macOS 27.2.1 (26B131)",
+    "xcode": "27.2 (27B52)",
+    "build": "debug, ad-hoc signed",
+    "Pi": "1.5.2",
+    "Node": "24.12.0"
+  },
+  "evidenceHashes": {
+    "baseline/projection-before.json": "6694e7814870f85d0096865808ec906646d9b27ddaa7e696fb22e6aaa139e7da",
+    "baseline/projection.json": "2cf551368b06d46de225821d124d2f8f32631dd4e12767d90d4f8a7b0da33e1b",
+    "build.txt": "bb8ea31127385df053a058fbaca7e43089997b3439b0e9005c67364780e00e77",
+    "integration/output.txt": "91b347c54a79ef892d536441e3bc8a5d60fa2c5b493c2623df5f6995f0d2475f",
+    "integration/results.json": "f4efcedf0a77ea1ca1aaa65caf48877a6f6a8a061229df5dd1f69a5c562c2c3a",
+    "integration/run.json": "d01e2cf97555585466ca407c58658d3a5b5e719fdcc5c9577dd52cb0965ed09d",
+    "intermediate-results.json": "7cd1d4e1fce6422d8172efd81b1067328e4ac4a57d3e25661d64cd26daa48501",
+    "m0-regression/agent-crash-active-1.json": "abe617ad9c4e94ed2c2e5029e246f1ef4d5d88cbe492cea708779f6e3ef0f736",
+    "m0-regression/agent-crash-active-2.json": "9fb5fbb345d4861dc51d934e33299ec45e038869dfa7cd75428848c6b7d5f065",
+    "m0-regression/agent-crash-active-3.json": "8e33abb81c2c0215cc11bbd3e07fedafd2bef28873455f63662f7f6ae1c8bb32",
+    "m0-regression/crash-active-1.json": "4d54b96fa2495ef8ef93c2c04839226a064545fde156805665eddc52c23d4d8f",
+    "m0-regression/crash-active-2.json": "a49742eac250cc828b8d41c86c5dc3698a0bb30f4f6d846b290ec563722359d8",
+    "m0-regression/crash-active-3.json": "c53c2e6773b4d14bfaa884c66498366c1e1dcc87a1d98111eb9a631c53936bba",
+    "m0-regression/results.json": "8370a8ce1a7a528c1e72880ab5d8c4280d3d2f9bd4220e9a30a3cf65a1e0c7db",
+    "m0-swift-test.txt": "19dd50adfeb321de111a76f797c81e7a8b9fe86539b8c8606a0d96068fbdc148",
+    "native/accessibility-crash.json": "aaaf63d1794ebdc2d831a9a69fa45cf4787e6e53482325d2c0ff9a89ee14a927",
+    "native/baseline.json": "c7440f20ffbdccc2dd4deb7815a8297b410309ce655e9168474fe9e93ff77cbe",
+    "native/final-task-independent.txt": "46c8f751677d12439822e00608ea8cdd4d30e6b24b8727bac8e43135f8fae493",
+    "native/final.json": "2813044696ccd35e7e971f6854181db094068a3fe4c1d484701119a09d1ba623",
+    "native/first-task-independent.txt": "15425cafb4b050a1529c3d3a446b7051f42aa5c5db5913a7bb7eb02cce7af76c",
+    "supervision-source-check.json": "89b5e7e8ba19e2d1b988ee423faa76f9f322dea74a45617453945d595757e961",
+    "swift-test.txt": "9f15986c077dbdf5d879a8ec6fca23137d8f21e3e9614ffff67ad1c79fcfbd27"
+  }
+}

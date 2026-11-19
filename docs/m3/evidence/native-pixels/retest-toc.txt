@@ -1,0 +1,37 @@
+Time Profiler
+├── [calltree] Profile (schema: time-profile)
+└── [summary] Summary: CPU Usage (schema: SystemCPUUsage)
+Points of Interest
+├── [summary] Summary: Regions of Interest (schema: OSSignpostIntervals)
+│   └── focus: [list] List: Regions of Interest (schema: OSSignpostIntervals)
+├── [summary] Summary: Points of Interest (schema: PointsOfInterestEvents)
+│   └── focus: [list] List: Points of Interest (schema: PointsOfInterestEvents)
+├── [summary] Summary: Regions Metadata Statistics (schema: os-signpost-arg)
+├── [list] List: Regions of Interest (schema: OSSignpostIntervals)
+└── [list] List: Points of Interest (schema: PointsOfInterestEvents)
+Thermal State
+└── [list] Thermal States (schema: device-thermal-state-intervals)
+Hangs
+├── [summary] Summary: Hangs (schema: potential-hangs)
+│   └── focus: [list] Hangs (schema: potential-hangs)
+└── [list] Hangs (schema: potential-hangs)
+
+Details for dynamic tracks
+CPU
+└── [calltree] Profile (schema: time-profile)
+
+Process
+├── [calltree] Profile (schema: time-profile)
+├── [summary] Summary: Hangs (schema: potential-hangs)
+│   └── focus: [list] Hangs (schema: potential-hangs)
+├── [list] Hangs (schema: potential-hangs)
+├── [summary] Summary: CPU Usage (schema: ProcessCPUUsage)
+├── [summary] Summary: Points of Interest (schema: PointsOfInterestEvents)
+│   └── focus: [list] List: Points of Interest (schema: PointsOfInterestEvents)
+├── [list] App Lifecycle (schema: life-cycle-period)
+├── [list] Hang Risks (schema: hang-risks)
+└── [list] List: Points of Interest (schema: PointsOfInterestEvents)
+
+Process/Thread
+├── [calltree] Profile (schema: time-profile)
+└── [summary] Summary: CPU Usage (schema: ThreadCPUUsage)

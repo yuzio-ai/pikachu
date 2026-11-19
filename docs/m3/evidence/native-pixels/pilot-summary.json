@@ -1,0 +1,652 @@
+{
+  "captureConfigurations": [
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 18778,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34545
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 19593,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34595
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20032,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34611
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20038,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34622
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20048,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34631
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20105,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34640
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20168,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34649
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20212,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34658
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20223,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34667
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20251,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34676
+    },
+    {
+      "backingScale": 2,
+      "display": 2,
+      "height": 1860,
+      "kind": "start",
+      "pid": 20311,
+      "pointHeight": 930,
+      "pointWidth": 1099,
+      "refreshHz": 60,
+      "screenPermission": false,
+      "width": 2198,
+      "windowID": 34685
+    }
+  ],
+  "input": {
+    "pid": 18778,
+    "visibleFinalOutputTime": 445516.9194625,
+    "keys": 30,
+    "unmatched": 0,
+    "all": {
+      "count": 30,
+      "p95MS": 39.46900001028553,
+      "maxMS": 39.874083013273776
+    },
+    "beforeFinalOutput": {
+      "count": 30,
+      "p95MS": 39.46900001028553,
+      "maxMS": 39.874083013273776
+    },
+    "samples": [
+      {
+        "key": 1,
+        "eventTime": 445513.621418166,
+        "glyphDisplayTime": 445513.652112083,
+        "rightmostGlyphPixel": 19,
+        "latencyMS": 30.69391701137647,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 2,
+        "eventTime": 445513.704715458,
+        "glyphDisplayTime": 445513.735209208,
+        "rightmostGlyphPixel": 42,
+        "latencyMS": 30.49375000409782,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 3,
+        "eventTime": 445513.788413916,
+        "glyphDisplayTime": 445513.818083916,
+        "rightmostGlyphPixel": 64,
+        "latencyMS": 29.669999959878623,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 4,
+        "eventTime": 445513.876044083,
+        "glyphDisplayTime": 445513.90164825,
+        "rightmostGlyphPixel": 87,
+        "latencyMS": 25.60416702181101,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 5,
+        "eventTime": 445513.961066166,
+        "glyphDisplayTime": 445513.986089708,
+        "rightmostGlyphPixel": 109,
+        "latencyMS": 25.023541995324194,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 6,
+        "eventTime": 445514.051778083,
+        "glyphDisplayTime": 445514.084845916,
+        "rightmostGlyphPixel": 132,
+        "latencyMS": 33.06783299194649,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 7,
+        "eventTime": 445514.140301625,
+        "glyphDisplayTime": 445514.168678958,
+        "rightmostGlyphPixel": 154,
+        "latencyMS": 28.377333015669137,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 8,
+        "eventTime": 445514.225836541,
+        "glyphDisplayTime": 445514.252660916,
+        "rightmostGlyphPixel": 176,
+        "latencyMS": 26.82437503244728,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 9,
+        "eventTime": 445514.314397083,
+        "glyphDisplayTime": 445514.351962666,
+        "rightmostGlyphPixel": 199,
+        "latencyMS": 37.56558301392943,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 10,
+        "eventTime": 445514.406448125,
+        "glyphDisplayTime": 445514.43460325,
+        "rightmostGlyphPixel": 221,
+        "latencyMS": 28.15512497909367,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 11,
+        "eventTime": 445514.493076916,
+        "glyphDisplayTime": 445514.518823083,
+        "rightmostGlyphPixel": 244,
+        "latencyMS": 25.74616699712351,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 12,
+        "eventTime": 445514.5786955,
+        "glyphDisplayTime": 445514.617803833,
+        "rightmostGlyphPixel": 266,
+        "latencyMS": 39.10833300324157,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 13,
+        "eventTime": 445514.663669041,
+        "glyphDisplayTime": 445514.700726208,
+        "rightmostGlyphPixel": 289,
+        "latencyMS": 37.057166977319866,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 14,
+        "eventTime": 445514.7575635,
+        "glyphDisplayTime": 445514.784658166,
+        "rightmostGlyphPixel": 311,
+        "latencyMS": 27.094665972981602,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 15,
+        "eventTime": 445514.845941,
+        "glyphDisplayTime": 445514.884385291,
+        "rightmostGlyphPixel": 334,
+        "latencyMS": 38.44429104356095,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 16,
+        "eventTime": 445514.937632583,
+        "glyphDisplayTime": 445514.967418041,
+        "rightmostGlyphPixel": 356,
+        "latencyMS": 29.785457998514175,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 17,
+        "eventTime": 445515.021530916,
+        "glyphDisplayTime": 445515.051373958,
+        "rightmostGlyphPixel": 379,
+        "latencyMS": 29.843042022548616,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 18,
+        "eventTime": 445515.110203291,
+        "glyphDisplayTime": 445515.1347185,
+        "rightmostGlyphPixel": 401,
+        "latencyMS": 24.515209021046758,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 19,
+        "eventTime": 445515.194626791,
+        "glyphDisplayTime": 445515.218479291,
+        "rightmostGlyphPixel": 424,
+        "latencyMS": 23.85250001680106,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 20,
+        "eventTime": 445515.286790416,
+        "glyphDisplayTime": 445515.317842416,
+        "rightmostGlyphPixel": 446,
+        "latencyMS": 31.052000005729496,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 21,
+        "eventTime": 445515.376173625,
+        "glyphDisplayTime": 445515.402397333,
+        "rightmostGlyphPixel": 469,
+        "latencyMS": 26.2237080023624,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 22,
+        "eventTime": 445515.459849666,
+        "glyphDisplayTime": 445515.486066375,
+        "rightmostGlyphPixel": 491,
+        "latencyMS": 26.216708996798843,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 23,
+        "eventTime": 445515.545422541,
+        "glyphDisplayTime": 445515.584891541,
+        "rightmostGlyphPixel": 514,
+        "latencyMS": 39.46900001028553,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 24,
+        "eventTime": 445515.643343916,
+        "glyphDisplayTime": 445515.668260458,
+        "rightmostGlyphPixel": 536,
+        "latencyMS": 24.916541995480657,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 25,
+        "eventTime": 445515.73221775,
+        "glyphDisplayTime": 445515.76837575,
+        "rightmostGlyphPixel": 558,
+        "latencyMS": 36.158000002615154,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 26,
+        "eventTime": 445515.823577,
+        "glyphDisplayTime": 445515.851323041,
+        "rightmostGlyphPixel": 581,
+        "latencyMS": 27.746041014324874,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 27,
+        "eventTime": 445515.911488125,
+        "glyphDisplayTime": 445515.934400583,
+        "rightmostGlyphPixel": 603,
+        "latencyMS": 22.912457992788404,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 28,
+        "eventTime": 445516.001761666,
+        "glyphDisplayTime": 445516.034109458,
+        "rightmostGlyphPixel": 626,
+        "latencyMS": 32.347792002838105,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 29,
+        "eventTime": 445516.09097125,
+        "glyphDisplayTime": 445516.117966333,
+        "rightmostGlyphPixel": 648,
+        "latencyMS": 26.99508296791464,
+        "beforeVisibleFinalOutput": true
+      },
+      {
+        "key": 30,
+        "eventTime": 445516.178808875,
+        "glyphDisplayTime": 445516.218682958,
+        "rightmostGlyphPixel": 671,
+        "latencyMS": 39.874083013273776,
+        "beforeVisibleFinalOutput": true
+      }
+    ]
+  },
+  "history": {
+    "100": {
+      "stableReadableUpper": {
+        "count": 10,
+        "p95MS": 300.04212429048494,
+        "maxMS": 300.04212429048494
+      },
+      "fullModelClientDraw": {
+        "count": 10,
+        "p95MS": 74.07220837194473,
+        "maxMS": 74.07220837194473
+      },
+      "samples": [
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446067.52441575,
+          "fullModelClientDrawMS": 58.074666711036116,
+          "stableReadablePixelUpperMS": 277.28479099459946,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446069.08893945836,
+          "fullModelClientDrawMS": 65.33391668926924,
+          "stableReadablePixelUpperMS": 279.37354164896533,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446070.6393417917,
+          "fullModelClientDrawMS": 69.76841669529676,
+          "stableReadablePixelUpperMS": 279.0735833114013,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446072.1900172917,
+          "fullModelClientDrawMS": 71.36599998921156,
+          "stableReadablePixelUpperMS": 300.04212429048494,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446073.73848937504,
+          "fullModelClientDrawMS": 72.75937497615814,
+          "stableReadablePixelUpperMS": 278.4309159615077,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446075.28650745837,
+          "fullModelClientDrawMS": 65.43379166396335,
+          "stableReadablePixelUpperMS": 263.074082613457,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446076.8066676667,
+          "fullModelClientDrawMS": 69.04254166875035,
+          "stableReadablePixelUpperMS": 278.95933331456035,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446078.33332645835,
+          "fullModelClientDrawMS": 67.72754166740924,
+          "stableReadablePixelUpperMS": 280.2781666396186,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446079.8246889167,
+          "fullModelClientDrawMS": 74.07220837194473,
+          "stableReadablePixelUpperMS": 278.15104130422696,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        },
+        {
+          "session": "55FEEC89-2C46-40BA-AD0C-37D2F3ABA13B",
+          "rows": 100,
+          "selectTime": 446081.33935645834,
+          "fullModelClientDrawMS": 70.57558337692171,
+          "stableReadablePixelUpperMS": 280.0192496506497,
+          "stableFingerprint": "4da0f28d5615bcc9"
+        }
+      ]
+    },
+    "5001": {
+      "stableReadableUpper": {
+        "count": 10,
+        "p95MS": 190.44724997365847,
+        "maxMS": 190.44724997365847
+      },
+      "fullModelClientDraw": {
+        "count": 10,
+        "p95MS": 173.34008333273232,
+        "maxMS": 173.34008333273232
+      },
+      "samples": [
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446068.25596845837,
+          "fullModelClientDrawMS": 170.91325001092628,
+          "stableReadablePixelUpperMS": 176.41341662965715,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446069.82284575,
+          "fullModelClientDrawMS": 164.1722916974686,
+          "stableReadablePixelUpperMS": 177.34424996888265,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446071.36403600004,
+          "fullModelClientDrawMS": 162.25608333479613,
+          "stableReadablePixelUpperMS": 168.23116596788168,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446072.923393875,
+          "fullModelClientDrawMS": 165.27375002624467,
+          "stableReadablePixelUpperMS": 176.87179101631045,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446074.47295995837,
+          "fullModelClientDrawMS": 163.54795830557123,
+          "stableReadablePixelUpperMS": 178.12587460502982,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446075.9781945,
+          "fullModelClientDrawMS": 164.1694166464731,
+          "stableReadablePixelUpperMS": 172.07487497944385,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446077.522249375,
+          "fullModelClientDrawMS": 161.36987501522526,
+          "stableReadablePixelUpperMS": 178.3084580092691,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446079.039326625,
+          "fullModelClientDrawMS": 163.9626667019911,
+          "stableReadablePixelUpperMS": 177.73783300071955,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446080.543936875,
+          "fullModelClientDrawMS": 173.34008333273232,
+          "stableReadablePixelUpperMS": 190.44724997365847,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        },
+        {
+          "session": "4E0B4D2A-D472-4E60-AD22-08699AABFD88",
+          "rows": 5001,
+          "selectTime": 446082.0751670417,
+          "fullModelClientDrawMS": 167.72320837480947,
+          "stableReadablePixelUpperMS": 175.9078743052669,
+          "stableFingerprint": "3ff73c1d3fa8df2"
+        }
+      ]
+    }
+  },
+  "cold": {
+    "count": 10,
+    "p95MS": 750.0050498056225,
+    "maxMS": 750.0050498056225,
+    "samples": [
+      {
+        "pid": 19593,
+        "firstEditorPixelTime": 446017.464850875,
+        "firstEditorPixelUpperMS": 750.0050498056225
+      },
+      {
+        "pid": 20032,
+        "firstEditorPixelTime": 446111.186790416,
+        "firstEditorPixelUpperMS": 734.1746959136799
+      },
+      {
+        "pid": 20038,
+        "firstEditorPixelTime": 446112.563234875,
+        "firstEditorPixelUpperMS": 664.2523180344142
+      },
+      {
+        "pid": 20048,
+        "firstEditorPixelTime": 446113.970195583,
+        "firstEditorPixelUpperMS": 715.3216814622283
+      },
+      {
+        "pid": 20105,
+        "firstEditorPixelTime": 446115.370876458,
+        "firstEditorPixelUpperMS": 730.3101455327123
+      },
+      {
+        "pid": 20168,
+        "firstEditorPixelTime": 446116.803112791,
+        "firstEditorPixelUpperMS": 728.2271083095111
+      },
+      {
+        "pid": 20212,
+        "firstEditorPixelTime": 446118.220952041,
+        "firstEditorPixelUpperMS": 728.8114001858048
+      },
+      {
+        "pid": 20223,
+        "firstEditorPixelTime": 446119.688878291,
+        "firstEditorPixelUpperMS": 730.7001639856026
+      },
+      {
+        "pid": 20251,
+        "firstEditorPixelTime": 446121.164542,
+        "firstEditorPixelUpperMS": 721.2506809737533
+      },
+      {
+        "pid": 20311,
+        "firstEditorPixelTime": 446122.603143458,
+        "firstEditorPixelUpperMS": 716.1890392308123
+      }
+    ]
+  }
+}

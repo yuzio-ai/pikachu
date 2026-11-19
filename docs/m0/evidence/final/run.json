@@ -1,0 +1,618 @@
+{
+  "model" : "gpt-6.1-sol",
+  "pi" : "\/Users\/zhubowen\/bin\/pi",
+  "provider" : "openai",
+  "results" : [
+    {
+      "case" : "M0-01\/version",
+      "evidence" : {
+        "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+        "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+        "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+        "piVersion" : "1.5.2",
+        "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+        "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438"
+      },
+      "seconds" : 0.42357003688812256,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-01\/launch-environments",
+      "evidence" : {
+        "bareGUIPathMissingNode" : true,
+        "configuredGUIPath" : {
+          "elapsedSeconds" : 0.22486698627471924,
+          "events" : {
+            "response" : 2
+          },
+          "instanceID" : "63420E37-0B1D-43F5-832E-04D83CCD9549",
+          "stderrBytes" : 0
+        },
+        "missingDependencyExit" : 127,
+        "model" : "gpt-6.1-sol",
+        "normal" : {
+          "elapsedSeconds" : 0.42194390296936035,
+          "events" : {
+            "response" : 2
+          },
+          "instanceID" : "4627B490-161C-4320-A64B-C87815173D95",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.42215704917907715,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-02\/real-correlation-and-parse-error",
+      "evidence" : {
+        "parseRejected" : true,
+        "requests" : 20,
+        "summary" : {
+          "elapsedSeconds" : 0.17175793647766113,
+          "events" : {
+            "response" : 23
+          },
+          "instanceID" : "93FA55AD-DBAD-4691-8CE6-B05B237E094A",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.18696606159210205,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-08\/configuration-and-empty-stats",
+      "evidence" : {
+        "effectiveThinkingLevel" : "low",
+        "invalidModelRejected" : true,
+        "modelCount" : 56,
+        "stats" : {
+          "assistantMessages" : 0,
+          "contextUsage" : {
+            "contextWindow" : 272000,
+            "percent" : 0,
+            "tokens" : 0
+          },
+          "cost" : 0,
+          "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438\/configuration\/sessions\/2026-11-17T17-34-31-616Z_01a1ea93-1ac0-71cc-8f45-930c2906e7c6.jsonl",
+          "sessionId" : "01a1ea93-1ac0-71cc-8f45-930c2906e7c6",
+          "tokens" : {
+            "cacheRead" : 0,
+            "cacheWrite" : 0,
+            "input" : 0,
+            "output" : 0,
+            "total" : 0
+          },
+          "toolCalls" : 0,
+          "toolResults" : 0,
+          "totalMessages" : 0,
+          "userMessages" : 0
+        },
+        "thinkingLevels" : {
+          "levels" : [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      },
+      "seconds" : 0.21914494037628174,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-09\/dialogs-handled-timeout-switch-cancel",
+      "evidence" : {
+        "agentSideTimeout" : true,
+        "handled" : true,
+        "methodsCancelled" : [
+          "select",
+          "confirm",
+          "input",
+          "editor"
+        ],
+        "summary" : {
+          "elapsedSeconds" : 0.3307349681854248,
+          "events" : {
+            "extension_ui_request" : 8,
+            "response" : 6
+          },
+          "instanceID" : "8F3CA214-6809-4369-87F0-D956585A457A",
+          "stderrBytes" : 0
+        },
+        "switchCancelled" : true
+      },
+      "seconds" : 0.34593594074249268,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-02-10\/late-response-deadline-and-instance",
+      "evidence" : {
+        "deadlineUnknown" : true,
+        "isolatedInstances" : true,
+        "lateResponseRecoveredWithoutResend" : true
+      },
+      "seconds" : 0.6887890100479126,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-06\/direct-bash-stop-1",
+      "evidence" : {
+        "heartbeatStable" : true,
+        "note" : "Direct RPC bash uses abort_bash, not agent abort",
+        "records" : 2
+      },
+      "seconds" : 0.55911493301391602,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-idle-and-reconnect-1",
+      "evidence" : {
+        "automaticReplay" : false,
+        "newInstance" : "70D6035D-A433-4D94-82AC-5774F8A3B3EB",
+        "pendingEnded" : true
+      },
+      "seconds" : 0.33729398250579834,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-06\/direct-bash-stop-2",
+      "evidence" : {
+        "heartbeatStable" : true,
+        "note" : "Direct RPC bash uses abort_bash, not agent abort",
+        "records" : 2
+      },
+      "seconds" : 0.55704092979431152,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-idle-and-reconnect-2",
+      "evidence" : {
+        "automaticReplay" : false,
+        "newInstance" : "0F498585-97DF-4C47-A36F-D61EC7CC8D00",
+        "pendingEnded" : true
+      },
+      "seconds" : 0.3078080415725708,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-06\/direct-bash-stop-3",
+      "evidence" : {
+        "heartbeatStable" : true,
+        "note" : "Direct RPC bash uses abort_bash, not agent abort",
+        "records" : 2
+      },
+      "seconds" : 0.57796609401702881,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-idle-and-reconnect-3",
+      "evidence" : {
+        "automaticReplay" : false,
+        "newInstance" : "F8156B1E-1379-4C66-AE4C-A3D36764C1AB",
+        "pendingEnded" : true
+      },
+      "seconds" : 0.32322800159454346,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-07\/branch-compaction-file-read",
+      "evidence" : {
+        "activeBranch" : [
+          "a",
+          "c",
+          "d"
+        ],
+        "compactionContextVerifiedWithPi" : true,
+        "partialTailDetected" : true,
+        "readOnlyProbeUnchanged" : true,
+        "restoreAppendedConfiguration" : true
+      },
+      "seconds" : 0.18686807155609131,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-06\/EOF-active-tool-1",
+      "evidence" : {
+        "EOFStoppedTool" : true,
+        "summary" : {
+          "elapsedSeconds" : 0.56032395362854004,
+          "events" : {
+            "response" : 1
+          },
+          "instanceID" : "E455D828-AC67-4187-93F1-3ED15D6A8B1A",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.5604710578918457,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-active-tool-1",
+      "error" : "Pi SIGKILL leaves tool process alive; needs host ownership\/cleanup strategy",
+      "seconds" : 0.93602097034454346,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-06\/EOF-active-tool-2",
+      "evidence" : {
+        "EOFStoppedTool" : true,
+        "summary" : {
+          "elapsedSeconds" : 0.58134698867797852,
+          "events" : {
+            "response" : 1
+          },
+          "instanceID" : "7E05FEA4-6361-4204-8746-F99217CE563C",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.58193600177764893,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-active-tool-2",
+      "error" : "Pi SIGKILL leaves tool process alive; needs host ownership\/cleanup strategy",
+      "seconds" : 0.93797707557678223,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-06\/EOF-active-tool-3",
+      "evidence" : {
+        "EOFStoppedTool" : true,
+        "summary" : {
+          "elapsedSeconds" : 0.57318294048309326,
+          "events" : {
+            "response" : 1
+          },
+          "instanceID" : "9B0E778E-D0F7-40D5-9012-4324EC521353",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.57380497455596924,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/crash-active-tool-3",
+      "error" : "Pi SIGKILL leaves tool process alive; needs host ownership\/cleanup strategy",
+      "seconds" : 0.94533205032348633,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-02\/large-real-bash-output",
+      "evidence" : {
+        "responseTruncated" : true,
+        "responsiveAfterOutput" : true,
+        "streamChunks" : 160,
+        "summary" : {
+          "elapsedSeconds" : 0.30906200408935547,
+          "events" : {
+            "bash_execution_update" : 160,
+            "response" : 3
+          },
+          "instanceID" : "2D0FAFCA-83FC-43F5-8E7A-CB20240ED106",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 0.32454502582550049,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-10\/agent-crash-active-tool-1",
+      "error" : "Agent bash descendant survives Pi SIGKILL; M0 lifecycle gate fails",
+      "seconds" : 3.2201319932937622,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-10\/agent-crash-active-tool-2",
+      "error" : "Agent bash descendant survives Pi SIGKILL; M0 lifecycle gate fails",
+      "seconds" : 2.9102890491485596,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-10\/agent-crash-active-tool-3",
+      "error" : "Agent bash descendant survives Pi SIGKILL; M0 lifecycle gate fails",
+      "seconds" : 3.5578060150146484,
+      "status" : "fail"
+    },
+    {
+      "case" : "M0-05\/follow-up-delivery-and-settled",
+      "evidence" : {
+        "agentEndCount" : 1,
+        "settledCount" : 1,
+        "steeringBeforeFollowUp" : true,
+        "summary" : {
+          "elapsedSeconds" : 8.6919920444488525,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 8,
+            "message_start" : 8,
+            "message_update" : 20,
+            "queue_update" : 4,
+            "response" : 5,
+            "tool_execution_end" : 1,
+            "tool_execution_start" : 1,
+            "tool_execution_update" : 1,
+            "turn_end" : 3,
+            "turn_start" : 3
+          },
+          "instanceID" : "EC171F01-9CC6-46F9-A272-4FD4D13AC35A",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 8.707643985748291,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-03-04-07-08\/coding-1",
+      "evidence" : {
+        "afterTestExit" : 0,
+        "beforeTestExit" : 1,
+        "sessionRestored" : true,
+        "stats" : {
+          "assistantMessages" : 5,
+          "contextUsage" : {
+            "contextWindow" : 272000,
+            "percent" : 0.60183823529411762,
+            "tokens" : 1637
+          },
+          "cost" : 0.0065450999999999999,
+          "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438\/coding 1\/sessions\/2026-11-17T17-34-59-036Z_01a1ea93-85db-720a-a106-1d04a3865fa3.jsonl",
+          "sessionId" : "01a1ea93-85db-720a-a106-1d04a3865fa3",
+          "tokens" : {
+            "cacheRead" : 5426,
+            "cacheWrite" : 1593,
+            "input" : 15,
+            "output" : 199,
+            "total" : 7233
+          },
+          "toolCalls" : 4,
+          "toolResults" : 4,
+          "totalMessages" : 11,
+          "userMessages" : 1
+        },
+        "summary" : {
+          "elapsedSeconds" : 10.696128010749817,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 11,
+            "message_start" : 11,
+            "message_update" : 156,
+            "response" : 5,
+            "session_info_changed" : 1,
+            "tool_execution_end" : 4,
+            "tool_execution_start" : 4,
+            "tool_execution_update" : 3,
+            "turn_end" : 5,
+            "turn_start" : 5
+          },
+          "instanceID" : "795C16EB-C970-4058-A16E-6B30F65D3A75",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 10.707599997520447,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-05-06\/agent-stop-queue-1",
+      "evidence" : {
+        "cleared" : {
+          "followUp" : [
+            "M0 follow 1: say FOLLOW only when current task ends."
+          ],
+          "steering" : [
+            "M0 steer 1: say STEER after this tool."
+          ]
+        },
+        "heartbeatStable" : true,
+        "stopSeconds" : 0.5289379358291626,
+        "summary" : {
+          "elapsedSeconds" : 2.9289590120315552,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 5,
+            "message_start" : 5,
+            "message_update" : 35,
+            "queue_update" : 3,
+            "response" : 7,
+            "tool_execution_end" : 1,
+            "tool_execution_start" : 1,
+            "tool_execution_update" : 1,
+            "turn_end" : 2,
+            "turn_start" : 2
+          },
+          "instanceID" : "82F496FC-1271-46AB-B3D2-B66CC1BECA7F",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 2.9403460025787354,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-03-04-07-08\/coding-2",
+      "evidence" : {
+        "afterTestExit" : 0,
+        "beforeTestExit" : 1,
+        "sessionRestored" : true,
+        "stats" : {
+          "assistantMessages" : 5,
+          "contextUsage" : {
+            "contextWindow" : 272000,
+            "percent" : 0.60073529411764703,
+            "tokens" : 1634
+          },
+          "cost" : 0.0065151000000000002,
+          "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438\/coding 2\/sessions\/2026-11-17T17-35-12-688Z_01a1ea93-bb30-7077-86ac-b24840691bfa.jsonl",
+          "sessionId" : "01a1ea93-bb30-7077-86ac-b24840691bfa",
+          "tokens" : {
+            "cacheRead" : 5426,
+            "cacheWrite" : 1593,
+            "input" : 15,
+            "output" : 196,
+            "total" : 7230
+          },
+          "toolCalls" : 4,
+          "toolResults" : 4,
+          "totalMessages" : 11,
+          "userMessages" : 1
+        },
+        "summary" : {
+          "elapsedSeconds" : 12.089143991470337,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 11,
+            "message_start" : 11,
+            "message_update" : 153,
+            "response" : 5,
+            "session_info_changed" : 1,
+            "tool_execution_end" : 4,
+            "tool_execution_start" : 4,
+            "tool_execution_update" : 3,
+            "turn_end" : 5,
+            "turn_start" : 5
+          },
+          "instanceID" : "73A29FF3-D76E-4AEC-AABD-CB764EAB7E23",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 12.104428052902222,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-05-06\/agent-stop-queue-2",
+      "evidence" : {
+        "cleared" : {
+          "followUp" : [
+            "M0 follow 2: say FOLLOW only when current task ends."
+          ],
+          "steering" : [
+            "M0 steer 2: say STEER after this tool."
+          ]
+        },
+        "heartbeatStable" : true,
+        "stopSeconds" : 0.52245998382568359,
+        "summary" : {
+          "elapsedSeconds" : 3.6324969530105591,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 5,
+            "message_start" : 5,
+            "message_update" : 35,
+            "queue_update" : 3,
+            "response" : 7,
+            "tool_execution_end" : 1,
+            "tool_execution_start" : 1,
+            "tool_execution_update" : 1,
+            "turn_end" : 2,
+            "turn_start" : 2
+          },
+          "instanceID" : "AC46ED15-C948-4538-9236-7D09FD4C4840",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 3.643604040145874,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-03-04-07-08\/coding-3",
+      "evidence" : {
+        "afterTestExit" : 0,
+        "beforeTestExit" : 1,
+        "sessionRestored" : true,
+        "stats" : {
+          "assistantMessages" : 5,
+          "contextUsage" : {
+            "contextWindow" : 272000,
+            "percent" : 0.59963235294117645,
+            "tokens" : 1631
+          },
+          "cost" : 0.006485100000000001,
+          "sessionFile" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438\/coding 3\/sessions\/2026-11-17T17-35-28-436Z_01a1ea93-f8b3-772b-bde6-c4b136e45b0e.jsonl",
+          "sessionId" : "01a1ea93-f8b3-772b-bde6-c4b136e45b0e",
+          "tokens" : {
+            "cacheRead" : 5426,
+            "cacheWrite" : 1593,
+            "input" : 15,
+            "output" : 193,
+            "total" : 7227
+          },
+          "toolCalls" : 4,
+          "toolResults" : 4,
+          "totalMessages" : 11,
+          "userMessages" : 1
+        },
+        "summary" : {
+          "elapsedSeconds" : 13.152209043502808,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 11,
+            "message_start" : 11,
+            "message_update" : 150,
+            "response" : 5,
+            "session_info_changed" : 1,
+            "tool_execution_end" : 4,
+            "tool_execution_start" : 4,
+            "tool_execution_update" : 3,
+            "turn_end" : 5,
+            "turn_start" : 5
+          },
+          "instanceID" : "E3F6D57E-1BF6-4810-BBC9-8C7FDBEE9146",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 13.163501977920532,
+      "status" : "pass"
+    },
+    {
+      "case" : "M0-05-06\/agent-stop-queue-3",
+      "evidence" : {
+        "cleared" : {
+          "followUp" : [
+            "M0 follow 3: say FOLLOW only when current task ends."
+          ],
+          "steering" : [
+            "M0 steer 3: say STEER after this tool."
+          ]
+        },
+        "heartbeatStable" : true,
+        "stopSeconds" : 0.52859008312225342,
+        "summary" : {
+          "elapsedSeconds" : 3.1609539985656738,
+          "events" : {
+            "agent_end" : 1,
+            "agent_settled" : 1,
+            "agent_start" : 1,
+            "message_end" : 5,
+            "message_start" : 5,
+            "message_update" : 35,
+            "queue_update" : 3,
+            "response" : 7,
+            "tool_execution_end" : 1,
+            "tool_execution_start" : 1,
+            "tool_execution_update" : 1,
+            "turn_end" : 2,
+            "turn_start" : 2
+          },
+          "instanceID" : "AE701F69-F751-4341-89A7-FCEF9E1CCF88",
+          "stderrBytes" : 0
+        }
+      },
+      "seconds" : 3.1743789911270142,
+      "status" : "pass"
+    }
+  ],
+  "runID" : "2026-11-17T17-34-30Z-all",
+  "suite" : "all",
+  "workspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 A8EDBEBD-E50F-4E5C-94AF-147287681438"
+}

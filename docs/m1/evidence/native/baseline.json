@@ -1,0 +1,5 @@
+{
+  "workspace": "/tmp/Pikachu-M1-Native-20261118/Project",
+  "beforeExit": 1,
+  "protectedTest": "const {test}=require('node:test');const a=require('node:assert/strict');test('addition',()=>a.equal(require('./sum.cjs').add(2,3),5));\n"
+}

@@ -1,0 +1,34 @@
+{
+  "descendantSurvivedPiSIGKILL" : false,
+  "fixtureFallbackUsed" : false,
+  "heartbeatStopped" : true,
+  "hostSupervision" : {
+    "ownedIdentities" : 2,
+    "reason" : "runtimeExited",
+    "remaining" : 0,
+    "runtimePID" : 22183,
+    "signalsSent" : 1,
+    "state" : "clean",
+    "supervisorPID" : 22182,
+    "sweeps" : 15
+  },
+  "pendingEnded" : true,
+  "summary" : {
+    "elapsedSeconds" : 1.2683420181274414,
+    "events" : {
+      "response" : 1
+    },
+    "instanceID" : "8825B6C6-0709-4CC6-8381-9DB6D7D25301",
+    "stderrBytes" : 0,
+    "supervision" : {
+      "ownedIdentities" : 2,
+      "reason" : "runtimeExited",
+      "remaining" : 0,
+      "runtimePID" : 22183,
+      "signalsSent" : 1,
+      "state" : "clean",
+      "supervisorPID" : 22182,
+      "sweeps" : 15
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "allTemporaryAuthRemoved": true,
+  "knownFixtureWorkers": [
+    {
+      "runID": "2026-11-17T21-55-34Z",
+      "pid": 39751,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T21-55-34Z",
+      "pid": 39876,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-12-14Z",
+      "pid": 43549,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-12-14Z",
+      "pid": 43582,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-17-18Z",
+      "pid": 44018,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-23-21Z",
+      "pid": 44261,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-23-21Z",
+      "pid": 44304,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-31-54Z",
+      "pid": 44972,
+      "inactive": true
+    },
+    {
+      "runID": "2026-11-17T22-31-54Z",
+      "pid": 45021,
+      "inactive": true
+    }
+  ],
+  "nativeWorkerInactive": true
+}

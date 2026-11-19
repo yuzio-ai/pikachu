@@ -1,0 +1,95 @@
+[
+  {
+    "case" : "M2\/local-drafts-and-restart",
+    "evidence" : {
+      "independentDrafts" : true,
+      "projectIDsStable" : true,
+      "runtimeStarts" : 0
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/unopened-session-reconnect",
+    "evidence" : {
+      "noAutomaticReconnect" : true,
+      "unopenedSessionStillLocal" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/history-branch-compaction-and-read-only-discovery",
+    "evidence" : {
+      "abandonedBranchExcluded" : true,
+      "readOnly" : true,
+      "runtimeIDConfirmed" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/partial-and-corrupt-history-block-execution",
+    "evidence" : {
+      "corruptExplicit" : true,
+      "noRuntimeStarted" : true,
+      "partialVisible" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/resume-cancellation-is-not-success",
+    "evidence" : {
+      "cancelledResponseRejected" : true,
+      "cleanupConfirmed" : true,
+      "sourceUnchanged" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/model-configuration-and-effective-readback",
+    "evidence" : {
+      "invalidModelRejected" : true,
+      "modelCount" : 56,
+      "thinkingReadBack" : "low"
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/real-coding-and-history-recovery",
+    "evidence" : {
+      "independentTestExit" : 0,
+      "protectedTestUnchanged" : true,
+      "readOnlyRecovery" : true,
+      "runtimeSessionID" : "01a1eb96-0e1e-74a3-b532-96d74ade4e15"
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/browse-running-stop-switch-and-draft-consistency",
+    "error" : "failed(\"Expected state did not arrive\")",
+    "status" : "fail"
+  },
+  {
+    "case" : "M2\/relocation-read-only-boundary-and-new-cwd",
+    "error" : "Error Domain=NSCocoaErrorDomain Code=260 \"The file “actual-cwd” couldn’t be opened because there is no such file.\" UserInfo={NSFilePath=\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M2 1A553F0B-ADD1-4607-AE21-5F8DFBFC6A33\/Project A moved\/actual-cwd, NSURL=file:\/\/\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu%20M2%201A553F0B-ADD1-4607-AE21-5F8DFBFC6A33\/Project%20A%20moved\/actual-cwd, NSUnderlyingError=0x7b854b9860 {Error Domain=NSPOSIXErrorDomain Code=2 \"No such file or directory\"}}",
+    "status" : "fail"
+  },
+  {
+    "case" : "M2\/timeout-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/crash-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  }
+]

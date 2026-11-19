@@ -1,0 +1,12 @@
+Starting recording with the Time Profiler template and Hangs, Hitches, Core Animation Commits, Core Animation Server, Frame Lifetimes, Display Instruments. Attaching to: Pikachu (61896). Time limit: 55.0 s
+Ctrl-C to stop the recording
+Reached specified time limit, ending recording...
+Run issues were detected (trace is still ready to be viewed):
+* [Error] Fatal error reported in run 1
+
+	* [Error] set-column: Argument 2 should be of type 'backtrace' but was passed on object of type 'tagged-backtrace'.
+
+	* [Error] Recovery Suggestion: Please file a radar describing the reproduction steps. Also save this trace and attach it to the radar.
+
+Recording failed with errors. Saving output file...
+Output file saved as: pikachu-m3-long-fixed.trace

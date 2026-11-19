@@ -1,0 +1,44 @@
+{
+  "exception": {
+    "codes": "0x0000000000000002, 0x000000016b3cffd0",
+    "message": "Thread stack size exceeded due to excessive recursion",
+    "rawCodes": [
+      2,
+      6094127056
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGSEGV",
+    "subtype": "KERN_PROTECTION_FAILURE at 0x000000016b3cffd0"
+  },
+  "termination": {
+    "namespace": "SIGNAL",
+    "code": 11,
+    "indicator": "Segmentation fault: 11"
+  },
+  "frames": [
+    "-[__NSCFString isEqualToString:]",
+    "NSAccessibilityGetObjectValueForAttribute",
+    "_NSAccessibilityOverrideValueForAttribute",
+    "___NSAccessibilityEntryPointValueForAttribute_block_invoke.772",
+    "NSAccessibilityPerformEntryPointObject",
+    "_NSAccessibilityEntryPointValueForAttribute",
+    "PlatformAccessibilityElementProtocol<>.valueForAttribute<A>(_:asType:)",
+    "AccessibilityNode.resolvedRole(forPlatformElement:)",
+    "AccessibilityNode.labelExposedAs.getter",
+    "AccessibilityNode.labelsToResolve.getter",
+    "AccessibilityNode.accessibilityLabel()",
+    "@objc AccessibilityNode.accessibilityLabel()",
+    "closure #4 in AccessibilityNode.applyProperties(to:)",
+    "partial apply for closure #4 in AccessibilityNode.applyProperties(to:)",
+    "thunk for @escaping @callee_guaranteed () -> (@out Any?)",
+    "_accessibilityGetAssociatedObjectForAttribute",
+    "NSAccessibilityGetObjectValueForAttribute",
+    "_NSAccessibilityOverrideValueForAttribute",
+    "___NSAccessibilityEntryPointValueForAttribute_block_invoke.772",
+    "NSAccessibilityPerformEntryPointObject",
+    "_NSAccessibilityEntryPointValueForAttribute",
+    "PlatformAccessibilityElementProtocol<>.valueForAttribute<A>(_:asType:)",
+    "AccessibilityNode.accessibilityLabel()",
+    "@objc AccessibilityNode.accessibilityLabel()"
+  ]
+}

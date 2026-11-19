@@ -1,0 +1,8 @@
+PASS M2/local-drafts-and-restart
+PASS M2/unopened-session-reconnect
+PASS M2/history-branch-compaction-and-read-only-discovery
+PASS M2/partial-and-corrupt-history-block-execution
+PASS M2/resume-cancellation-is-not-success
+PASS M2/timeout-restart-no-replay
+PASS M2/crash-restart-no-replay
+Evidence: /Users/zhubowen/Documents/yuzio-ai/pikachu/.m2-runs/2026-11-18T07-45-59Z

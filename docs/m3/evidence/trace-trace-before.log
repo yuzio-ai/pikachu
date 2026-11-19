@@ -1,0 +1,7 @@
+Starting recording with the Time Profiler template and Hangs, Core Animation Commits, Core Animation FPS, Core Animation Server, Frame Lifetimes Instruments. Attaching to: Pikachu (59494). Time limit: 55.0 s
+Ctrl-C to stop the recording
+Run issues were detected (trace is still ready to be viewed):
+* [Error] Core Animation FPS: Disabled because macOS does not have an FPS metric for Core Animation.
+
+Recording failed with errors. Saving output file...
+Output file saved as: pikachu-m3-long-before.trace

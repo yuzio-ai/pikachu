@@ -1,0 +1,106 @@
+{
+  "records": [
+    {
+      "file": "rpc-0FB13B30-37D4-465A-9353-E0259C32F5E3.json",
+      "metadata": {
+        "bufferedBytes": 0,
+        "bufferedEvents": 0,
+        "bufferedResponses": 0,
+        "received": 0,
+        "stage": "session-failed",
+        "stderrBytes": 0,
+        "trace": {
+          "instanceID": "B390841A-9D95-4D2D-A885-75EFB08B515A",
+          "lastSupervisorReport": {
+            "ownedIdentities": 1,
+            "reason": "",
+            "remaining": -1,
+            "runtimePID": 3105,
+            "signalsSent": 0,
+            "state": "running",
+            "supervisorPID": 3104,
+            "sweeps": 1
+          },
+          "supervisorRunning": true,
+          "timeline": [
+            {
+              "direction": "send",
+              "elapsedSeconds": 0.012171030044555664,
+              "id": "BC684E0B-7F81-4743-AEF3-59A53B985B22",
+              "type": "get_state"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "file": "rpc-54A23965-E3A4-42E1-BF64-5EC22F3163D3.json",
+      "metadata": {
+        "bufferedBytes": 0,
+        "bufferedEvents": 0,
+        "bufferedResponses": 0,
+        "received": 0,
+        "stage": "session-failed",
+        "stderrBytes": 0,
+        "trace": {
+          "instanceID": "9FEA27B6-4356-4F26-AB1C-65A755F2E440",
+          "lastSupervisorReport": {
+            "ownedIdentities": 1,
+            "reason": "",
+            "remaining": -1,
+            "runtimePID": 2700,
+            "signalsSent": 0,
+            "state": "running",
+            "supervisorPID": 2699,
+            "sweeps": 1
+          },
+          "supervisorRunning": true,
+          "timeline": [
+            {
+              "direction": "send",
+              "elapsedSeconds": 0.026832938194274902,
+              "id": "BF474AD4-79E8-4026-879E-EC58FF264386",
+              "type": "get_state"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "file": "rpc-FBB43A71-9EAB-46C4-9FE5-DC77C3F18780.json",
+      "metadata": {
+        "bufferedBytes": 0,
+        "bufferedEvents": 0,
+        "bufferedResponses": 0,
+        "received": 0,
+        "stage": "session-failed",
+        "stderrBytes": 0,
+        "trace": {
+          "instanceID": "7F7A4F17-D7FF-441C-BC30-7223B38FD344",
+          "lastSupervisorReport": {
+            "ownedIdentities": 1,
+            "reason": "",
+            "remaining": -1,
+            "runtimePID": 2983,
+            "signalsSent": 0,
+            "state": "running",
+            "supervisorPID": 2982,
+            "sweeps": 1
+          },
+          "supervisorRunning": true,
+          "timeline": [
+            {
+              "direction": "send",
+              "elapsedSeconds": 0.020455002784729004,
+              "id": "40C40F7A-E11A-49DB-838F-FFC0ACC4EA02",
+              "type": "get_state"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "nodeFsOpenWasObservedDuringDiagnosis": true,
+  "blockedNodeSampleRetention": "Not retained: the tap reused node-sample.txt; the surviving sample is the later successful event-loop wait. No OS audit attribution is claimed.",
+  "fixtureBytesEqual": true
+}

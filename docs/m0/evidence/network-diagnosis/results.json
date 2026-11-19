@@ -1,0 +1,51 @@
+[
+  {
+    "case" : "M0-01\/version",
+    "evidence" : {
+      "nodeEntry" : "\/Users\/zhubowen\/.nvm\/versions\/node\/v24.12.0\/bin\/node",
+      "os" : "ProductName:\t\tmacOS\nProductVersion:\t\t27.2.1\nBuildVersion:\t\t26B131\n",
+      "piEntry" : "\/Users\/zhubowen\/bin\/pi",
+      "piVersion" : "1.5.2",
+      "swift" : "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0\n",
+      "temporaryWorkspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M0 C41C2670-09F1-4B61-AC90-5E67BC022117"
+    },
+    "seconds" : 0.42560601234436035,
+    "status" : "pass"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-1",
+    "error" : "Provider\/assistant error after acceptance (see sanitized message error)",
+    "seconds" : 56.283845067024231,
+    "status" : "fail"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-1",
+    "error" : "Deadline exceeded; outcome unknown",
+    "seconds" : 90.175554990768433,
+    "status" : "fail"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-2",
+    "error" : "Provider\/assistant error after acceptance (see sanitized message error)",
+    "seconds" : 56.509822010993958,
+    "status" : "fail"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-2",
+    "error" : "Deadline exceeded; outcome unknown",
+    "seconds" : 90.173938989639282,
+    "status" : "fail"
+  },
+  {
+    "case" : "M0-03-04-07-08\/coding-3",
+    "error" : "Provider\/assistant error after acceptance (see sanitized message error)",
+    "seconds" : 56.555585980415344,
+    "status" : "fail"
+  },
+  {
+    "case" : "M0-05-06\/agent-stop-queue-3",
+    "error" : "Deadline exceeded; outcome unknown",
+    "seconds" : 90.176111936569214,
+    "status" : "fail"
+  }
+]

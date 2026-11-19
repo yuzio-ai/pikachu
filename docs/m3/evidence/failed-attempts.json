@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "case": "Foundation-pipe-read-fill",
+      "result": "M1 startup failed",
+      "evidence": ".m1-runs/2026-11-18T04-40-12Z/results.json",
+      "resolution": "production uses bounded POSIX read; local/real regressions rerun"
+    },
+    {
+      "case": "nonexecutable-timeout-fixture",
+      "result": "M3 6/7",
+      "evidence": ".m3-runs/2026-11-18T04-49-59Z/results.json",
+      "resolution": "copy and chmod owned peer before launch; rerun final suite"
+    },
+    {
+      "case": "empty-session-unknown-model",
+      "result": "M2 reconnect failure",
+      "evidence": ".m2-runs/2026-11-18T05-16-17Z/results.json",
+      "resolution": "placeholder model not persisted as restorable selection"
+    },
+    {
+      "case": "GUI-extension-under-Documents",
+      "result": "three initial connection timeouts; metadata receivedCount 0; own Node sample blocked fs.open",
+      "resolution": "same fixture bytes copied to /tmp; direct Pi connection succeeds; no privacy setting changed",
+      "uncertainty": "OS policy attribution inferred, not proven by audit log"
+    },
+    {
+      "case": "quit-from-Swift-Task",
+      "result": "nested terminate loop blocked async cleanup",
+      "pid": 10296,
+      "recovery": "user force quit; supervisor absent afterward"
+    },
+    {
+      "case": "quit-from-main-queue-block",
+      "result": "nested terminate loop blocked main queue",
+      "pid": 11931,
+      "recovery": "CUA Activity Monitor force quit only verified test PID; supervisor cleaned",
+      "stack": "WorkbenchView closure -> NSApplication terminate -> _shouldTerminate -> event loop"
+    },
+    {
+      "case": "final-RunLoop-quit",
+      "result": "pass",
+      "pid": 12948,
+      "resolution": "leave Task and main queue; delayed NSObject selector invokes terminate from RunLoop"
+    },
+    {
+      "case": "rejected-UI-candidates",
+      "result": "progressive list first ~500ms/full ~2s; auto row heights long ~520–1177ms; AX-related 296–489ms pauses",
+      "resolution": "manual height cache and visible SwiftUI hosts retained; original frame gate still incomplete"
+    }
+  ]
+}

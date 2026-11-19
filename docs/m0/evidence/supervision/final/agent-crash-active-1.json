@@ -1,0 +1,42 @@
+{
+  "agentTool" : true,
+  "descendantSurvivedPiSIGKILL" : false,
+  "fixtureFallbackUsed" : false,
+  "heartbeatStopped" : true,
+  "hostSupervision" : {
+    "ownedIdentities" : 2,
+    "reason" : "runtimeExited",
+    "remaining" : 0,
+    "runtimePID" : 14153,
+    "signalsSent" : 1,
+    "state" : "clean",
+    "supervisorPID" : 14152,
+    "sweeps" : 52
+  },
+  "piExited" : true,
+  "summary" : {
+    "elapsedSeconds" : 3.6243009567260742,
+    "events" : {
+      "agent_start" : 1,
+      "message_end" : 3,
+      "message_start" : 3,
+      "message_update" : 35,
+      "response" : 2,
+      "tool_execution_start" : 1,
+      "tool_execution_update" : 1,
+      "turn_start" : 1
+    },
+    "instanceID" : "22CFF884-B341-452E-92CD-A01CAA0984F0",
+    "stderrBytes" : 0,
+    "supervision" : {
+      "ownedIdentities" : 2,
+      "reason" : "runtimeExited",
+      "remaining" : 0,
+      "runtimePID" : 14153,
+      "signalsSent" : 1,
+      "state" : "clean",
+      "supervisorPID" : 14152,
+      "sweeps" : 52
+    }
+  }
+}

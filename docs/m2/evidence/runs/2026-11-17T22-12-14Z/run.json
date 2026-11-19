@@ -1,0 +1,96 @@
+{
+  "realModelCalls" : true,
+  "results" : [
+    {
+      "case" : "M2\/local-drafts-and-restart",
+      "evidence" : {
+        "independentDrafts" : true,
+        "projectIDsStable" : true,
+        "runtimeStarts" : 0
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/unopened-session-reconnect",
+      "evidence" : {
+        "noAutomaticReconnect" : true,
+        "unopenedSessionStillLocal" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/history-branch-compaction-and-read-only-discovery",
+      "evidence" : {
+        "abandonedBranchExcluded" : true,
+        "readOnly" : true,
+        "runtimeIDConfirmed" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/partial-and-corrupt-history-block-execution",
+      "evidence" : {
+        "corruptExplicit" : true,
+        "noRuntimeStarted" : true,
+        "partialVisible" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/model-configuration-and-effective-readback",
+      "evidence" : {
+        "invalidModelRejected" : true,
+        "modelCount" : 56,
+        "thinkingReadBack" : "low"
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/real-coding-and-history-recovery",
+      "error" : "failed(\"Coding task failed\")",
+      "status" : "fail"
+    },
+    {
+      "case" : "M2\/browse-running-stop-switch-and-draft-consistency",
+      "evidence" : {
+        "draftsSurvivedRestart" : true,
+        "explicitSwitchOnly" : true,
+        "oldToolStopped" : true,
+        "runningHistoryBrowse" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/relocation-read-only-boundary-and-new-cwd",
+      "evidence" : {
+        "newSessionToolCwd" : "\/private\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M2 DD9235AC-B42F-4E0F-912C-8E2D3E6F2A9B\/Project A moved",
+        "oldHistoryNotRewritten" : true,
+        "stableProjectID" : true,
+        "wrongCwdBlocked" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/timeout-restart-no-replay",
+      "evidence" : {
+        "noAutomaticReplay" : true,
+        "promptCount" : 1,
+        "runtimeStarts" : 1,
+        "unknownMarked" : true
+      },
+      "status" : "pass"
+    },
+    {
+      "case" : "M2\/crash-restart-no-replay",
+      "evidence" : {
+        "noAutomaticReplay" : true,
+        "promptCount" : 1,
+        "runtimeStarts" : 1,
+        "unknownMarked" : true
+      },
+      "status" : "pass"
+    }
+  ],
+  "runID" : "2026-11-17T22-12-14Z",
+  "workspace" : "\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M2 DD9235AC-B42F-4E0F-912C-8E2D3E6F2A9B"
+}

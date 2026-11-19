@@ -1,0 +1,32 @@
+{
+  "nativeProjectA": "E14A4FC7-E33D-4184-854D-71BCA69315F3",
+  "codingSession": "D3C8B7B5-107A-4E56-95ED-C845B3550F2A",
+  "runningSession": "9981A191-E3BA-4065-AA25-03326FBA7E51",
+  "nativeProjectB": "A538F86C-7869-4090-ABD0-3DDFF9D088C6",
+  "projectBSession": "5A7B6C58-91B4-4741-9EE5-916C652E6C11",
+  "independentTestExit": 0,
+  "protectedTestUnchanged": true,
+  "heartbeatStableAfterExit": true,
+  "lastWorkerPID": 41150,
+  "observed": [
+    "native coding task read/edit/bash completed",
+    "model/thinking options queried; medium applied and read back",
+    "running tool continued while browsing old history",
+    "cross-session send confirmation cancelled without execution switch",
+    "stop from history view kept current history draft unchanged",
+    "cleared queue and editor remained bound to running session",
+    "restart restored same project/session identifiers and drafts",
+    "restart did not reconnect or replay task",
+    "second project and selected draft persisted across quit/relaunch"
+  ],
+  "finalBuildReadback": {
+    "olderWorkspacePayloadReadable": true,
+    "sameProjectAndSessionUUIDs": true,
+    "draftC": "运行会话独立编辑草稿 C",
+    "recoveredQueue": "M2 停止后保留的队列草稿",
+    "interruptedAssistantNoticeVisible": true,
+    "noAutomaticConnection": true
+  },
+  "lastWorkerInactive": true,
+  "postSubmissionFixFinalBuildReadbackAndSavedExit": true
+}

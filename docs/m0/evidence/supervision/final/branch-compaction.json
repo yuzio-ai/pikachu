@@ -1,0 +1,147 @@
+{
+  "context" : {
+    "messages" : [
+      {
+        "role" : "compactionSummary",
+        "summary" : "M0 SUMMARY",
+        "timestamp" : 1794947029000,
+        "tokensBefore" : 100
+      },
+      {
+        "content" : "KEPT_BRANCH",
+        "role" : "user",
+        "timestamp" : 3
+      }
+    ]
+  },
+  "entries" : {
+    "entries" : [
+      {
+        "id" : "a",
+        "message" : {
+          "content" : "ROOT_SUMMARIZED",
+          "role" : "user",
+          "timestamp" : 1
+        },
+        "parentId" : null,
+        "timestamp" : "2026-11-17T20:23:49Z",
+        "type" : "message"
+      },
+      {
+        "id" : "b",
+        "message" : {
+          "content" : "ABANDONED_BRANCH",
+          "role" : "user",
+          "timestamp" : 2
+        },
+        "parentId" : "a",
+        "timestamp" : "2026-11-17T20:23:49Z",
+        "type" : "message"
+      },
+      {
+        "id" : "c",
+        "message" : {
+          "content" : "KEPT_BRANCH",
+          "role" : "user",
+          "timestamp" : 3
+        },
+        "parentId" : "a",
+        "timestamp" : "2026-11-17T20:23:49Z",
+        "type" : "message"
+      },
+      {
+        "firstKeptEntryId" : "c",
+        "id" : "d",
+        "parentId" : "c",
+        "summary" : "M0 SUMMARY",
+        "timestamp" : "2026-11-17T20:23:49Z",
+        "tokensBefore" : 100,
+        "type" : "compaction"
+      },
+      {
+        "id" : "e424018d",
+        "parentId" : "d",
+        "thinkingLevel" : "low",
+        "timestamp" : "2026-11-17T20:23:49.160Z",
+        "type" : "thinking_level_change"
+      }
+    ],
+    "leafId" : "e424018d"
+  },
+  "tree" : {
+    "leafId" : "e424018d",
+    "tree" : [
+      {
+        "children" : [
+          {
+            "children" : [
+
+            ],
+            "entry" : {
+              "id" : "b",
+              "message" : {
+                "content" : "ABANDONED_BRANCH",
+                "role" : "user",
+                "timestamp" : 2
+              },
+              "parentId" : "a",
+              "timestamp" : "2026-11-17T20:23:49Z",
+              "type" : "message"
+            }
+          },
+          {
+            "children" : [
+              {
+                "children" : [
+                  {
+                    "children" : [
+
+                    ],
+                    "entry" : {
+                      "id" : "e424018d",
+                      "parentId" : "d",
+                      "thinkingLevel" : "low",
+                      "timestamp" : "2026-11-17T20:23:49.160Z",
+                      "type" : "thinking_level_change"
+                    }
+                  }
+                ],
+                "entry" : {
+                  "firstKeptEntryId" : "c",
+                  "id" : "d",
+                  "parentId" : "c",
+                  "summary" : "M0 SUMMARY",
+                  "timestamp" : "2026-11-17T20:23:49Z",
+                  "tokensBefore" : 100,
+                  "type" : "compaction"
+                }
+              }
+            ],
+            "entry" : {
+              "id" : "c",
+              "message" : {
+                "content" : "KEPT_BRANCH",
+                "role" : "user",
+                "timestamp" : 3
+              },
+              "parentId" : "a",
+              "timestamp" : "2026-11-17T20:23:49Z",
+              "type" : "message"
+            }
+          }
+        ],
+        "entry" : {
+          "id" : "a",
+          "message" : {
+            "content" : "ROOT_SUMMARIZED",
+            "role" : "user",
+            "timestamp" : 1
+          },
+          "parentId" : null,
+          "timestamp" : "2026-11-17T20:23:49Z",
+          "type" : "message"
+        }
+      }
+    ]
+  }
+}

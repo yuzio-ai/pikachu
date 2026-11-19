@@ -1,0 +1,35 @@
+{
+  "runs": [
+    {
+      "runID": "2026-11-17T21-55-34Z",
+      "passed": 10,
+      "failed": 0,
+      "results": "runs/2026-11-17T21-55-34Z/results.json"
+    },
+    {
+      "runID": "2026-11-17T22-12-14Z",
+      "passed": 9,
+      "failed": 1,
+      "results": "runs/2026-11-17T22-12-14Z/results.json"
+    },
+    {
+      "runID": "2026-11-17T22-17-18Z",
+      "passed": 9,
+      "failed": 2,
+      "results": "runs/2026-11-17T22-17-18Z/results.json"
+    },
+    {
+      "runID": "2026-11-17T22-23-21Z",
+      "passed": 11,
+      "failed": 0,
+      "results": "runs/2026-11-17T22-23-21Z/results.json"
+    },
+    {
+      "runID": "2026-11-17T22-31-54Z",
+      "passed": 11,
+      "failed": 0,
+      "results": "runs/2026-11-17T22-31-54Z/results.json"
+    }
+  ],
+  "latestRunID": "2026-11-17T22-31-54Z"
+}

@@ -1,0 +1,24 @@
+{
+  "afterExit": 0,
+  "protectedTestUnchanged": true,
+  "heartbeatStableAfterQuit": true,
+  "lastWorkerPID": 26675,
+  "lastWorkerActive": false,
+  "observations": [
+    "native read/edit/bash task completed",
+    "Markdown heading and code block displayed",
+    "tool arguments and output expanded",
+    "stop retained queued text and editor separately",
+    "quit cancel kept tool running",
+    "confirmed quit exited App"
+  ],
+  "finalBuildQueueRetest": {
+    "queuedLabel": "排队中",
+    "afterStopLabel": "已退回草稿",
+    "editorUnchanged": true,
+    "restoreAppendsWithoutReplacing": true,
+    "cleanDisconnectObserved": true,
+    "appQuitObserved": true
+  },
+  "heartbeatStableAfterFinalDisconnect": true
+}

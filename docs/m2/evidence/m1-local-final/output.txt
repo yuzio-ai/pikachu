@@ -1,0 +1,10 @@
+PASS M1/fake-runtime-contract
+PASS M1/wire-normal
+PASS M1/wire-rejected
+PASS M1/wire-authentication
+PASS M1/wire-timeout
+PASS M1/wire-malformed
+PASS M1/wire-crash
+PASS M1/unsupported-version
+PASS M1/connection-timeout
+Evidence: /Users/zhubowen/Documents/yuzio-ai/pikachu/.m1-runs/2026-11-17T22-31-54Z

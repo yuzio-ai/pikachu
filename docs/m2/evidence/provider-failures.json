@@ -1,0 +1,38 @@
+[
+  {
+    "runID": "2026-11-17T21-55-34Z",
+    "sanitizedErrors": []
+  },
+  {
+    "runID": "2026-11-17T22-12-14Z",
+    "sanitizedErrors": [
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "other provider failure",
+      "other provider failure"
+    ]
+  },
+  {
+    "runID": "2026-11-17T22-17-18Z",
+    "sanitizedErrors": [
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS",
+      "ECONNRESET before TLS"
+    ]
+  },
+  {
+    "runID": "2026-11-17T22-23-21Z",
+    "sanitizedErrors": []
+  },
+  {
+    "runID": "2026-11-17T22-31-54Z",
+    "sanitizedErrors": [
+      "other provider failure"
+    ]
+  }
+]

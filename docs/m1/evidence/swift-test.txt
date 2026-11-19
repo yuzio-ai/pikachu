@@ -1,0 +1,63 @@
+warning: /Users/zhubowen/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/zhubowen/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'pikachu': failed storing manifest for 'pikachu' in cache: attempt to write a readonly database
+warning: 'pikachu': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/zhubowen/Documents/yuzio-ai/pikachu/Tools/M1Verification/Fixtures/fake-pi.py
+Building for debugging...
+[2 / 15] OrchestrationCore
+[4 / 17] OrchestrationCore
+[13 / 26] Pikachu-product
+[20 / 30] m1-verify-product
+[24 / 32] PikachuCoreTests-product
+[32 / 36] PikachuCoreTests-product
+[34 / 36] Pikachu-product
+[36 / 36] PikachuCoreTests-product
+Build complete! (1.34秒)
+Test Suite 'All tests' started at 2026-11-18 05:18:11.698.
+Test Suite 'PikachuCoreTests.xctest' started at 2026-11-18 05:18:11.699.
+Test Suite 'RuntimeTests' started at 2026-11-18 05:18:11.699.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearedDuplicateQueueRowsAreReturnedToDrafts]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearedDuplicateQueueRowsAreReturnedToDrafts]' passed (0.001 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testClearQueueResultSurvivesAbortFailureAndKeepsEditor]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testClearQueueResultSurvivesAbortFailureAndKeepsEditor]' passed (0.036 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testFakeRuntimeUsesSameControllerAndRetainsStoppedQueue]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testFakeRuntimeUsesSameControllerAndRetainsStoppedQueue]' passed (0.071 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testFinalMessageOverridesDeltasAndBlocksArePerMessage]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testFinalMessageOverridesDeltasAndBlocksArePerMessage]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testHandledPromptDoesNotBecomeRunning]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testHandledPromptDoesNotBecomeRunning]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testLargeToolOutputHasBoundedPresentationAndNotice]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testLargeToolOutputHasBoundedPresentationAndNotice]' passed (0.102 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperIgnoresSystemAndUserMessages]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperIgnoresSystemAndUserMessages]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperPartialToolResultReplacesPreviousSnapshot]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMapperPartialToolResultReplacesPreviousSnapshot]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testMarkdownKeepsCodeAndUnicode]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testMarkdownKeepsCodeAndUnicode]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testOldInstanceCannotMutateCurrentConversation]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testOldInstanceCannotMutateCurrentConversation]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testProviderErrorsDoNotExposeCredentials]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testProviderErrorsDoNotExposeCredentials]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testQueuedAcknowledgementDoesNotUseOlderEmptySnapshot]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testQueuedAcknowledgementDoesNotUseOlderEmptySnapshot]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testReconnectAfterCleanedCrashIgnoresOldCloseEvents]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testReconnectAfterCleanedCrashIgnoresOldCloseEvents]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testRepeatedRecoveryEventIsDeduplicated]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testRepeatedRecoveryEventIsDeduplicated]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testSettledInterruptsUnfinishedToolsWithoutClaimingSuccess]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testSettledInterruptsUnfinishedToolsWithoutClaimingSuccess]' passed (0.000 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testUnexpectedStreamEndBlocksExecution]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testUnexpectedStreamEndBlocksExecution]' passed (0.032 seconds).
+Test Case '-[PikachuCoreTests.RuntimeTests testUnknownCleanupBlocksNewConnectionAndSending]' started.
+Test Case '-[PikachuCoreTests.RuntimeTests testUnknownCleanupBlocksNewConnectionAndSending]' passed (0.000 seconds).
+Test Suite 'RuntimeTests' passed at 2026-11-18 05:18:11.943.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.244 (0.245) seconds
+Test Suite 'PikachuCoreTests.xctest' passed at 2026-11-18 05:18:11.944.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.244 (0.245) seconds
+Test Suite 'All tests' passed at 2026-11-18 05:18:11.944.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.244 (0.245) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 2403
+􀄵  Target Platform: arm64e-apple-macos14.0
+􁁛  Test run with 0 tests in 0 suites passed after 0.001 seconds.

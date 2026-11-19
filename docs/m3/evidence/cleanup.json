@@ -1,0 +1,12 @@
+{
+  "m1TemporaryAuthRemoved": true,
+  "m2TemporaryAuthRemoved": true,
+  "normalBundleContainsDiagnosticConfig": false,
+  "nativeAuthEmpty": true,
+  "nativeOwnedProcessMatches": [],
+  "credentialValueScan": {
+    "scannedFiles": 43,
+    "matches": 0,
+    "valuesPrintedOrPersisted": false
+  }
+}

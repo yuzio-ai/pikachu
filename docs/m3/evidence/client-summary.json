@@ -1,0 +1,92 @@
+{
+  "acceptance": "SUPPLEMENTAL_CLIENT_ENDPOINTS_ONLY",
+  "percentile": "nearest rank",
+  "cold": {
+    "samples": [
+      729.6011447906494,
+      504.58407402038574,
+      502.0120143890381,
+      505.85484504699707,
+      515.1259899139404,
+      474.20191764831543,
+      525.742769241333,
+      517.6258087158203,
+      521.5649604797363,
+      511.64793968200684
+    ],
+    "count": 10,
+    "p95MS": 729.6011447906494,
+    "fileCache": "warm OS cache",
+    "endpoint": "kernel process birth to first visible editor NSView.draw",
+    "candidate": "manual height cache UI; before final quit route and safe-write diagnostics; not final binary acceptance",
+    "rawLaunchCount": 13,
+    "laterDiagnosticLaunchesMS": [
+      433.86077880859375,
+      371.48594856262207,
+      398.20194244384766
+    ],
+    "laterDiagnosticLaunchesExcludedReason": "Three later launches used for connection diagnosis after the planned ten-launch calibration; preserved in raw JSONL. Including them does not change nearest-rank p95."
+  },
+  "history": {
+    "7C7CE8CF-2D1E-4EA0-87A3-22333B7E5B57": {
+      "samplesMS": [
+        57.728708314243704,
+        60.65445829881355,
+        57.63266666326672,
+        59.52179169980809,
+        59.275833307765424,
+        57.00995831284672,
+        57.40541667910293,
+        57.53983330214396,
+        56.51741666952148,
+        56.74516665749252
+      ],
+      "count": 10,
+      "p95MS": 60.65445829881355
+    },
+    "F3327DE4-0642-4272-BDC8-5C2475D600EA": {
+      "samplesMS": [
+        162.27041668025777,
+        155.90479166712612,
+        159.49012502096593,
+        159.40004162257537,
+        159.5953750074841,
+        157.5940833427012,
+        155.3567083319649,
+        155.26562504237518,
+        158.74283335870132,
+        158.63837499637157
+      ],
+      "count": 10,
+      "p95MS": 162.27041668025777
+    },
+    "F5C09C7E-351C-4560-93B4-453719EB6664": {
+      "samplesMS": [
+        104.37912499764934
+      ],
+      "count": 1,
+      "p95MS": 104.37912499764934
+    }
+  },
+  "nativeLoad": {
+    "pid": 13353,
+    "keys": 30,
+    "nextEditorDrawSampleCount": 30,
+    "nextEditorClientDrawP95MS": 32.15420834021643,
+    "nextEditorClientDrawMaxMS": 33.436792029533535,
+    "screenPixelsMeasured": false,
+    "windowPt": [
+      1099,
+      930
+    ],
+    "screenshotPx": [
+      2198,
+      1860
+    ],
+    "baselineRSSMedianBytes": 151945216,
+    "peakRSSDeltaBytes": 58884096,
+    "retainedRSSDeltaBytes": 41762816.0,
+    "rssMetric": "ps RSS; first five median vs final ten median; includes diagnostic overhead; not physical footprint",
+    "toolBytes": 10485760
+  }
+}

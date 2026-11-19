@@ -1,0 +1,78 @@
+[
+  {
+    "case" : "M3\/closed-peer-stdin-does-not-kill-host",
+    "evidence" : {
+      "defaultSIGPIPEHandler" : true,
+      "hostExit" : 0,
+      "writeRejected" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/real-pi-four-dialogs-and-once-only-replies",
+    "evidence" : {
+      "cleanupConfirmed" : true,
+      "duplicateAndDisconnectedRejected" : true,
+      "fourMethods" : true,
+      "negativeConfirmationPreserved" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/stop-cancels-dialog-with-pending-command",
+    "evidence" : {
+      "cancelDelivered" : true,
+      "draftPreserved" : true,
+      "pendingCommandStopped" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/expiry-and-unsupported-cost",
+    "evidence" : {
+      "expiryRetired" : true,
+      "noInference" : true,
+      "unknownCostExplicit" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/nonmodal-ui-preserves-draft",
+    "evidence" : {
+      "draftPreserved" : true,
+      "suggestionRecovered" : true,
+      "threeStatusSurfaces" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/disconnect-retires-open-dialog",
+    "evidence" : {
+      "cleanupConfirmed" : true,
+      "lateReplyRejected" : true,
+      "noReplay" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/native-mode-no-dialog-ack-timeout-remains-five-seconds",
+    "evidence" : {
+      "ackSeconds" : 5.0027790069580078,
+      "unknownOutcome" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M3\/large-output-stream-and-main-actor-responsiveness",
+    "evidence" : {
+      "mainActorYieldP95MS" : 0.076790999999999998,
+      "peakRSSDeltaBytes" : 38649856,
+      "pixelLatencyMeasured" : false,
+      "retainedCharacters" : 65536,
+      "retainedRSSDeltaBytes" : 38649856,
+      "samples" : 600,
+      "toolPayloadBytes" : 10485760
+    },
+    "status" : "pass"
+  }
+]

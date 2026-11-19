@@ -1,0 +1,105 @@
+[
+  {
+    "case" : "M2\/local-drafts-and-restart",
+    "evidence" : {
+      "independentDrafts" : true,
+      "projectIDsStable" : true,
+      "runtimeStarts" : 0
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/unopened-session-reconnect",
+    "evidence" : {
+      "noAutomaticReconnect" : true,
+      "unopenedSessionStillLocal" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/history-branch-compaction-and-read-only-discovery",
+    "evidence" : {
+      "abandonedBranchExcluded" : true,
+      "readOnly" : true,
+      "runtimeIDConfirmed" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/partial-and-corrupt-history-block-execution",
+    "evidence" : {
+      "corruptExplicit" : true,
+      "noRuntimeStarted" : true,
+      "partialVisible" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/resume-cancellation-is-not-success",
+    "evidence" : {
+      "cancelledResponseRejected" : true,
+      "cleanupConfirmed" : true,
+      "sourceUnchanged" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/model-configuration-and-effective-readback",
+    "evidence" : {
+      "invalidModelRejected" : true,
+      "modelCount" : 56,
+      "thinkingReadBack" : "low"
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/real-coding-and-history-recovery",
+    "evidence" : {
+      "independentTestExit" : 0,
+      "protectedTestUnchanged" : true,
+      "readOnlyRecovery" : true,
+      "runtimeSessionID" : "01a1eb9b-96d7-7160-8a4f-cfd54d46863c"
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/browse-running-stop-switch-and-draft-consistency",
+    "evidence" : {
+      "draftsSurvivedRestart" : true,
+      "explicitSwitchOnly" : true,
+      "oldToolStopped" : true,
+      "runningHistoryBrowse" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/relocation-read-only-boundary-and-new-cwd",
+    "evidence" : {
+      "newSessionToolCwd" : "\/private\/var\/folders\/2q\/s5d5ttp9495_8f42knmdq69r0000gn\/T\/Pikachu M2 0B8E0990-4BD3-4418-B3ED-7DCFAC3C31ED\/Project A moved",
+      "oldHistoryNotRewritten" : true,
+      "stableProjectID" : true,
+      "wrongCwdBlocked" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/timeout-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  },
+  {
+    "case" : "M2\/crash-restart-no-replay",
+    "evidence" : {
+      "noAutomaticReplay" : true,
+      "promptCount" : 1,
+      "runtimeStarts" : 1,
+      "unknownMarked" : true
+    },
+    "status" : "pass"
+  }
+]
