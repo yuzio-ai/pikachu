@@ -1,10 +1,4 @@
 .DS_Store
-.build/
-.swiftpm/
-.m0-runs/
-.m1-runs/
-.m2-runs/
-.m3-runs/
 .verification-runs/
 build/
 dist/

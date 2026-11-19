@@ -1,18 +1,41 @@
 # Pikachu
 
-原生 macOS Coding Agent 工作台。Phase 1 / M3 功能与冻结性能指标均已通过验收。 [M3 原生复验](docs/m3/NATIVE-PIXELS.md)
+原生 macOS Coding Agent 工作台。Phase 1 功能与冻结性能指标均已通过验收。[原生窗口呈现复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
 
 ## 本地运行
 
 要求 macOS 27、Xcode 27 / Swift 6、Python 3，以及已配置认证的 Pi **1.5.2** 和 Node。当前仅验证本机 arm64 环境。
 
+### 使用 Xcode
+
+打开 `Pikachu.xcodeproj`，选择 `Pikachu` scheme，按 ⌘R 构建并运行（⌘U 运行全部单元测试）。工程默认采用本地 ad-hoc 签名，自动内嵌 6 个动态 framework 与独立监督进程 `pikachu-supervisor`。
+
+### 使用命令行（`xcodebuild`）
+
+Debug 构建并启动：
+
 ```sh
-python3 Scripts/build-app.py --open
+xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build build
+open build/Build/Products/Debug/Pikachu.app
 ```
 
-`--open` 在构建和签名校验通过后，用 `/usr/bin/open` 打开输出的 `.app`。省略该选项时只构建，也可以随后在 Finder 双击应用包。从 Codex 直接执行 `Contents/MacOS/Pikachu` 会让进程继承命令沙盒，导致 AppKit 注册时以 `SIGABRT` 中止。若 Codex 的命令环境无法调用 `/usr/bin/open`，请在 macOS 终端运行上面的命令。
+Release 构建并启动：
 
-打开后，点击「打开项目…」，选择或新建会话。发送草稿时自动连接并开始任务。构建脚本生成 debug App，并对 App 和内置独立监督进程做 ad-hoc 签名，供本地运行。
+```sh
+xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -configuration Release -derivedDataPath build build
+open build/Build/Products/Release/Pikachu.app
+```
+
+独立诊断配置构建（必须使用非默认 Bundle Identifier，防止混入正式工作台）：
+
+```sh
+xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -configuration Release -derivedDataPath build \
+  PIKACHU_BUNDLE_IDENTIFIER=ai.yuzio.pikachu.diagnostics \
+  PIKACHU_DIAGNOSTICS_CONFIG=/path/to/DiagnosticsConfiguration.json \
+  build
+```
+
+打开后，点击「打开项目…」，选择或新建会话。发送草稿时自动连接并开始任务。
 
 App 自动发现 Pi、Node 和系统代理，连接前可在“连接设置”调整。认证复用 `~/.pi/agent`；没有新增密钥管理。运行时可以修改项目和执行命令，请先确认工作目录。
 
@@ -24,46 +47,51 @@ App 自动发现 Pi、Node 和系统代理，连接前可在“连接设置”�
 
 工作台的项目索引、草稿、配置与发送状态保存在 `~/Library/Application Support/Pikachu/Workspace/workspace.store`（SwiftData）。普通编辑约 250 ms 合并保存；发送前必须完成提交状态持久化，退出前显式保存。尚未保存的编辑不承诺在强制退出后恢复。
 
-对话真实来源仍是 Pi JSONL。新会话保存在 `~/Library/Application Support/Pikachu/Sessions/<projectID>/`；同时发现标准 `~/.pi/agent/sessions/` 和原 M1 会话目录。打开项目和“刷新”用于发现历史，重新选择会话会读取源文件。读取不启动 Pi。未知格式、损坏、缺失或尾部未写完均明确提示；已确认的历史不会静默变成空会话。
+对话真实来源仍是 Pi JSONL。新会话保存在 `~/Library/Application Support/Pikachu/Sessions/<projectID>/`；同时发现标准 `~/.pi/agent/sessions/` 和历史兼容目录 `~/Library/Application Support/Pikachu/M1Sessions/`。打开项目和“刷新”用于发现历史，重新选择会话会读取源文件。读取不启动 Pi。未知格式、损坏、缺失或尾部未写完均明确提示；已确认的历史不会静默变成空会话。
 
 目录移动后用“重新定位项目…”更新原项目路径，保留稳定项目和会话标识。Pi 1.5.2 RPC 无法覆盖旧历史中的工作目录，因此旧会话只读，不能在新位置直接续跑；可在新位置新建会话，原历史不改写。
 
-重启不恢复推理、不重放旧队列、不自动重发任务。结果未确认的提交保留关联标识，并要求用户核对。M3 增加累计 Token / 估算费用、独立上下文占用、原生扩展弹窗与快捷键；未知费用明确显示不可用。原生性能的完成边界见报告。
+重启不恢复推理、不重放旧队列、不自动重发任务。结果未确认的提交保留关联标识，并要求用户核对。提供累计 Token / 估算费用、独立上下文占用、原生扩展弹窗与快捷键；未知费用明确显示不可用。原生性能的完成边界见报告。
 
-M3 快捷键还包括 ⌘L 聚焦输入、⇧⌘R 返回执行会话、⇧⌘M 模型设置、⇧⌘U 用量、⇧⌘I 处理交互请求。可信扩展可在「连接设置」明确添加，由自动模式加载。
+快捷键还包括 ⌘L 聚焦输入、⇧⌘R 返回执行会话、⇧⌘M 模型设置、⇧⌘U 用量、⇧⌘I 处理交互请求。可信扩展可在「连接设置」明确添加，由自动模式加载。
 
-Release 构建：
-
-```sh
-python3 Scripts/build-app.py --configuration release --output dist/Release/Pikachu.app --open
-```
+侧栏按 Open 和 Settled 组织会话。点击「已处理」后移入 Settled，右键可移回 Open。顶部可搜索和筛选项目，左下角刷新本地会话，底栏右侧的账户额度入口在当前版本显示额度不可用。
 
 ## 验证
 
 ```sh
-swift test --disable-sandbox
-.build/debug/m1-verify
-.build/debug/m1-verify --real
-.build/debug/m1-verify --baseline
-.build/debug/m2-verify
-.build/debug/m2-verify --real
-.build/release/m3-verify
-python3 Tools/M3Verification/Fixtures/execution-policy.py --wait-for-timeout
+# 单元测试（PikachuTests + ProcessSupervisionTests）
+xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build test
+
+# 构建并运行集成验证工具（均可在 Xcode 中通过对应 scheme 运行）
+xcodebuild -project Pikachu.xcodeproj -scheme pi-compat-probe -derivedDataPath build build
+xcodebuild -project Pikachu.xcodeproj -scheme runtime-verify -derivedDataPath build build
+xcodebuild -project Pikachu.xcodeproj -scheme workspace-verify -derivedDataPath build build
+xcodebuild -project Pikachu.xcodeproj -scheme interaction-verify -configuration Release -derivedDataPath build build
+
+build/Build/Products/Debug/pi-compat-probe --suite local
+build/Build/Products/Debug/pi-compat-probe --suite supervision
+build/Build/Products/Debug/runtime-verify
+build/Build/Products/Debug/runtime-verify --real
+build/Build/Products/Debug/runtime-verify --baseline
+build/Build/Products/Debug/workspace-verify
+build/Build/Products/Debug/workspace-verify --real
+build/Build/Products/Release/interaction-verify
+python3 Scripts/check-execution-policy.py --wait-for-timeout
 ```
 
-M1 默认集成检查使用合成协议进程；M2 默认还验证本机 Pi 的无推理恢复与合成故障。`--real` 额外使用现有 Pi 认证和模型，在临时目录中执行真实编码任务，会产生模型调用费用。M3 默认验证真实 Pi 的扩展命令与合成大输出，不调用模型。结果分别写入忽略目录 `.m1-runs/`、`.m2-runs/`、`.m3-runs/`。基线只测领域状态投影，不测原生显示延迟。
+`runtime-verify` 默认使用合成协议进程；`workspace-verify` 默认还验证本机 Pi 的无推理恢复与合成故障。`--real` 额外使用现有 Pi 认证和模型，在临时目录中执行真实编码任务，会产生模型调用费用。`interaction-verify` 默认验证真实 Pi 的扩展命令与合成大输出，不调用模型。结果统一写入忽略目录 `.verification-runs/<工具名>/`。基线只测领域状态投影，不测原生显示延迟。详细参数见 [验证工具说明](Verification/README.md)。
 
-开发者可用 `--fake` 参数替换执行后端；同一界面和协调器无需修改。`--state-dir` 可指定隔离的工作台存储，`--sessions` 指定会话目录。其余诊断参数见 [AppSettings](PikachuApp/AppSettings.swift)。不要将 Pi 凭据复制到项目或诊断文件中。
-
-侧栏按 Open 和 Settled 组织会话。点击「已处理」后移入 Settled，右键可移回 Open。顶部可搜索和筛选项目，左下角刷新本地会话，底栏右侧的账户额度入口在当前版本显示额度不可用。
+开发者可用 `--fake` 参数替换执行后端；同一界面和协调器无需修改。`--state-dir` 可指定隔离的工作台存储，`--sessions` 指定会话目录（均已在 `Pikachu` scheme 的启动参数中预置）。其余诊断参数见 [AppSettings](Pikachu/App/AppSettings.swift)。不要将 Pi 凭据复制到项目或诊断文件中。
 
 ## 文档
 
 - [产品与架构设计](DESIGN.md)
+- [验证工具说明与命名对照](Verification/README.md)
 - [侧边栏会话、提醒及账户额度](docs/design/sidebar-session-groups-v2.md)
-- [M1 交付及验收报告](docs/m1/REPORT.md)
-- [M2 交付及验收报告](docs/m2/REPORT.md)
-- [M3 实现与验收边界](docs/m3/REPORT.md)
-- [M3 原生性能验收](docs/m3/PERFORMANCE.md)
-- [基线与性能目标](docs/m1/PERFORMANCE.md)
-- [M0 监督策略及边界](docs/m0/SUPERVISION.md)
+- [Pi 协议兼容与进程监督报告](docs/reports/pi-rpc-compatibility/SUPERVISION.md)
+- [运行时集成与原生交互报告](docs/reports/runtime-integration/REPORT.md)
+- [工作台持久化与会话恢复报告](docs/reports/workspace-recovery/REPORT.md)
+- [扩展交互与工作台优化报告](docs/reports/interaction-performance/REPORT.md)
+- [原生性能验收报告](docs/reports/interaction-performance/PERFORMANCE.md)
+- [领域投影基线与性能目标](docs/reports/runtime-integration/PERFORMANCE.md)

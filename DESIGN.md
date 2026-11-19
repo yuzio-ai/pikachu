@@ -10,9 +10,9 @@
 - **首期引擎**：Pi Coding Agent（直接使用本地 RPC，过渡方案）
 - **Phase 1 形态**：开发者自用、单窗口多项目、全局单任务执行
 - **长期方向**：ACP 优先的多 Runtime 接入、自研 Rust Mini Agent Loop、Pikachu 自主管理 Subagent
-- **当前状态**：Phase 1 的 M0–M3 已验收。M3 最终构建通过用量、扩展交互、快捷键和冻结性能指标。 [M3 原生复验](docs/m3/NATIVE-PIXELS.md)
+- **当前状态**：Phase 1 的 M0–M3 已验收。M3 最终构建通过用量、扩展交互、快捷键和冻结性能指标。 [M3 原生复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
 
-本文中的产品行为和架构约束是设计约定。M0 实测结果和适用边界见 [M0 监督收口报告](docs/m0/SUPERVISION.md)，首轮失败保留于 [历史报告](docs/m0/REPORT.md)。M1 范围见 [原生交互报告](docs/m1/REPORT.md)，M2 范围与兼容限制见 [会话恢复报告](docs/m2/REPORT.md)。M3 实现与证据边界见 [工作台完善报告](docs/m3/REPORT.md) 和 [性能验收](docs/m3/PERFORMANCE.md)；后续阶段设计不代表当前已实现。文档核对和领域基线不等于完整原生性能或兼容性验收。
+本文中的产品行为和架构约束是设计约定。M0 实测结果和适用边界见 [M0 监督收口报告](docs/reports/pi-rpc-compatibility/SUPERVISION.md)，首轮失败保留于 [历史报告](docs/reports/pi-rpc-compatibility/REPORT.md)。M1 范围见 [原生交互报告](docs/reports/runtime-integration/REPORT.md)，M2 范围与兼容限制见 [会话恢复报告](docs/reports/workspace-recovery/REPORT.md)。M3 实现与证据边界见 [工作台完善报告](docs/reports/interaction-performance/REPORT.md) 和 [性能验收](docs/reports/interaction-performance/PERFORMANCE.md)；后续阶段设计不代表当前已实现。文档核对和领域基线不等于完整原生性能或兼容性验收。
 
 ## 1. 产品定义
 
@@ -198,7 +198,7 @@ Pikachu macOS App (SwiftUI / AppKit)
 ### 5.1 边界与状态所有权
 
 1. `Features/` 不得引用 Pi RPC、ACP 的原始类型或直接解析后端会话文件。
-2. `Packages/AgentRuntimeCore/` 定义与 UI 无关的 Session、Message、ToolCall、Event、Capability 和错误类型；Task 与父子关系由编排核心定义。
+2. `Modules/AgentRuntimeCore/` 定义与 UI 无关的 Session、Message、ToolCall、Event、Capability 和错误类型；Task 与父子关系由编排核心定义。
 3. 各 Runtime Adapter 负责进程、协议、历史格式及领域映射。后端专有 metadata 可选保留，但不能成为基础 UI 的前提。
 4. App 层持有查看会话与草稿呈现；Pikachu 编排核心持有任务关系、调度及执行实例生命周期，Runtime 提供执行事实。不能依靠多个 ViewModel 各自推测运行状态。
 5. 连接状态、执行状态和队列分别建模；等待输入、重试、压缩和停止都有可见状态。连接断开时保留最后已知状态并标明过期。
@@ -422,49 +422,53 @@ M2 支持 Pi v3 的当前分支历史，保留压缩前的可见消息并显示�
 
 ## 8. 产品代码组织（当前与规划）
 
-M1 已创建根 SwiftPM 工程、`PikachuApp/`、`Packages/AgentRuntimeCore/`、`Packages/OrchestrationCore/`、`Packages/PiRuntimeAdapter/`、`Tests/PikachuCoreTests/` 和 `Tools/M1Verification/`。M2 增加 `Packages/WorkspacePersistence/`、`PiHistoryReader`、工作台协调器及 `Tools/M2Verification/`。`Scripts/build-app.py` 打包原生 App 与独立监督 helper。M0 源码直接共享，实验工程和原证据继续保留。
+工程采用纯 `Pikachu.xcodeproj` 管理，所有核心模块作为独立动态 framework target 构建，App、独立监督进程 `pikachu-supervisor`、单元测试和集成验证工具均由统一工程与共享 scheme 管理（详见 [Verification/README.md](Verification/README.md)）。历史阶段证据归档于 `docs/reports/`。
 
-当前文件按最小功能组织；下图仍是后续展开的目标结构，已交付范围以上述当前模块及阶段报告为准。ACP、Mini Agent 与 Subagent 尚未实现。
+当前结构（含后续阶段规划标注；ACP、Mini Agent 与 Subagent 尚未实现）：
 
 ```text
-Pikachu/
-├── PikachuApp/
-│   ├── App/                 # 查看会话、草稿及编排入口
+pikachu/
+├── Pikachu.xcodeproj/                  # 唯一工程入口与共享 scheme
+├── Pikachu/                            # macOS App target（模块 Pikachu）
+│   ├── App/                            # 入口、AppDelegate、环境与诊断设置
 │   ├── Features/
-│   │   ├── Projects/
-│   │   ├── Sessions/
-│   │   ├── Chat/
-│   │   └── Settings/
-│   ├── DesignSystem/
-│   └── Persistence/
-├── Packages/
-│   ├── AgentRuntimeCore/
-│   │   ├── Models/
-│   │   ├── Events/
-│   │   └── Protocols/
-│   ├── OrchestrationCore/   # Swift；Phase 1 单任务，Phase 2 任务树与调度
-│   ├── PiRuntimeAdapter/   # Phase 2 增加 Pi 委派适配入口
-│   │   ├── PiProcessManager.swift
-│   │   ├── PiRPCClient.swift
-│   │   ├── PiEventMapper.swift
-│   │   ├── PiHistoryReader.swift
-│   │   └── PiRuntimeAdapter.swift
-│   └── ACPRuntimeAdapter/  # Phase 3：Swift ACP 客户端与领域映射
+│   │   ├── Workbench/                  # 工作台主容器与会话顶栏
+│   │   ├── Sessions/                   # 侧边栏分组与账户额度入口
+│   │   ├── Transcript/                 # AppKit 复用的长历史消息与 Markdown
+│   │   ├── Composer/                   # 输入栏、模型/模式选择与扩展交互
+│   │   ├── Usage/                      # Token 与上下文占用视图
+│   │   └── Settings/                   # 连接配置与扩展状态
+│   ├── Services/                       # Git 仓库状态检查
+│   ├── DesignSystem/                   # 主题色、图标与控件样式
+│   ├── Diagnostics/                    # 诊断采样与窗口像素捕获
+│   └── Resources/                      # Assets.xcassets (AppIcon)、ProviderLogos/
+├── PikachuSupervisor/                  # 独立监督进程 pikachu-supervisor（内嵌于 Contents/MacOS）
+├── Modules/                            # 动态 framework targets
+│   ├── AgentRuntimeCore/               # 与 UI 无关的领域模型、事件与协议
+│   ├── OrchestrationCore/              # 会话与工作台状态机；Phase 2 增加任务树与调度
+│   ├── PiRuntimeAdapter/               # Pi RPC 适配、历史读取与 execution-policy.ts
+│   ├── WorkspacePersistence/           # SwiftData 本地工作台索引与草稿存储
+│   ├── ProcessSupervision/             # RPC 传输、进程身份与历史格式探针
+│   ├── CProcessInspection/             # Darwin libproc/sysctl 进程标记检查（C framework）
+│   └── ACPRuntimeAdapter/              # Phase 3（规划）：Swift ACP 客户端与领域映射
 ├── Runtimes/
-│   └── MiniAgent/           # Phase 3：独立 Rust 工程与 ACP 进程入口
+│   └── MiniAgent/                      # Phase 3（规划）：独立 Rust 工程与 ACP 进程入口
 ├── Tests/
-│   ├── AgentRuntimeCoreTests/
-│   ├── PiRPCProtocolTests/
-│   ├── PiHistoryReaderTests/
-│   ├── ACPRuntimeTests/     # Phase 3
-│   ├── OrchestrationTests/  # Phase 2 委派与并发，Phase 3 跨 Runtime 回归
-│   ├── TestSupport/         # Fake Runtime 与脱敏协议样本
-│   └── PikachuUITests/
+│   ├── PikachuTests/                   # 核心与 UI 单元测试（宿主 Pikachu.app）
+│   └── ProcessSupervisionTests/        # 传输与进程身份单元测试
+├── Verification/                       # 集成验证 CLI 工具与共享夹具
+│   ├── Fixtures/                       # 扩展与模拟运行时夹具
+│   ├── PiCompatProbe/                  # pi-compat-probe
+│   ├── RuntimeVerify/                  # runtime-verify（含领域投影基线）
+│   ├── WorkspaceVerify/                # workspace-verify
+│   └── InteractionVerify/              # interaction-verify
+├── Scripts/                            # 执行策略验证与原生窗口像素分析脚本
+├── docs/                               # 设计稿与阶段验收报告（docs/reports/）
 ├── README.md
 └── DESIGN.md
 ```
 
-此目录图包含后续阶段的目标模块，按阶段创建。Phase 1 实现单任务协调。Phase 2 增加编排与 Pi 委派适配。Phase 3 增加 ACP 客户端与独立 Rust Runtime。
+上图中标注为规划的目录按后续阶段创建。Phase 1 实现单任务协调。Phase 2 增加编排与 Pi 委派适配。Phase 3 增加 ACP 客户端与独立 Rust Runtime。
 
 ## 9. 里程碑与验收
 
@@ -487,7 +491,7 @@ Phase 2 从一个真实 Pi 父子委派闭环开始。委派接口、状态和�
 | M2 — 会话恢复与切换 | 项目、历史浏览、草稿持久化、执行切换、模型配置 | 重启后恢复可确认历史与草稿；运行中查看其他会话不中断；切换执行对象无迟到事件污染；异常输入不自动重发 |
 | M3 — 工作台完善 | 用量统计、完整 Extension UI、快捷键、辅助功能和性能完善 | 原生交互完整；模型与费用信息准确或明确缺失；长历史与大输出场景达到已冻结性能指标 |
 
-M0 的原全量 40/40 与 M1 的 17 项单元、13 项集成和原生结果保留在对应阶段报告。M2 已实现项目索引、只读历史、独立草稿持久化、会话恢复、执行目标切换及模型配置。目录移动后的旧会话续跑受上文 Pi RPC 限制。M3 已增加用量、原生扩展交互和工作台优化，最终构建通过冻结性能目标。 [M2 报告](docs/m2/REPORT.md) · [M3 性能验收](docs/m3/PERFORMANCE.md)
+M0 的原全量 40/40 与 M1 的 17 项单元、13 项集成和原生结果保留在对应阶段报告。M2 已实现项目索引、只读历史、独立草稿持久化、会话恢复、执行目标切换及模型配置。目录移动后的旧会话续跑受上文 Pi RPC 限制。M3 已增加用量、原生扩展交互和工作台优化，最终构建通过冻结性能目标。 [M2 报告](docs/reports/workspace-recovery/REPORT.md) · [M3 性能验收](docs/reports/interaction-performance/PERFORMANCE.md)
 
 M1 的最低可靠性不能延期到 M3；M3 负责覆盖完善和体验优化，不是首次处理异常。M0–M3 完成后构成 Phase 1 的 v0.1 MVP，不代表 Phase 2、Phase 3 已完成。
 
@@ -541,7 +545,7 @@ Phase 2 使用真实 Pi 编码任务验证完整体验。Phase 3 使用真实 Mi
 
 M0 确定参考设备、样本规模和测量方法；M1 建立首轮基线并冻结首版数值目标，M3 按同一条件验收。不在尚未测量时虚构具体性能数值或“已达标”结论。
 
-M1 已建立可重跑的领域状态投影基线，固定 100 / 5,000 条规模，并冻结首版目标。M3 在独立诊断构建中采集 WindowServer 呈现时间、聊天区帧变化和输入字形，并用 Instruments 验证主线程停顿。最终构建通过原冻结目标。 [基线与目标](docs/m1/PERFORMANCE.md) · [最终原生测量](docs/m3/NATIVE-PIXELS.md)
+M1 已建立可重跑的领域状态投影基线，固定 100 / 5,000 条规模，并冻结首版目标。M3 在独立诊断构建中采集 WindowServer 呈现时间、聊天区帧变化和输入字形，并用 Instruments 验证主线程停顿。最终构建通过原冻结目标。 [基线与目标](docs/reports/runtime-integration/PERFORMANCE.md) · [最终原生测量](docs/reports/interaction-performance/NATIVE-PIXELS.md)
 
 实现需避免每个 token 都触发整段历史的重排；工具输出按需展示，历史逐步加载，渲染缓存设有边界。具体策略由测量支持，不以替换 UI 框架作为默认优化方案。
 

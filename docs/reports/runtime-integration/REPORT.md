@@ -1,5 +1,7 @@
 # M1 最小原生交互交付报告
 
+> 历史归档：本报告与证据保留验收时的原始命名与路径；当前工程路径及工具名对照见 [Verification/README.md](../../../Verification/README.md)。
+
 - 日期：2026-11-18（Asia/Shanghai）
 - 结论：M1 功能验收通过，保留 M0 已验证的监督策略；停在 M1。
 - 环境：macOS 27.2.1 / arm64、Xcode 27.2、Swift 6.4.2、Node 24.12.0、Pi 1.5.2；真实任务使用既有 openai / gpt-6.1-sol 配置与本机系统代理。
@@ -25,7 +27,7 @@ View 不读取 Pi JSON，也不直接管理 Process。原始历史继续由 Pi �
 
 监督主体、C 进程检查和 PID / 启动时间所有权实现与 M0 冻结指纹完全一致。`RPC.swift` 仅新增线程安全的游标观察方法，供适配层消费已接收记录；去除该新增方法后的 SHA-256 与 M0 一致。对比结果记录于 [证据清单](evidence/manifest.json)。
 
-每实例标记、谱系登记、身份复核、宿主丢失检测、TERM → KILL、有界清理和未知状态拒绝释放槽位均保留。仍受 [M0 边界](../m0/SUPERVISION.md#3-适用边界) 限制。GUI 受控退出已验证；没有把系统 Force Quit、App Sandbox 或公证分发视为已验证。
+每实例标记、谱系登记、身份复核、宿主丢失检测、TERM → KILL、有界清理和未知状态拒绝释放槽位均保留。仍受 [M0 边界](../pi-rpc-compatibility/SUPERVISION.md#3-适用边界) 限制。GUI 受控退出已验证；没有把系统 Force Quit、App Sandbox 或公证分发视为已验证。
 
 ## 验证结果
 

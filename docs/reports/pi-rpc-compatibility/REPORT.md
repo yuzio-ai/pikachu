@@ -1,5 +1,7 @@
 # M0 验证报告
 
+> 历史归档：本报告与证据保留验收时的原始命名与路径；当前工程路径及工具名对照见 [Verification/README.md](../../../Verification/README.md)。
+
 > 本文保留首轮失败的历史证据。后续已补充宿主监督策略；当前结论以 [M0 监督收口报告](SUPERVISION.md) 为准。
 
 - 日期：2026-11-18（Asia/Shanghai；证据目录名使用 UTC）

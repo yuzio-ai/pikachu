@@ -1,5 +1,7 @@
 # 首轮基线与 Phase 1 性能目标
 
+> 历史归档：本报告与证据保留验收时的原始命名与路径；当前工程路径及工具名对照见 [Verification/README.md](../../../Verification/README.md)。
+
 ## 已测范围
 
 参考环境：Apple M4 Pro（Mac16,8 / arm64）、12 个逻辑处理器、24 GiB 内存、macOS 27.2.1（26B131），Xcode 27.2 / Swift 6.4.2，SwiftPM debug。后续原生 trace 沿用同机并记录显示条件；不得把本机结果推广到所有 macOS 设备。
