@@ -75,7 +75,7 @@ public final class RPCProcess: @unchecked Sendable {
         }
         if supervised {
             let helper = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("pikachu-supervisor")
-            guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw ProbeError.failure("Supervisor executable missing; build all package products") }
+            guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw ProbeError.failure("Supervisor executable missing; build pikachu-supervisor") }
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-supervision-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             supervisionDirectory = directory

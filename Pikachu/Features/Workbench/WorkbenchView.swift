@@ -7,9 +7,9 @@ struct WorkbenchView: View {
     let workspace: WorkspaceController
     let settings: AppSettings
     let quitRequest: Int
+    @Binding var sidebarVisibility: NavigationSplitViewVisibility
     @State private var modal: WorkbenchModal?
     @State private var preparingToQuit = false
-    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     @State private var sidebarFilter = SessionSidebarFilter()
     @State private var choosesSessionProject = false
     @State private var gitStore = GitStatusStore()
@@ -70,35 +70,9 @@ struct WorkbenchView: View {
                 .ignoresSafeArea()
             }
         }
-        .toolbar(removing: .title)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                HStack(spacing: 6) {
-                    if Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName") != nil {
-                        Image(nsImage: NSApp.applicationIconImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: "bolt.fill")
-                            .foregroundStyle(PikachuTheme.lightningYellow)
-                            .accessibilityHidden(true)
-                    }
-                    Text("Pikachu").font(.headline)
-                    Button {
-                        sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                    }
-                    .buttonStyle(.borderless)
-                    .padding(.leading, 6)
-                    .help(sidebarVisibility == .detailOnly ? "显示侧栏" : "隐藏侧栏")
-                    .accessibilityLabel(sidebarVisibility == .detailOnly ? "显示侧栏" : "隐藏侧栏")
-                    .keyboardShortcut("s", modifiers: [.command, .control])
-                }
-                .fixedSize()
-            }
+        .background {
+            WorkbenchTitlebar(sidebarVisibility: $sidebarVisibility)
+                .frame(width: 0, height: 0)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if let path = workspace.selectedProject?.path {
@@ -369,7 +343,6 @@ struct SessionDetail: View {
                     focusSignal: workspace.inputFocusRequest
                 )
             }
-            .frame(maxWidth: 864)
             .frame(maxWidth: .infinity)
         }
         .alert("停止当前任务并发送？", isPresented: $confirmSend) {

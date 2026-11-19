@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 import XCTest
 import AgentRuntimeCore
 @testable import OrchestrationCore
@@ -77,6 +79,36 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
 }
 
 final class SessionDetailUITests: XCTestCase {
+    @MainActor func testTranscriptScrollerFollowsSessionDetailWidth() async throws {
+        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
+        let presentation = SessionPresentation(id: UUID())
+        presentation.controller.showHistory((0..<30).map { .init(id: "layout-\($0)", kind: .assistant, text: "Message \($0)") })
+        let host = NSHostingView(rootView: SessionDetail(
+            workspace: workspace, settings: AppSettings(), presentation: presentation,
+            gitStore: GitStatusStore(), isModelSheetOpen: false, configure: {}, openSettings: {}
+        ))
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1200, height: 600),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+
+        func transcriptScroll(in view: NSView) -> NativeTranscript.TranscriptScroll? {
+            if let scroll = view as? NativeTranscript.TranscriptScroll { return scroll }
+            return view.subviews.lazy.compactMap { transcriptScroll(in: $0) }.first
+        }
+
+        for width: CGFloat in [1200, 520] {
+            window.setContentSize(.init(width: width, height: 600))
+            host.layoutSubtreeIfNeeded()
+            let scroll = try XCTUnwrap(transcriptScroll(in: host))
+            scroll.scrollerStyle = .legacy
+            scroll.layoutSubtreeIfNeeded()
+            let scroller = try XCTUnwrap(scroll.verticalScroller)
+            XCTAssertEqual(host.bounds.width, width, accuracy: 1)
+            XCTAssertEqual(scroll.bounds.width, width, accuracy: 1)
+            XCTAssertEqual(scroller.convert(scroller.bounds, to: host).maxX, host.bounds.maxX, accuracy: 1)
+        }
+    }
+
     func testGitInspectorCoversUnbornDetachedUpstreamChangesAndDeduplication() async throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("Pikachu-Git-Test-\(UUID())")
@@ -393,7 +425,7 @@ final class SessionDetailUITests: XCTestCase {
             isActiveRunOrQueue: true,
             isReadOnlyHistory: false
         )
-        XCTAssertEqual(running.buttonText, "权限 · 需确认")
+        XCTAssertEqual(running.buttonText, "需确认")
         XCTAssertEqual(running.effectiveMode, .interactive)
 
         let automatic = ComposerPermissionsPresentation(
@@ -404,7 +436,7 @@ final class SessionDetailUITests: XCTestCase {
             isActiveRunOrQueue: false,
             isReadOnlyHistory: true
         )
-        XCTAssertEqual(automatic.buttonText, "权限 · 运行时配置")
+        XCTAssertEqual(automatic.buttonText, "运行时配置")
     }
 
     @MainActor func testUsagePresentationAndLateResponseRejection() async {
@@ -434,7 +466,14 @@ final class SessionDetailUITests: XCTestCase {
             isConnected: true, isStale: true, isLoading: false, isCompacting: true
         )
         XCTAssertEqual(compacted.summaryText, "待更新")
+        XCTAssertEqual(compacted.compactSummaryText, "待更新")
         XCTAssertNil(compacted.summaryRatio)
+
+        let unavailable = UsagePresentationSnapshot(
+            usage: nil, isConnected: false, isStale: false, isLoading: false, isCompacting: false
+        )
+        XCTAssertEqual(unavailable.summaryText, "不可用")
+        XCTAssertNil(unavailable.compactSummaryText)
 
         let over = UsagePresentationSnapshot(
             usage: RuntimeUsage(sessionID: "s1", context: .init(tokens: 500_000, window: 475_000, percent: 105.3)),

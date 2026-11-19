@@ -5,7 +5,7 @@ import OrchestrationCore
 struct UsagePresentationSnapshot {
     let summaryRatio: Double?
     let summaryText: String
-    let compactSummaryText: String
+    let compactSummaryText: String?
     let isOverCapacity: Bool
     let isStale: Bool
     let percentText: String
@@ -35,13 +35,14 @@ struct UsagePresentationSnapshot {
             self.summaryRatio = nil
             self.isOverCapacity = false
             if isCompacting || (isConnected && (isLoading || isStale || window != nil)) {
-                self.percentText = String(localized: "待更新")
-                self.summaryText = String(localized: "待更新")
-                self.compactSummaryText = String(localized: "待更新")
+                let pending = String(localized: "待更新")
+                self.percentText = pending
+                self.summaryText = pending
+                self.compactSummaryText = pending
             } else {
                 self.percentText = String(localized: "不可用")
                 self.summaryText = String(localized: "不可用")
-                self.compactSummaryText = String(localized: "不可用")
+                self.compactSummaryText = nil
             }
             if let window, window > 0 {
                 self.detailFractionText = "— / \(Self.formatDetail(window))"
@@ -148,23 +149,18 @@ struct UsageView: View {
             workspace.usageExpanded.toggle()
         } label: {
             HStack(spacing: 6) {
-                Text("上下文")
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
                 ContextProgressTrack(
                     ratio: snapshot.summaryRatio,
                     isHighlighted: workspace.usageExpanded,
                     isOverCapacity: snapshot.isOverCapacity
                 )
                 .frame(width: 44, height: 5)
-                Text(compactNumbers ? snapshot.compactSummaryText : snapshot.summaryText)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .fixedSize()
-                Image(systemName: workspace.usageExpanded ? "chevron.up" : "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+                if let compactSummary = snapshot.compactSummaryText {
+                    Text(compactNumbers ? compactSummary : snapshot.summaryText)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                }
             }
         }
         .buttonStyle(ComposerControlButtonStyle(isOpen: workspace.usageExpanded))

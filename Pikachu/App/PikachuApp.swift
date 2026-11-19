@@ -10,11 +10,15 @@ private let isHostingUnitTests = ProcessInfo.processInfo.environment["XCTestConf
     @State private var startupError: String?
     @State private var settings = AppSettings()
     @State private var quitRequest = 0
+    @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     var body: some Scene {
         Window("Pikachu", id: "main") {
             VStack {
                 if isHostingUnitTests { EmptyView() }
-                else if let workspace { WorkbenchView(workspace: workspace, settings: settings, quitRequest: quitRequest) }
+                else if let workspace {
+                    WorkbenchView(workspace: workspace, settings: settings, quitRequest: quitRequest,
+                                  sidebarVisibility: $sidebarVisibility)
+                }
                 else if let startupError { ContentUnavailableView("工作台无法打开", systemImage: "exclamationmark.triangle", description: Text(startupError)) }
                 else { ProgressView("正在读取本地工作台…") }
             }
@@ -28,6 +32,13 @@ private let isHostingUnitTests = ProcessInfo.processInfo.environment["XCTestConf
         }
         .defaultSize(width: settings.diagnosticWindowWidth ?? 1120, height: 780)
         .commands {
+            CommandGroup(after: .sidebar) {
+                Button(sidebarVisibility == .detailOnly ? "显示侧栏" : "隐藏侧栏") {
+                    sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
+                }
+                .keyboardShortcut("s", modifiers: [.command, .control])
+                .disabled(workspace == nil)
+            }
             CommandGroup(replacing: .appTermination) {
                 Button("退出 Pikachu") {
                     if workspace != nil { quitRequest += 1 }

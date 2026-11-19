@@ -69,9 +69,9 @@
 
 | 顺序 | 范围 | 受影响入口 |
 |---|---|---|
-| 1 | 导航、标题、空状态、全局运行反馈 | `PikachuApp/WorkbenchView.swift`、`PikachuApp/PikachuApp.swift`、现有连接与模型设置入口。对照窗口工具栏与菜单命令，保持键盘入口可用 |
-| 2 | 对话、工具事件、滚动锚点 | `PikachuApp/TranscriptView.swift`、`PikachuApp/NativeTranscript.swift`。基于现有原生 transcript 增量调整滚动和行布局 |
-| 3 | 用量、输入、发送与等待状态 | `PikachuApp/UsageView.swift`、`PikachuApp/ComposerView.swift`，对照 `WorkbenchView.swift` 的历史加载、发送核对和全局提示，以及 `InteractionView.swift` 的等待回复入口 |
+| 1 | 导航、标题、空状态、全局运行反馈 | `Pikachu/Features/Workbench/WorkbenchView.swift`、`Pikachu/App/PikachuApp.swift`、现有连接与模型设置入口。对照窗口工具栏与菜单命令，保持键盘入口可用 |
+| 2 | 对话、工具事件、滚动锚点 | `Pikachu/Features/Transcript/TranscriptView.swift`、`Pikachu/Features/Transcript/NativeTranscript.swift`。基于现有原生 transcript 增量调整滚动和行布局 |
+| 3 | 用量、输入、发送与等待状态 | `Pikachu/Features/Usage/UsageView.swift`、`Pikachu/Features/Composer/ComposerView.swift`，对照 `WorkbenchView.swift` 的历史加载、发送核对和全局提示，以及 `InteractionView.swift` 的等待回复入口 |
 
 建议一个实现者串行完成。三步共享 `WorkbenchView` 装配与会话状态，任一布局调整都需要在正常工作台入口联验。业务规则以现有 `WorkspaceController` 和 `SessionController` 为准，布局变更后复查菜单快捷键、模态路由、持久化恢复与原生 transcript 的滚动更新路径。
 
@@ -100,5 +100,5 @@
 ## 项目依据
 
 - [产品设计 §4 · 信息架构与交互](../../DESIGN.md#4-信息架构与交互)
-- [工作台装配](../../PikachuApp/WorkbenchView.swift) · [对话渲染](../../PikachuApp/NativeTranscript.swift) · [消息输入](../../PikachuApp/ComposerView.swift)
-- [M3 产品行为](../m3/REPORT.md) · [M3 原生性能验收](../m3/NATIVE-PIXELS.md)
+- [工作台装配](../../Pikachu/Features/Workbench/WorkbenchView.swift) · [对话渲染](../../Pikachu/Features/Transcript/NativeTranscript.swift) · [消息输入](../../Pikachu/Features/Composer/ComposerView.swift)
+- [M3 产品行为](../reports/interaction-performance/REPORT.md) · [M3 原生性能验收](../reports/interaction-performance/NATIVE-PIXELS.md)

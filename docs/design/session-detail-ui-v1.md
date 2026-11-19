@@ -69,5 +69,5 @@
 ## 项目依据
 
 - [工作台分区与原交互](workbench-ui-refresh.md) · [侧栏 v2](sidebar-session-groups-v2.md)
-- [工作台装配](../../PikachuApp/WorkbenchView.swift) · [输入区](../../PikachuApp/ComposerView.swift) · [对话投影](../../PikachuApp/TranscriptView.swift)
-- [Pi 事件映射](../../Packages/PiRuntimeAdapter/PiEventMapper.swift) · [Pi 历史读取](../../Packages/PiRuntimeAdapter/PiHistoryReader.swift) · [工具策略](../../Packages/PiRuntimeAdapter/Resources/execution-policy.ts)
+- [工作台装配](../../Pikachu/Features/Workbench/WorkbenchView.swift) · [输入区](../../Pikachu/Features/Composer/ComposerView.swift) · [对话投影](../../Pikachu/Features/Transcript/TranscriptView.swift)
+- [Pi 事件映射](../../Modules/PiRuntimeAdapter/PiEventMapper.swift) · [Pi 历史读取](../../Modules/PiRuntimeAdapter/PiHistoryReader.swift) · [工具策略](../../Modules/PiRuntimeAdapter/Resources/execution-policy.ts)

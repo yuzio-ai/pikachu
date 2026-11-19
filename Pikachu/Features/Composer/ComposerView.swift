@@ -17,21 +17,21 @@ struct ComposerPermissionsPresentation: Equatable {
             if isActiveRunOrQueue {
                 self.effectiveMode = liveMode
                 self.pendingNextRunMode = nil
-                self.buttonText = "权限 · \(liveMode.permissionSummary)"
+                self.buttonText = liveMode.permissionSummary
                 self.statusBadge = String(localized: "当前执行已生效")
                 self.explanation = liveMode.permissionDetail
                 self.secondaryNote = String(localized: "运行中或队列未清空时保持当前已生效权限，结束后可调整。")
             } else if let activeMode, activeMode != selectedMode {
                 self.effectiveMode = activeMode
                 self.pendingNextRunMode = selectedMode
-                self.buttonText = "权限 · \(selectedMode.permissionSummary)（下次执行）"
+                self.buttonText = String(localized: "\(selectedMode.permissionSummary)（下次执行）")
                 self.statusBadge = String(localized: "下次执行生效")
                 self.explanation = selectedMode.permissionDetail
                 self.secondaryNote = String(localized: "当前空闲连接仍为「\(activeMode.titleText)」；下次发送将重连并应用新权限。")
             } else {
                 self.effectiveMode = selectedMode
                 self.pendingNextRunMode = nil
-                self.buttonText = "权限 · \(selectedMode.permissionSummary)"
+                self.buttonText = selectedMode.permissionSummary
                 self.statusBadge = String(localized: "已连接生效")
                 self.explanation = selectedMode.permissionDetail
                 self.secondaryNote = String(localized: "由当前执行模式「\(selectedMode.titleText)」决定，可在模式菜单调整。")
@@ -39,7 +39,7 @@ struct ComposerPermissionsPresentation: Equatable {
         } else {
             self.effectiveMode = selectedMode
             self.pendingNextRunMode = selectedMode
-            self.buttonText = "权限 · \(selectedMode.permissionSummary)"
+            self.buttonText = selectedMode.permissionSummary
             self.statusBadge = String(localized: "下次执行生效")
             self.explanation = selectedMode.permissionDetail
             if isReadOnlyHistory {
@@ -69,7 +69,7 @@ struct ComposerView: View {
     var focusSignal = 0
     @FocusState private var focused: Bool
     @State private var showsPermissions = false
-    @State private var isModeHovered = false
+    @State private var showsModePicker = false
 
     private var permissions: ComposerPermissionsPresentation {
         ComposerPermissionsPresentation(
@@ -168,6 +168,9 @@ struct ComposerView: View {
         .padding(.horizontal, 24).padding(.top, 4).padding(.bottom, 12)
         .onChange(of: controller.connection) { _, state in if state == .connected { focused = true } }
         .onChange(of: focusSignal) { _, _ in focused = true }
+        .onChange(of: modeDisabled) { _, disabled in
+            if disabled { showsModePicker = false }
+        }
     }
 
     private var attachmentButton: some View {
@@ -183,38 +186,42 @@ struct ComposerView: View {
     }
 
     private var modeMenu: some View {
-        Menu {
-            ForEach(AgentMode.allCases) { mode in
-                Button {
-                    onMode(mode)
-                } label: {
-                    if mode == agentMode { Label(mode.title, systemImage: "checkmark") }
-                    else { Text(mode.title) }
-                }
-            }
+        Button {
+            showsModePicker.toggle()
         } label: {
-            HStack(spacing: 4) {
-                Text("模式 · \(agentMode.titleText)")
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(isModeHovered && !modeDisabled ? Color.primary.opacity(0.06) : Color.clear, in: .rect(cornerRadius: 8))
-            .contentShape(.rect(cornerRadius: 8))
+            Text(agentMode.title)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(ComposerControlButtonStyle(isOpen: showsModePicker))
         .fixedSize()
-        .opacity(modeDisabled ? 0.45 : 1)
-        .onHover { isModeHovered = $0 }
         .disabled(modeDisabled)
         .help(modeDisabled ? "运行或保存期间不可切换执行模式" : "切换执行模式（影响工具权限）")
         .accessibilityLabel("执行模式")
-        .accessibilityValue(Text("模式 · \(agentMode.titleText)"))
+        .accessibilityValue(Text(agentMode.title))
         .accessibilityIdentifier("agent-mode")
+        .popover(isPresented: $showsModePicker, arrowEdge: .bottom) {
+            VStack(spacing: 2) {
+                ForEach(AgentMode.allCases) { mode in
+                    Button {
+                        showsModePicker = false
+                        onMode(mode)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(mode.title)
+                            Spacer(minLength: 0)
+                            if mode == agentMode {
+                                Image(systemName: "checkmark")
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                    }
+                    .buttonStyle(ComposerControlButtonStyle(isOpen: false))
+                    .accessibilityAddTraits(mode == agentMode ? .isSelected : [])
+                }
+            }
+            .font(.callout)
+            .padding(6)
+            .frame(width: 120)
+        }
     }
 
     private var permissionsButton: some View {
@@ -222,14 +229,8 @@ struct ComposerView: View {
         return Button {
             showsPermissions.toggle()
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "shield")
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityHidden(true)
-                Text(info.buttonText)
-                    .foregroundStyle(Color.accentColor)
-                    .lineLimit(1)
-            }
+            Text(info.buttonText)
+                .foregroundStyle(.primary)
         }
         .buttonStyle(ComposerControlButtonStyle(isOpen: showsPermissions))
         .fixedSize()
@@ -285,10 +286,6 @@ struct ComposerView: View {
                     Text("模型…")
                         .lineLimit(1)
                 }
-                Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
             }
         }
         .buttonStyle(ComposerControlButtonStyle(isOpen: isModelSheetOpen))

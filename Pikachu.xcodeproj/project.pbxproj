@@ -7,188 +7,53 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FEF70892D76DE5A70030891A /* CProcessInspection.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
-		};
-		9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		DCAE06037B4E45D263399A05 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		FD0D9F94BE49212358CBECD2 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
-		73237B9A33F33668279B485C /* execution-policy.ts in Resources */ = {
-			isa = PBXBuildFile;
-			fileRef = 693F7DD176ACB63B89AB60F6 /* execution-policy.ts */;
-		};
-		A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		A6B5A61E30D0C6A2BF34BDF6 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
-		6D1967981F6722F07F482843 /* CProcessInspection.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
-		};
-		ACCC84368C9731A3F7DDB7D3 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		DEB5E7EB7B49CBC8B63142FA /* PiRuntimeAdapter.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-		};
-		1E5849C654BEBB376D43FC6C /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		2D7F31168E78909C1ECD3BEB /* WorkspacePersistence.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-		};
-		A05CB1D554AB874D3C947756 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
-		B1F76092125E4D07BACB386F /* CProcessInspection.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		E8586500D68EBBBA3453E0B9 /* ProcessSupervision.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		9ED49D621D517E74DD1F8EA1 /* AgentRuntimeCore.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		CE2C0BEBB36A8497B7F38549 /* OrchestrationCore.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		819B72055D1495A6B6FF05B4 /* PiRuntimeAdapter.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		4EAE92CBA9049BDD42E8D304 /* WorkspacePersistence.framework in Embed Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); };
-		};
-		2F33D8CEDE20C3753910F87F /* pikachu-supervisor in Embed Supervisor */ = {
-			isa = PBXBuildFile;
-			fileRef = 3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */;
-			settings = {ATTRIBUTES = (CodeSignOnCopy, ); };
-		};
-		5944799AE4D2F420D34E3DB1 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
-		C65D0BEBB69CD7B48D1D8435 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		2533C2E4831BEEFC3C9C5A8B /* PiRuntimeAdapter.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-		};
-		9BBCCD4FCB0309236F922A18 /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		9722D9814ED33ED0B71BFE7A /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		643FCE3CA0C7FCE72B0A20FC /* PiRuntimeAdapter.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-		};
-		C68F0BC45E90175CCF03FE4C /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		5BEE0DC1ED385509264FEE33 /* WorkspacePersistence.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-		};
-		F2A38D71394E2949E2624811 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		5DDD1C21DA5C942B83E10E4A /* PiRuntimeAdapter.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-		};
-		161218A18D21C4ED432947FB /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		DAC89E1F2600F8904AB5FF8D /* WorkspacePersistence.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-		};
-		35BB7431C5421E4A45C74551 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
-		8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
-		};
-		AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-		};
-		F8D18854D9FF4314D019E9AE /* PiRuntimeAdapter.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-		};
-		09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-		};
-		6F0B08C17CAA7A12ED294D43 /* ProcessSupervision.framework in Frameworks */ = {
-			isa = PBXBuildFile;
-			fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
-		};
+		09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		161218A18D21C4ED432947FB /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		1E5849C654BEBB376D43FC6C /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		2533C2E4831BEEFC3C9C5A8B /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
+		2D7F31168E78909C1ECD3BEB /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		2F33D8CEDE20C3753910F87F /* pikachu-supervisor in Embed Supervisor */ = {isa = PBXBuildFile; fileRef = 3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		35BB7431C5421E4A45C74551 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		4EAE92CBA9049BDD42E8D304 /* WorkspacePersistence.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5944799AE4D2F420D34E3DB1 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		5BEE0DC1ED385509264FEE33 /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		5DDD1C21DA5C942B83E10E4A /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
+		643FCE3CA0C7FCE72B0A20FC /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
+		6D1967981F6722F07F482843 /* CProcessInspection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; };
+		6F0B08C17CAA7A12ED294D43 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		73237B9A33F33668279B485C /* execution-policy.ts in Resources */ = {isa = PBXBuildFile; fileRef = 693F7DD176ACB63B89AB60F6 /* execution-policy.ts */; };
+		819B72055D1495A6B6FF05B4 /* PiRuntimeAdapter.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		9722D9814ED33ED0B71BFE7A /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		9BBCCD4FCB0309236F922A18 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		9ED49D621D517E74DD1F8EA1 /* AgentRuntimeCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A05CB1D554AB874D3C947756 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		A6B5A61E30D0C6A2BF34BDF6 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		ACCC84368C9731A3F7DDB7D3 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		B1F76092125E4D07BACB386F /* CProcessInspection.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		C65D0BEBB69CD7B48D1D8435 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		C68F0BC45E90175CCF03FE4C /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		CE2C0BEBB36A8497B7F38549 /* OrchestrationCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		DAC89E1F2600F8904AB5FF8D /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		DCAE06037B4E45D263399A05 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		DEB5E7EB7B49CBC8B63142FA /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
+		E8586500D68EBBBA3453E0B9 /* ProcessSupervision.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F2A38D71394E2949E2624811 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		F8D18854D9FF4314D019E9AE /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
+		FD0D9F94BE49212358CBECD2 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		FEF70892D76DE5A70030891A /* CProcessInspection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */ = {
+		004D273C498A98462C56F905 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 9284448B92222BB1E47636AB;
 			remoteInfo = CProcessInspection;
-		};
-		5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
-			remoteInfo = AgentRuntimeCore;
-		};
-		3E0347C657272300E88AA61B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
-			remoteInfo = AgentRuntimeCore;
 		};
 		03A27735159AB503DEC547CC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -197,12 +62,19 @@
 			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
 			remoteInfo = ProcessSupervision;
 		};
-		79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */ = {
+		05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
-			remoteInfo = OrchestrationCore;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "pikachu-supervisor";
+		};
+		07BCB3AED2F1253EFB10E598 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
+			remoteInfo = WorkspacePersistence;
 		};
 		0E2D92C60F44540F70A94A28 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -211,26 +83,12 @@
 			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
 			remoteInfo = ProcessSupervision;
 		};
-		57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 9284448B92222BB1E47636AB;
-			remoteInfo = CProcessInspection;
-		};
 		1224EE0F7D22021A4B59A80A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
 			remoteInfo = AgentRuntimeCore;
-		};
-		EA959554AA6E2495BCB7ABB5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
-			remoteInfo = PiRuntimeAdapter;
 		};
 		13112D549003B7D54A53B610 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -239,49 +97,56 @@
 			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
 			remoteInfo = OrchestrationCore;
 		};
-		A42E931D853590D14A335F4E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
-			remoteInfo = WorkspacePersistence;
-		};
-		AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
-			remoteInfo = ProcessSupervision;
-		};
-		004D273C498A98462C56F905 /* PBXContainerItemProxy */ = {
+		19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 9284448B92222BB1E47636AB;
 			remoteInfo = CProcessInspection;
 		};
-		05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */ = {
+		1FA5D0E7B4C1524365A0A200 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
+			remoteInfo = PiRuntimeAdapter;
+		};
+		35EC75664B4190F803377348 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 4B026431BEFB421CEA527844;
 			remoteInfo = "pikachu-supervisor";
 		};
-		6901AB2C842AFC601D4EA222 /* PBXContainerItemProxy */ = {
+		3E0347C657272300E88AA61B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
-			remoteInfo = ProcessSupervision;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
 		};
-		A694CFD602447B5008A497D3 /* PBXContainerItemProxy */ = {
+		4892C742F62798F9C01A0095 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 4B026431BEFB421CEA527844;
-			remoteInfo = "pikachu-supervisor";
+			remoteGlobalIDString = A54AAAB5EA605775A493521A;
+			remoteInfo = Pikachu;
 		};
-		9B79845FE764BB08B42771AA /* PBXContainerItemProxy */ = {
+		5711CAA7CDA5681B2A1CC53B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9284448B92222BB1E47636AB;
+			remoteInfo = CProcessInspection;
+		};
+		5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
@@ -295,6 +160,41 @@
 			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
 			remoteInfo = PiRuntimeAdapter;
 		};
+		5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		657065C2CF5505ED308BF02A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		68F31647ED306000A9E47F0E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "pikachu-supervisor";
+		};
+		6901AB2C842AFC601D4EA222 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		6EE1115AF72190A7A2653B1B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
+			remoteInfo = OrchestrationCore;
+		};
 		777167653B93183876A215CB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
@@ -302,28 +202,7 @@
 			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
 			remoteInfo = OrchestrationCore;
 		};
-		C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 4B026431BEFB421CEA527844;
-			remoteInfo = "pikachu-supervisor";
-		};
-		5711CAA7CDA5681B2A1CC53B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
-			remoteInfo = AgentRuntimeCore;
-		};
-		9E41F65B44883C55F20813E6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
-			remoteInfo = PiRuntimeAdapter;
-		};
-		B9E908E9ED8CA187FDCC09B1 /* PBXContainerItemProxy */ = {
+		79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
@@ -337,19 +216,40 @@
 			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
 			remoteInfo = WorkspacePersistence;
 		};
-		68F31647ED306000A9E47F0E /* PBXContainerItemProxy */ = {
+		9B79845FE764BB08B42771AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		9E41F65B44883C55F20813E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
+			remoteInfo = PiRuntimeAdapter;
+		};
+		A42E931D853590D14A335F4E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
+			remoteInfo = WorkspacePersistence;
+		};
+		A694CFD602447B5008A497D3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 4B026431BEFB421CEA527844;
 			remoteInfo = "pikachu-supervisor";
 		};
-		F9E8A939EE71E480D6BA30BA /* PBXContainerItemProxy */ = {
+		AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
-			remoteInfo = AgentRuntimeCore;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
 		};
 		B734F57B8CA7A85BE3EC7643 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -358,40 +258,12 @@
 			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
 			remoteInfo = PiRuntimeAdapter;
 		};
-		6EE1115AF72190A7A2653B1B /* PBXContainerItemProxy */ = {
+		B9E908E9ED8CA187FDCC09B1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
 			remoteInfo = OrchestrationCore;
-		};
-		07BCB3AED2F1253EFB10E598 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
-			remoteInfo = WorkspacePersistence;
-		};
-		EE350D74C7C40CE0C366A26D /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
-			remoteInfo = ProcessSupervision;
-		};
-		35EC75664B4190F803377348 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 4B026431BEFB421CEA527844;
-			remoteInfo = "pikachu-supervisor";
-		};
-		5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
-			remoteInfo = AgentRuntimeCore;
 		};
 		C1B02D2E8C407FAB6B867537 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -400,13 +272,6 @@
 			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
 			remoteInfo = OrchestrationCore;
 		};
-		1FA5D0E7B4C1524365A0A200 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
-			remoteInfo = PiRuntimeAdapter;
-		};
 		C23DC084AC2308669EDA7669 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
@@ -414,19 +279,33 @@
 			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
 			remoteInfo = WorkspacePersistence;
 		};
-		4892C742F62798F9C01A0095 /* PBXContainerItemProxy */ = {
+		C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = A54AAAB5EA605775A493521A;
-			remoteInfo = Pikachu;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "pikachu-supervisor";
 		};
-		657065C2CF5505ED308BF02A /* PBXContainerItemProxy */ = {
+		EA959554AA6E2495BCB7ABB5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EDCC395F7EBA99CDB69739F2;
+			remoteInfo = PiRuntimeAdapter;
+		};
+		EE350D74C7C40CE0C366A26D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
 			remoteInfo = ProcessSupervision;
+		};
+		F9E8A939EE71E480D6BA30BA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -461,147 +340,27 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		693F7DD176ACB63B89AB60F6 /* execution-policy.ts */ = {
-			isa = PBXFileReference;
-			explicitFileType = text;
-			name = "execution-policy.ts";
-			path = "Modules/PiRuntimeAdapter/Resources/execution-policy.ts";
-			sourceTree = SOURCE_ROOT;
-		};
-		0DC918BA123BF83B727241DD /* Fixtures */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = folder;
-			path = Verification/Fixtures;
-			sourceTree = SOURCE_ROOT;
-		};
-		65DE53EE5A851DEFDA75DDC9 /* README.md */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = net.daringfireball.markdown;
-			path = Verification/README.md;
-			sourceTree = SOURCE_ROOT;
-		};
-		0E1F05E6B17BD3F58C55A867 /* Scripts */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = folder;
-			path = Scripts;
-			sourceTree = SOURCE_ROOT;
-		};
-		A3BE198D76C896C9EE201857 /* docs */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = folder;
-			path = docs;
-			sourceTree = SOURCE_ROOT;
-		};
-		72A4F2C5A725D5D9B45E343D /* README.md */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = net.daringfireball.markdown;
-			path = README.md;
-			sourceTree = SOURCE_ROOT;
-		};
-		7D3BA445049EF6B8CA9AE3A0 /* DESIGN.md */ = {
-			isa = PBXFileReference;
-			lastKnownFileType = net.daringfireball.markdown;
-			path = DESIGN.md;
-			sourceTree = SOURCE_ROOT;
-		};
-		7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = CProcessInspection.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = ProcessSupervision.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = AgentRuntimeCore.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = OrchestrationCore.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = PiRuntimeAdapter.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.framework;
-			includeInIndex = 0;
-			path = WorkspacePersistence.framework;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */ = {
-			isa = PBXFileReference;
-			explicitFileType = "compiled.mach-o.executable";
-			includeInIndex = 0;
-			path = "pikachu-supervisor";
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		D394BD061FA06894F9BE74E5 /* Pikachu.app */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.application;
-			includeInIndex = 0;
-			path = Pikachu.app;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		848E5AAB292F7612BC67D486 /* pi-compat-probe */ = {
-			isa = PBXFileReference;
-			explicitFileType = "compiled.mach-o.executable";
-			includeInIndex = 0;
-			path = "pi-compat-probe";
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		9751D92040781601B149857A /* runtime-verify */ = {
-			isa = PBXFileReference;
-			explicitFileType = "compiled.mach-o.executable";
-			includeInIndex = 0;
-			path = "runtime-verify";
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		DC05E5261074B64CCCA2A5D6 /* workspace-verify */ = {
-			isa = PBXFileReference;
-			explicitFileType = "compiled.mach-o.executable";
-			includeInIndex = 0;
-			path = "workspace-verify";
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		8ED1BDB4A4855CA8FB479263 /* interaction-verify */ = {
-			isa = PBXFileReference;
-			explicitFileType = "compiled.mach-o.executable";
-			includeInIndex = 0;
-			path = "interaction-verify";
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		FF1231F81D0DFB260F6D734A /* PikachuTests.xctest */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.cfbundle;
-			includeInIndex = 0;
-			path = PikachuTests.xctest;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */ = {
-			isa = PBXFileReference;
-			explicitFileType = wrapper.cfbundle;
-			includeInIndex = 0;
-			path = ProcessSupervisionTests.xctest;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
+		0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = AgentRuntimeCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		0DC918BA123BF83B727241DD /* Verification/Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Verification/Fixtures; sourceTree = SOURCE_ROOT; };
+		0E1F05E6B17BD3F58C55A867 /* Scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Scripts; sourceTree = SOURCE_ROOT; };
+		0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = OrchestrationCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "pikachu-supervisor"; sourceTree = BUILT_PRODUCTS_DIR; };
+		64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProcessSupervisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		65DE53EE5A851DEFDA75DDC9 /* Verification/README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Verification/README.md; sourceTree = SOURCE_ROOT; };
+		693F7DD176ACB63B89AB60F6 /* execution-policy.ts */ = {isa = PBXFileReference; explicitFileType = text; name = "execution-policy.ts"; path = "Modules/PiRuntimeAdapter/Resources/execution-policy.ts"; sourceTree = SOURCE_ROOT; };
+		72A4F2C5A725D5D9B45E343D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
+		7D3BA445049EF6B8CA9AE3A0 /* DESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DESIGN.md; sourceTree = SOURCE_ROOT; };
+		7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CProcessInspection.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		848E5AAB292F7612BC67D486 /* pi-compat-probe */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "pi-compat-probe"; sourceTree = BUILT_PRODUCTS_DIR; };
+		8ED1BDB4A4855CA8FB479263 /* interaction-verify */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "interaction-verify"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9751D92040781601B149857A /* runtime-verify */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "runtime-verify"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PiRuntimeAdapter.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = WorkspacePersistence.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3BE198D76C896C9EE201857 /* docs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = docs; sourceTree = SOURCE_ROOT; };
+		B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ProcessSupervision.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D394BD061FA06894F9BE74E5 /* Pikachu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pikachu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DC05E5261074B64CCCA2A5D6 /* workspace-verify */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "workspace-verify"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FF1231F81D0DFB260F6D734A /* PikachuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PikachuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -612,16 +371,37 @@
 			);
 			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
 		};
-		0CB3C6D24F56BEAED0DC3CA9 /* Exceptions for "PiRuntimeAdapter" folder in "PiRuntimeAdapter" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Resources/execution-policy.ts",
-			);
-			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		054CE425665B17C694738025 /* InteractionVerify */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = InteractionVerify;
+			sourceTree = "<group>";
+		};
+		238497D9D5843DA2DCD295DE /* OrchestrationCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OrchestrationCore;
+			sourceTree = "<group>";
+		};
+		424D1720C4A8101A7C23D313 /* Pikachu */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFolders = (
+				Resources/ProviderLogos,
+			);
+			path = Pikachu;
+			sourceTree = "<group>";
+		};
+		47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PiRuntimeAdapter;
+			sourceTree = "<group>";
+		};
+		58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RuntimeVerify;
+			sourceTree = "<group>";
+		};
 		5B2223EACA3A195E95476530 /* CProcessInspection */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -630,27 +410,29 @@
 			path = CProcessInspection;
 			sourceTree = "<group>";
 		};
+		5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ProcessSupervisionTests;
+			sourceTree = "<group>";
+		};
+		759F39D1DF2CC691FC6B9B6E /* WorkspaceVerify */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WorkspaceVerify;
+			sourceTree = "<group>";
+		};
+		C2780B234DE45366EE77679C /* PikachuTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PikachuTests;
+			sourceTree = "<group>";
+		};
+		C2B7C9F9A9A756A9B156C87C /* PiCompatProbe */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PiCompatProbe;
+			sourceTree = "<group>";
+		};
 		C5D453216966ABC84DE6F9D8 /* ProcessSupervision */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ProcessSupervision;
-			sourceTree = "<group>";
-		};
-		F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = AgentRuntimeCore;
-			sourceTree = "<group>";
-		};
-		238497D9D5843DA2DCD295DE /* OrchestrationCore */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = OrchestrationCore;
-			sourceTree = "<group>";
-		};
-		47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				0CB3C6D24F56BEAED0DC3CA9 /* Exceptions for "PiRuntimeAdapter" folder in "PiRuntimeAdapter" target */,
-			);
-			path = PiRuntimeAdapter;
 			sourceTree = "<group>";
 		};
 		CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */ = {
@@ -663,76 +445,19 @@
 			path = PikachuSupervisor;
 			sourceTree = "<group>";
 		};
-		424D1720C4A8101A7C23D313 /* Pikachu */ = {
+		F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFolders = (
-				Resources/ProviderLogos,
-			);
-			path = Pikachu;
-			sourceTree = "<group>";
-		};
-		C2B7C9F9A9A756A9B156C87C /* PiCompatProbe */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PiCompatProbe;
-			sourceTree = "<group>";
-		};
-		58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RuntimeVerify;
-			sourceTree = "<group>";
-		};
-		759F39D1DF2CC691FC6B9B6E /* WorkspaceVerify */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = WorkspaceVerify;
-			sourceTree = "<group>";
-		};
-		054CE425665B17C694738025 /* InteractionVerify */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = InteractionVerify;
-			sourceTree = "<group>";
-		};
-		C2780B234DE45366EE77679C /* PikachuTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PikachuTests;
-			sourceTree = "<group>";
-		};
-		5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ProcessSupervisionTests;
+			path = AgentRuntimeCore;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		B8B8C8B61131D2C53EBCDCDE /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		09087B32F97684A289CA112B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				FEF70892D76DE5A70030891A /* CProcessInspection.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		87B845E64EE764E91371992A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3C34AD1AA1090DEC1B52FB59 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -745,11 +470,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D0A6AAB2088C93F83DB3212E /* Frameworks */ = {
+		3C34AD1AA1090DEC1B52FB59 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */,
+				9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -759,6 +484,17 @@
 			files = (
 				A6B5A61E30D0C6A2BF34BDF6 /* ProcessSupervision.framework in Frameworks */,
 				6D1967981F6722F07F482843 /* CProcessInspection.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7D02655C12415107E4B82AC1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9722D9814ED33ED0B71BFE7A /* AgentRuntimeCore.framework in Frameworks */,
+				643FCE3CA0C7FCE72B0A20FC /* PiRuntimeAdapter.framework in Frameworks */,
+				C68F0BC45E90175CCF03FE4C /* OrchestrationCore.framework in Frameworks */,
+				5BEE0DC1ED385509264FEE33 /* WorkspacePersistence.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -774,11 +510,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		ED46D42C8D0489F9456E1D56 /* Frameworks */ = {
+		87B845E64EE764E91371992A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5944799AE4D2F420D34E3DB1 /* ProcessSupervision.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -792,14 +527,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		7D02655C12415107E4B82AC1 /* Frameworks */ = {
+		B8B8C8B61131D2C53EBCDCDE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9722D9814ED33ED0B71BFE7A /* AgentRuntimeCore.framework in Frameworks */,
-				643FCE3CA0C7FCE72B0A20FC /* PiRuntimeAdapter.framework in Frameworks */,
-				C68F0BC45E90175CCF03FE4C /* OrchestrationCore.framework in Frameworks */,
-				5BEE0DC1ED385509264FEE33 /* WorkspacePersistence.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0A6AAB2088C93F83DB3212E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -815,14 +554,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FC83B8F5B93928A0B74449D8 /* Frameworks */ = {
+		ED46D42C8D0489F9456E1D56 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */,
-				AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */,
-				F8D18854D9FF4314D019E9AE /* PiRuntimeAdapter.framework in Frameworks */,
-				09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */,
+				5944799AE4D2F420D34E3DB1 /* ProcessSupervision.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -831,6 +567,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				6F0B08C17CAA7A12ED294D43 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC83B8F5B93928A0B74449D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */,
+				AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */,
+				F8D18854D9FF4314D019E9AE /* PiRuntimeAdapter.framework in Frameworks */,
+				09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -858,43 +605,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		B36D15E24ACC0ADCBB8DC602 /* Modules */ = {
-			isa = PBXGroup;
-			children = (
-				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
-				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
-				47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */,
-				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
-				C5D453216966ABC84DE6F9D8 /* ProcessSupervision */,
-				5B2223EACA3A195E95476530 /* CProcessInspection */,
-				693F7DD176ACB63B89AB60F6 /* execution-policy.ts */,
-			);
-			path = Modules;
-			sourceTree = "<group>";
-		};
-		74C0354F987B4FC0FDE2C044 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-				C2780B234DE45366EE77679C /* PikachuTests */,
-				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
-			);
-			path = Tests;
-			sourceTree = "<group>";
-		};
-		5313DEB9E90DC2846F629CE0 /* Verification */ = {
-			isa = PBXGroup;
-			children = (
-				C2B7C9F9A9A756A9B156C87C /* PiCompatProbe */,
-				58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */,
-				759F39D1DF2CC691FC6B9B6E /* WorkspaceVerify */,
-				054CE425665B17C694738025 /* InteractionVerify */,
-				0DC918BA123BF83B727241DD /* Fixtures */,
-				65DE53EE5A851DEFDA75DDC9 /* README.md */,
-			);
-			path = Verification;
-			sourceTree = "<group>";
-		};
-		518DA81DB9B99529C0C0AEBE /* Main */ = {
+		518DA81DB9B99529C0C0AEBE = {
 			isa = PBXGroup;
 			children = (
 				424D1720C4A8101A7C23D313 /* Pikachu */,
@@ -910,6 +621,42 @@
 			);
 			sourceTree = "<group>";
 		};
+		5313DEB9E90DC2846F629CE0 /* Verification */ = {
+			isa = PBXGroup;
+			children = (
+				C2B7C9F9A9A756A9B156C87C /* PiCompatProbe */,
+				58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */,
+				759F39D1DF2CC691FC6B9B6E /* WorkspaceVerify */,
+				054CE425665B17C694738025 /* InteractionVerify */,
+				0DC918BA123BF83B727241DD /* Verification/Fixtures */,
+				65DE53EE5A851DEFDA75DDC9 /* Verification/README.md */,
+			);
+			path = Verification;
+			sourceTree = "<group>";
+		};
+		74C0354F987B4FC0FDE2C044 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				C2780B234DE45366EE77679C /* PikachuTests */,
+				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		B36D15E24ACC0ADCBB8DC602 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
+				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
+				47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */,
+				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
+				C5D453216966ABC84DE6F9D8 /* ProcessSupervision */,
+				5B2223EACA3A195E95476530 /* CProcessInspection */,
+				693F7DD176ACB63B89AB60F6 /* execution-policy.ts */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -923,26 +670,71 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		9284448B92222BB1E47636AB /* CProcessInspection */ = {
+		0EDA2CC6E6D9427FB8C908E3 /* pi-compat-probe */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 48A2CAFCB7253E7909AB916F /* Build configuration list for PBXNativeTarget "CProcessInspection" */;
+			buildConfigurationList = 3E14A43CDBC414260EEF721F /* Build configuration list for PBXNativeTarget "pi-compat-probe" */;
 			buildPhases = (
-				869D2EBBEC00E75F44575C34 /* Headers */,
-				8D45A973755CE737DB7D8DCC /* Sources */,
-				B8B8C8B61131D2C53EBCDCDE /* Frameworks */,
+				E03C09C7D45F24980E53C968 /* Sources */,
+				ED46D42C8D0489F9456E1D56 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-
+				E83B5C4ECCB5B575B6E895FA /* PBXTargetDependency */,
+				04F99405587B5AD7CA15761B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				5B2223EACA3A195E95476530 /* CProcessInspection */,
+				C2B7C9F9A9A756A9B156C87C /* PiCompatProbe */,
 			);
-			name = CProcessInspection;
-			productName = CProcessInspection;
-			productReference = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
-			productType = "com.apple.product-type.framework";
+			name = "pi-compat-probe";
+			productName = "pi-compat-probe";
+			productReference = 848E5AAB292F7612BC67D486 /* pi-compat-probe */;
+			productType = "com.apple.product-type.tool";
+		};
+		1FD8EA44CD554307AD02FE26 /* workspace-verify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8D219F5F7EDA081BA49BF62B /* Build configuration list for PBXNativeTarget "workspace-verify" */;
+			buildPhases = (
+				6B2C098A636A7172F49493F6 /* Sources */,
+				7D02655C12415107E4B82AC1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A8BC24B2B7EB133BCB5F4D16 /* PBXTargetDependency */,
+				C371D4C650B84CA740CB5733 /* PBXTargetDependency */,
+				CD804030A179DF8C0194A00D /* PBXTargetDependency */,
+				56228EF67696B6E9B322BBAC /* PBXTargetDependency */,
+				5FB01A6D4279B144086DCAA1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				759F39D1DF2CC691FC6B9B6E /* WorkspaceVerify */,
+			);
+			name = "workspace-verify";
+			productName = "workspace-verify";
+			productReference = DC05E5261074B64CCCA2A5D6 /* workspace-verify */;
+			productType = "com.apple.product-type.tool";
+		};
+		4B026431BEFB421CEA527844 /* pikachu-supervisor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "pikachu-supervisor" */;
+			buildPhases = (
+				5FE4B6F4DC86A0231AC7409E /* Sources */,
+				602C823EE088253FDE6A17A4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5B44B87D7AF7C5659F627559 /* PBXTargetDependency */,
+				315655399D63B5F441AA4C74 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E43288365D894732E9A7E13F /* PikachuSupervisor */,
+			);
+			name = "pikachu-supervisor";
+			productName = "pikachu-supervisor";
+			productReference = 3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */;
+			productType = "com.apple.product-type.tool";
 		};
 		6B2A065540391B48F5B407D5 /* ProcessSupervision */ = {
 			isa = PBXNativeTarget;
@@ -964,107 +756,69 @@
 			productReference = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */ = {
+		7C866B8BA2E4E2D1DC336273 /* ProcessSupervisionTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */;
+			buildConfigurationList = 958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */;
 			buildPhases = (
-				5A7801E807220F3455FF7D1C /* Sources */,
-				87B845E64EE764E91371992A /* Frameworks */,
+				4ED6CF369FCB9C9E4D6280D7 /* Sources */,
+				FA13E8ED80937847A8E365D9 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-
+				FFF5E7BC4C2CFE74B4907FBD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
+				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
 			);
-			name = AgentRuntimeCore;
-			productName = AgentRuntimeCore;
-			productReference = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
+			name = ProcessSupervisionTests;
+			productName = ProcessSupervisionTests;
+			productReference = 64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9284448B92222BB1E47636AB /* CProcessInspection */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48A2CAFCB7253E7909AB916F /* Build configuration list for PBXNativeTarget "CProcessInspection" */;
+			buildPhases = (
+				869D2EBBEC00E75F44575C34 /* Headers */,
+				8D45A973755CE737DB7D8DCC /* Sources */,
+				B8B8C8B61131D2C53EBCDCDE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5B2223EACA3A195E95476530 /* CProcessInspection */,
+			);
+			name = CProcessInspection;
+			productName = CProcessInspection;
+			productReference = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
 			productType = "com.apple.product-type.framework";
 		};
-		CD503C5FF400B347FD0BD07E /* OrchestrationCore */ = {
+		9FD09417E6805B1C1C2C6EF3 /* interaction-verify */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */;
+			buildConfigurationList = 9FA6F8583AB9A701A998C49E /* Build configuration list for PBXNativeTarget "interaction-verify" */;
 			buildPhases = (
-				9738CD144BB23643287F59E9 /* Sources */,
-				3C34AD1AA1090DEC1B52FB59 /* Frameworks */,
+				7CA2B16C2CC29FF6260E8C23 /* Sources */,
+				D2DCA5DF9EC21197B8DFCC73 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */,
+				B4F1B99FACB25F675AAED8AE /* PBXTargetDependency */,
+				0BA3607F4D40A91323757AF9 /* PBXTargetDependency */,
+				D4716D26801853114C481FA5 /* PBXTargetDependency */,
+				52932AFBF6B15235A711DD7A /* PBXTargetDependency */,
+				3EA6179ECDA2B12C7F918CB3 /* PBXTargetDependency */,
+				249BE2382BA85D0C4152412F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
+				054CE425665B17C694738025 /* InteractionVerify */,
 			);
-			name = OrchestrationCore;
-			productName = OrchestrationCore;
-			productReference = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
-			productType = "com.apple.product-type.framework";
-		};
-		EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 72E178B93CB3E306652D7B18 /* Build configuration list for PBXNativeTarget "PiRuntimeAdapter" */;
-			buildPhases = (
-				7E1365462579C6FE38ADD6BE /* Sources */,
-				3989771AC33A6A6E7392BF5B /* Frameworks */,
-				AF73D7F71AF4335980490932 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				BD53105BF60D89F5FE015998 /* PBXTargetDependency */,
-				8C24FB44DD034EC04F7FC501 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */,
-			);
-			name = PiRuntimeAdapter;
-			productName = PiRuntimeAdapter;
-			productReference = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
-			productType = "com.apple.product-type.framework";
-		};
-		CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 519AB08EAD3A76B986AD8D30 /* Build configuration list for PBXNativeTarget "WorkspacePersistence" */;
-			buildPhases = (
-				8683E03C86BC4E289FE29E8D /* Sources */,
-				D0A6AAB2088C93F83DB3212E /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
-			);
-			name = WorkspacePersistence;
-			productName = WorkspacePersistence;
-			productReference = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
-			productType = "com.apple.product-type.framework";
-		};
-		4B026431BEFB421CEA527844 /* pikachu-supervisor */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "pikachu-supervisor" */;
-			buildPhases = (
-				5FE4B6F4DC86A0231AC7409E /* Sources */,
-				602C823EE088253FDE6A17A4 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				5B44B87D7AF7C5659F627559 /* PBXTargetDependency */,
-				315655399D63B5F441AA4C74 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E43288365D894732E9A7E13F /* pikachu-supervisor */,
-			);
-			name = "pikachu-supervisor";
-			productName = "pikachu-supervisor";
-			productReference = 3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */;
+			name = "interaction-verify";
+			productName = "interaction-verify";
+			productReference = 8ED1BDB4A4855CA8FB479263 /* interaction-verify */;
 			productType = "com.apple.product-type.tool";
 		};
 		A54AAAB5EA605775A493521A /* Pikachu */ = {
@@ -1097,98 +851,24 @@
 			productReference = D394BD061FA06894F9BE74E5 /* Pikachu.app */;
 			productType = "com.apple.product-type.application";
 		};
-		0EDA2CC6E6D9427FB8C908E3 /* pi-compat-probe */ = {
+		B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3E14A43CDBC414260EEF721F /* Build configuration list for PBXNativeTarget "pi-compat-probe" */;
+			buildConfigurationList = 46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */;
 			buildPhases = (
-				E03C09C7D45F24980E53C968 /* Sources */,
-				ED46D42C8D0489F9456E1D56 /* Frameworks */,
+				5A7801E807220F3455FF7D1C /* Sources */,
+				87B845E64EE764E91371992A /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				E83B5C4ECCB5B575B6E895FA /* PBXTargetDependency */,
-				04F99405587B5AD7CA15761B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				C2B7C9F9A9A756A9B156C87C /* pi-compat-probe */,
+				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
 			);
-			name = "pi-compat-probe";
-			productName = "pi-compat-probe";
-			productReference = 848E5AAB292F7612BC67D486 /* pi-compat-probe */;
-			productType = "com.apple.product-type.tool";
-		};
-		DBDA1566E07CDDDA389B65C1 /* runtime-verify */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 90B9FE766F12DD1D45232E02 /* Build configuration list for PBXNativeTarget "runtime-verify" */;
-			buildPhases = (
-				493B38B2FD4AE6D77A0D9937 /* Sources */,
-				984AA5936F70A80B32431E09 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */,
-				D70E4F90CC2D332232569C54 /* PBXTargetDependency */,
-				7E251EE8601089F823D90290 /* PBXTargetDependency */,
-				BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				58B5EBDE08F995AA1E2ABD2E /* runtime-verify */,
-			);
-			name = "runtime-verify";
-			productName = "runtime-verify";
-			productReference = 9751D92040781601B149857A /* runtime-verify */;
-			productType = "com.apple.product-type.tool";
-		};
-		1FD8EA44CD554307AD02FE26 /* workspace-verify */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 8D219F5F7EDA081BA49BF62B /* Build configuration list for PBXNativeTarget "workspace-verify" */;
-			buildPhases = (
-				6B2C098A636A7172F49493F6 /* Sources */,
-				7D02655C12415107E4B82AC1 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A8BC24B2B7EB133BCB5F4D16 /* PBXTargetDependency */,
-				C371D4C650B84CA740CB5733 /* PBXTargetDependency */,
-				CD804030A179DF8C0194A00D /* PBXTargetDependency */,
-				56228EF67696B6E9B322BBAC /* PBXTargetDependency */,
-				5FB01A6D4279B144086DCAA1 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				759F39D1DF2CC691FC6B9B6E /* workspace-verify */,
-			);
-			name = "workspace-verify";
-			productName = "workspace-verify";
-			productReference = DC05E5261074B64CCCA2A5D6 /* workspace-verify */;
-			productType = "com.apple.product-type.tool";
-		};
-		9FD09417E6805B1C1C2C6EF3 /* interaction-verify */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 9FA6F8583AB9A701A998C49E /* Build configuration list for PBXNativeTarget "interaction-verify" */;
-			buildPhases = (
-				7CA2B16C2CC29FF6260E8C23 /* Sources */,
-				D2DCA5DF9EC21197B8DFCC73 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				B4F1B99FACB25F675AAED8AE /* PBXTargetDependency */,
-				0BA3607F4D40A91323757AF9 /* PBXTargetDependency */,
-				D4716D26801853114C481FA5 /* PBXTargetDependency */,
-				52932AFBF6B15235A711DD7A /* PBXTargetDependency */,
-				3EA6179ECDA2B12C7F918CB3 /* PBXTargetDependency */,
-				249BE2382BA85D0C4152412F /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				054CE425665B17C694738025 /* interaction-verify */,
-			);
-			name = "interaction-verify";
-			productName = "interaction-verify";
-			productReference = 8ED1BDB4A4855CA8FB479263 /* interaction-verify */;
-			productType = "com.apple.product-type.tool";
+			name = AgentRuntimeCore;
+			productName = AgentRuntimeCore;
+			productReference = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 		C950C1AEFA2D57B2CCE10247 /* PikachuTests */ = {
 			isa = PBXNativeTarget;
@@ -1214,25 +894,90 @@
 			productReference = FF1231F81D0DFB260F6D734A /* PikachuTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		7C866B8BA2E4E2D1DC336273 /* ProcessSupervisionTests */ = {
+		CD503C5FF400B347FD0BD07E /* OrchestrationCore */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */;
+			buildConfigurationList = 8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */;
 			buildPhases = (
-				4ED6CF369FCB9C9E4D6280D7 /* Sources */,
-				FA13E8ED80937847A8E365D9 /* Frameworks */,
+				9738CD144BB23643287F59E9 /* Sources */,
+				3C34AD1AA1090DEC1B52FB59 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				FFF5E7BC4C2CFE74B4907FBD /* PBXTargetDependency */,
+				FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
+				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
 			);
-			name = ProcessSupervisionTests;
-			productName = ProcessSupervisionTests;
-			productReference = 64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
+			name = OrchestrationCore;
+			productName = OrchestrationCore;
+			productReference = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 519AB08EAD3A76B986AD8D30 /* Build configuration list for PBXNativeTarget "WorkspacePersistence" */;
+			buildPhases = (
+				8683E03C86BC4E289FE29E8D /* Sources */,
+				D0A6AAB2088C93F83DB3212E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
+			);
+			name = WorkspacePersistence;
+			productName = WorkspacePersistence;
+			productReference = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		DBDA1566E07CDDDA389B65C1 /* runtime-verify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90B9FE766F12DD1D45232E02 /* Build configuration list for PBXNativeTarget "runtime-verify" */;
+			buildPhases = (
+				493B38B2FD4AE6D77A0D9937 /* Sources */,
+				984AA5936F70A80B32431E09 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */,
+				D70E4F90CC2D332232569C54 /* PBXTargetDependency */,
+				7E251EE8601089F823D90290 /* PBXTargetDependency */,
+				BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */,
+			);
+			name = "runtime-verify";
+			productName = "runtime-verify";
+			productReference = 9751D92040781601B149857A /* runtime-verify */;
+			productType = "com.apple.product-type.tool";
+		};
+		EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72E178B93CB3E306652D7B18 /* Build configuration list for PBXNativeTarget "PiRuntimeAdapter" */;
+			buildPhases = (
+				7E1365462579C6FE38ADD6BE /* Sources */,
+				3989771AC33A6A6E7392BF5B /* Frameworks */,
+				AF73D7F71AF4335980490932 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BD53105BF60D89F5FE015998 /* PBXTargetDependency */,
+				8C24FB44DD034EC04F7FC501 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				47758A50AB9B556AD82E5DF0 /* PiRuntimeAdapter */,
+			);
+			name = PiRuntimeAdapter;
+			productName = PiRuntimeAdapter;
+			productReference = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
 
@@ -1283,19 +1028,18 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		4B7A5116FC451179A4C0904D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AF73D7F71AF4335980490932 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				73237B9A33F33668279B485C /* execution-policy.ts in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		4B7A5116FC451179A4C0904D /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1324,7 +1068,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		8D45A973755CE737DB7D8DCC /* Sources */ = {
+		493B38B2FD4AE6D77A0D9937 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4ED6CF369FCB9C9E4D6280D7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1345,27 +1096,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		9738CD144BB23643287F59E9 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		7E1365462579C6FE38ADD6BE /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		8683E03C86BC4E289FE29E8D /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		5FE4B6F4DC86A0231AC7409E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1373,21 +1103,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FCB4E1C3D9F909600A5E11C6 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E03C09C7D45F24980E53C968 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		493B38B2FD4AE6D77A0D9937 /* Sources */ = {
+		64C8418E754F8D6875FA30E1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1408,14 +1124,42 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		64C8418E754F8D6875FA30E1 /* Sources */ = {
+		7E1365462579C6FE38ADD6BE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		4ED6CF369FCB9C9E4D6280D7 /* Sources */ = {
+		8683E03C86BC4E289FE29E8D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8D45A973755CE737DB7D8DCC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9738CD144BB23643287F59E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E03C09C7D45F24980E53C968 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCB4E1C3D9F909600A5E11C6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1425,110 +1169,145 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3CCA0DE11A700B944334D830 /* PBXTargetDependency */ = {
+		04F99405587B5AD7CA15761B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
-			targetProxy = 19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */;
+			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
+			targetProxy = A694CFD602447B5008A497D3 /* PBXContainerItemProxy */;
 		};
-		FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */ = {
+		0BA3607F4D40A91323757AF9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = 5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */;
-		};
-		BD53105BF60D89F5FE015998 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = 3E0347C657272300E88AA61B /* PBXContainerItemProxy */;
-		};
-		8C24FB44DD034EC04F7FC501 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
-			targetProxy = 03A27735159AB503DEC547CC /* PBXContainerItemProxy */;
-		};
-		B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
-			targetProxy = 79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */;
-		};
-		5B44B87D7AF7C5659F627559 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
-			targetProxy = 0E2D92C60F44540F70A94A28 /* PBXContainerItemProxy */;
-		};
-		315655399D63B5F441AA4C74 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
-			targetProxy = 57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */;
-		};
-		646074A45C00F1DD9DD66946 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = 1224EE0F7D22021A4B59A80A /* PBXContainerItemProxy */;
+			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
+			targetProxy = B734F57B8CA7A85BE3EC7643 /* PBXContainerItemProxy */;
 		};
 		13A7606B85C66FA6DEDE8A03 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
 			targetProxy = EA959554AA6E2495BCB7ABB5 /* PBXContainerItemProxy */;
 		};
-		B69082C65E19A3D5DAB80A0A /* PBXTargetDependency */ = {
+		249BE2382BA85D0C4152412F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
-			targetProxy = 13112D549003B7D54A53B610 /* PBXContainerItemProxy */;
+			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
+			targetProxy = 35EC75664B4190F803377348 /* PBXContainerItemProxy */;
 		};
-		8CE7CAD51051D717FD5D9A68 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
-			targetProxy = A42E931D853590D14A335F4E /* PBXContainerItemProxy */;
-		};
-		8715A35381BB90B5D2296330 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
-			targetProxy = AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */;
-		};
-		A9E06C5070A3B9E7874D9B9E /* PBXTargetDependency */ = {
+		315655399D63B5F441AA4C74 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
-			targetProxy = 004D273C498A98462C56F905 /* PBXContainerItemProxy */;
+			targetProxy = 57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */;
 		};
-		C141E367826E0F3FFE8C1EE6 /* PBXTargetDependency */ = {
+		3CCA0DE11A700B944334D830 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
-			targetProxy = 05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */;
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+			targetProxy = 19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */;
 		};
-		E83B5C4ECCB5B575B6E895FA /* PBXTargetDependency */ = {
+		3EA6179ECDA2B12C7F918CB3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
-			targetProxy = 6901AB2C842AFC601D4EA222 /* PBXContainerItemProxy */;
+			targetProxy = EE350D74C7C40CE0C366A26D /* PBXContainerItemProxy */;
 		};
-		04F99405587B5AD7CA15761B /* PBXTargetDependency */ = {
+		52932AFBF6B15235A711DD7A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = 07BCB3AED2F1253EFB10E598 /* PBXContainerItemProxy */;
+		};
+		56228EF67696B6E9B322BBAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = 8A6A309F7B04F160DEBA22D3 /* PBXContainerItemProxy */;
+		};
+		5B44B87D7AF7C5659F627559 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = 0E2D92C60F44540F70A94A28 /* PBXContainerItemProxy */;
+		};
+		5FB01A6D4279B144086DCAA1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
-			targetProxy = A694CFD602447B5008A497D3 /* PBXContainerItemProxy */;
+			targetProxy = 68F31647ED306000A9E47F0E /* PBXContainerItemProxy */;
 		};
-		E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */ = {
+		646074A45C00F1DD9DD66946 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = 9B79845FE764BB08B42771AA /* PBXContainerItemProxy */;
+			targetProxy = 1224EE0F7D22021A4B59A80A /* PBXContainerItemProxy */;
 		};
-		D70E4F90CC2D332232569C54 /* PBXTargetDependency */ = {
+		70EA1500357CBD1F8D306F6A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
-			targetProxy = 5D92502C196CAFBA839DBECF /* PBXContainerItemProxy */;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = C1B02D2E8C407FAB6B867537 /* PBXContainerItemProxy */;
+		};
+		7627F7630AA833AFFD13F1DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */;
 		};
 		7E251EE8601089F823D90290 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
 			targetProxy = 777167653B93183876A215CB /* PBXContainerItemProxy */;
 		};
-		BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */ = {
+		8715A35381BB90B5D2296330 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
-			targetProxy = C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */;
+		};
+		8C24FB44DD034EC04F7FC501 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = 03A27735159AB503DEC547CC /* PBXContainerItemProxy */;
+		};
+		8CE7CAD51051D717FD5D9A68 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = A42E931D853590D14A335F4E /* PBXContainerItemProxy */;
 		};
 		A8BC24B2B7EB133BCB5F4D16 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
 			targetProxy = 5711CAA7CDA5681B2A1CC53B /* PBXContainerItemProxy */;
+		};
+		A9E06C5070A3B9E7874D9B9E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+			targetProxy = 004D273C498A98462C56F905 /* PBXContainerItemProxy */;
+		};
+		B4F1B99FACB25F675AAED8AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = F9E8A939EE71E480D6BA30BA /* PBXContainerItemProxy */;
+		};
+		B5AF3B72CEEA00792C390BE4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
+			targetProxy = 1FA5D0E7B4C1524365A0A200 /* PBXContainerItemProxy */;
+		};
+		B69082C65E19A3D5DAB80A0A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = 13112D549003B7D54A53B610 /* PBXContainerItemProxy */;
+		};
+		B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = 79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */;
+		};
+		BD53105BF60D89F5FE015998 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 3E0347C657272300E88AA61B /* PBXContainerItemProxy */;
+		};
+		BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
+			targetProxy = C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */;
+		};
+		C0DF4422425C664D43D163F3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = C23DC084AC2308669EDA7669 /* PBXContainerItemProxy */;
+		};
+		C141E367826E0F3FFE8C1EE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
+			targetProxy = 05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */;
 		};
 		C371D4C650B84CA740CB5733 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1540,70 +1319,35 @@
 			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
 			targetProxy = B9E908E9ED8CA187FDCC09B1 /* PBXContainerItemProxy */;
 		};
-		56228EF67696B6E9B322BBAC /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
-			targetProxy = 8A6A309F7B04F160DEBA22D3 /* PBXContainerItemProxy */;
-		};
-		5FB01A6D4279B144086DCAA1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
-			targetProxy = 68F31647ED306000A9E47F0E /* PBXContainerItemProxy */;
-		};
-		B4F1B99FACB25F675AAED8AE /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = F9E8A939EE71E480D6BA30BA /* PBXContainerItemProxy */;
-		};
-		0BA3607F4D40A91323757AF9 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
-			targetProxy = B734F57B8CA7A85BE3EC7643 /* PBXContainerItemProxy */;
-		};
 		D4716D26801853114C481FA5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
 			targetProxy = 6EE1115AF72190A7A2653B1B /* PBXContainerItemProxy */;
 		};
-		52932AFBF6B15235A711DD7A /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
-			targetProxy = 07BCB3AED2F1253EFB10E598 /* PBXContainerItemProxy */;
-		};
-		3EA6179ECDA2B12C7F918CB3 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
-			targetProxy = EE350D74C7C40CE0C366A26D /* PBXContainerItemProxy */;
-		};
-		249BE2382BA85D0C4152412F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 4B026431BEFB421CEA527844 /* pikachu-supervisor */;
-			targetProxy = 35EC75664B4190F803377348 /* PBXContainerItemProxy */;
-		};
-		7627F7630AA833AFFD13F1DE /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
-			targetProxy = 5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */;
-		};
-		70EA1500357CBD1F8D306F6A /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
-			targetProxy = C1B02D2E8C407FAB6B867537 /* PBXContainerItemProxy */;
-		};
-		B5AF3B72CEEA00792C390BE4 /* PBXTargetDependency */ = {
+		D70E4F90CC2D332232569C54 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EDCC395F7EBA99CDB69739F2 /* PiRuntimeAdapter */;
-			targetProxy = 1FA5D0E7B4C1524365A0A200 /* PBXContainerItemProxy */;
+			targetProxy = 5D92502C196CAFBA839DBECF /* PBXContainerItemProxy */;
 		};
-		C0DF4422425C664D43D163F3 /* PBXTargetDependency */ = {
+		E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
-			targetProxy = C23DC084AC2308669EDA7669 /* PBXContainerItemProxy */;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 9B79845FE764BB08B42771AA /* PBXContainerItemProxy */;
 		};
 		E78C61FDBC58A4F6BE164758 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A54AAAB5EA605775A493521A /* Pikachu */;
 			targetProxy = 4892C742F62798F9C01A0095 /* PBXContainerItemProxy */;
+		};
+		E83B5C4ECCB5B575B6E895FA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = 6901AB2C842AFC601D4EA222 /* PBXContainerItemProxy */;
+		};
+		FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */;
 		};
 		FFF5E7BC4C2CFE74B4907FBD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1613,6 +1357,242 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		02AFFAE103F0D7197CEC50F9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.OrchestrationCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		0D6F98D42F3DFF97FD51931B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.OrchestrationCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		169589E666083B8035869D08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "runtime-verify";
+			};
+			name = Release;
+		};
+		1F643B5E9103807F512E2ABF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.WorkspacePersistence;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		2361B5BA0A2A84E2E8AC7863 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "pi-compat-probe";
+			};
+			name = Release;
+		};
+		2B43849026E107C75AC36766 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Pikachu;
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PIKACHU_BUNDLE_IDENTIFIER = ai.yuzio.pikachu;
+				PIKACHU_DIAGNOSTICS_CONFIG = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(PIKACHU_BUNDLE_IDENTIFIER)";
+				PRODUCT_MODULE_NAME = Pikachu;
+				PRODUCT_NAME = Pikachu;
+			};
+			name = Release;
+		};
+		4C95F91A6D5CD87BB5DB8FDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_MODULE_VERIFIER = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		5CE35C2C0B5AA1D7F91A4F14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "pikachu-supervisor";
+			};
+			name = Release;
+		};
+		5E0D4DE87A57BE84B026C5EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PiRuntimeAdapter;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		60313C8D48799AD3EA5F00AF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "workspace-verify";
+			};
+			name = Debug;
+		};
+		73E01607EB3246ACEB79F65C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PiRuntimeAdapter;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		80808604AE0CDAE0BD216E42 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "pi-compat-probe";
+			};
+			name = Debug;
+		};
+		9131D3A0E7A86EB41A751019 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Pikachu;
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PIKACHU_BUNDLE_IDENTIFIER = ai.yuzio.pikachu;
+				PIKACHU_DIAGNOSTICS_CONFIG = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(PIKACHU_BUNDLE_IDENTIFIER)";
+				PRODUCT_MODULE_NAME = Pikachu;
+				PRODUCT_NAME = Pikachu;
+			};
+			name = Debug;
+		};
 		969595A508627F35A110362C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1653,37 +1633,77 @@
 			};
 			name = Debug;
 		};
-		4C95F91A6D5CD87BB5DB8FDD /* Release */ = {
+		9EBA5AC55207D61FCB54474A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = NO;
-				ENABLE_HARDENED_RUNTIME = NO;
-				ENABLE_MODULE_VERIFIER = NO;
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 0.1.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				SDKROOT = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = NO;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
-				SWIFT_VERSION = 6.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "workspace-verify";
 			};
 			name = Release;
+		};
+		A2E321E666A70718B22E9076 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PikachuTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pikachu.app/Contents/MacOS/Pikachu";
+			};
+			name = Release;
+		};
+		AF2FAAFCD3931C59D75863F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "pikachu-supervisor";
+			};
+			name = Debug;
+		};
+		BB75D57E0FCB3A707AE002F7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.AgentRuntimeCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		BE57D2927F2B97D06116865B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "runtime-verify";
+			};
+			name = Debug;
 		};
 		C3E2E132D65BC40103943E9A /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1706,6 +1726,72 @@
 				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.CProcessInspection;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		C539BF4A169E032B0A0FD960 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@loader_path/../../..",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervisionTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		C9731623651DFC63B243A0CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.WorkspacePersistence;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		D5869D09ABBEE2F8C9F0D779 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervision;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		D9F22CA3166BB1EAA698F564 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "interaction-verify";
 			};
 			name = Debug;
 		};
@@ -1733,46 +1819,6 @@
 			};
 			name = Release;
 		};
-		F0F7570D818328DD77C821C6 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervision;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Debug;
-		};
-		D5869D09ABBEE2F8C9F0D779 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervision;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
 		E16C8018370F74BAECDD9BED /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1793,295 +1839,17 @@
 			};
 			name = Debug;
 		};
-		BB75D57E0FCB3A707AE002F7 /* Release */ = {
+		E3D3FC4E0EE3DCA487345010 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
+					"@loader_path/../Frameworks",
+					"@loader_path/../../..",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.AgentRuntimeCore;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
-		0D6F98D42F3DFF97FD51931B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.OrchestrationCore;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Debug;
-		};
-		02AFFAE103F0D7197CEC50F9 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.OrchestrationCore;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
-		73E01607EB3246ACEB79F65C /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PiRuntimeAdapter;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Debug;
-		};
-		5E0D4DE87A57BE84B026C5EE /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PiRuntimeAdapter;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
-		1F643B5E9103807F512E2ABF /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.WorkspacePersistence;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Debug;
-		};
-		C9731623651DFC63B243A0CD /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEFINES_MODULE = YES;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.WorkspacePersistence;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
-		AF2FAAFCD3931C59D75863F5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "pikachu-supervisor";
-			};
-			name = Debug;
-		};
-		5CE35C2C0B5AA1D7F91A4F14 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "pikachu-supervisor";
-			};
-			name = Release;
-		};
-		9131D3A0E7A86EB41A751019 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Pikachu;
-				INFOPLIST_KEY_NSHighResolutionCapable = YES;
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				PIKACHU_BUNDLE_IDENTIFIER = ai.yuzio.pikachu;
-				PIKACHU_DIAGNOSTICS_CONFIG = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(PIKACHU_BUNDLE_IDENTIFIER)";
-				PRODUCT_MODULE_NAME = Pikachu;
-				PRODUCT_NAME = Pikachu;
-			};
-			name = Debug;
-		};
-		2B43849026E107C75AC36766 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Pikachu;
-				INFOPLIST_KEY_NSHighResolutionCapable = YES;
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				PIKACHU_BUNDLE_IDENTIFIER = ai.yuzio.pikachu;
-				PIKACHU_DIAGNOSTICS_CONFIG = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(PIKACHU_BUNDLE_IDENTIFIER)";
-				PRODUCT_MODULE_NAME = Pikachu;
-				PRODUCT_NAME = Pikachu;
-			};
-			name = Release;
-		};
-		80808604AE0CDAE0BD216E42 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "pi-compat-probe";
-			};
-			name = Debug;
-		};
-		2361B5BA0A2A84E2E8AC7863 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "pi-compat-probe";
-			};
-			name = Release;
-		};
-		BE57D2927F2B97D06116865B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "runtime-verify";
-			};
-			name = Debug;
-		};
-		169589E666083B8035869D08 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "runtime-verify";
-			};
-			name = Release;
-		};
-		60313C8D48799AD3EA5F00AF /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "workspace-verify";
-			};
-			name = Debug;
-		};
-		9EBA5AC55207D61FCB54474A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "workspace-verify";
-			};
-			name = Release;
-		};
-		D9F22CA3166BB1EAA698F564 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path",
-				);
-				PRODUCT_NAME = "interaction-verify";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervisionTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
 		};
@@ -2096,6 +1864,26 @@
 				PRODUCT_NAME = "interaction-verify";
 			};
 			name = Release;
+		};
+		F0F7570D818328DD77C821C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervision;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
 		};
 		F677EA4D8422C359925EAE1E /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -2113,53 +1901,36 @@
 			};
 			name = Debug;
 		};
-		A2E321E666A70718B22E9076 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.PikachuTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pikachu.app/Contents/MacOS/Pikachu";
-			};
-			name = Release;
-		};
-		E3D3FC4E0EE3DCA487345010 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@loader_path/../Frameworks",
-					"@loader_path/../../..",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervisionTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		C539BF4A169E032B0A0FD960 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@loader_path/../Frameworks",
-					"@loader_path/../../..",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.pikachu.ProcessSupervisionTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "pikachu-supervisor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AF2FAAFCD3931C59D75863F5 /* Debug */,
+				5CE35C2C0B5AA1D7F91A4F14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3E14A43CDBC414260EEF721F /* Build configuration list for PBXNativeTarget "pi-compat-probe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				80808604AE0CDAE0BD216E42 /* Debug */,
+				2361B5BA0A2A84E2E8AC7863 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E16C8018370F74BAECDD9BED /* Debug */,
+				BB75D57E0FCB3A707AE002F7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		472871D92D1BEFDFE57BAF78 /* Build configuration list for PBXProject "Pikachu" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2178,42 +1949,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5AAA3402C6BA5BE0098F4637 /* Build configuration list for PBXNativeTarget "ProcessSupervision" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F0F7570D818328DD77C821C6 /* Debug */,
-				D5869D09ABBEE2F8C9F0D779 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E16C8018370F74BAECDD9BED /* Debug */,
-				BB75D57E0FCB3A707AE002F7 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				0D6F98D42F3DFF97FD51931B /* Debug */,
-				02AFFAE103F0D7197CEC50F9 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		72E178B93CB3E306652D7B18 /* Build configuration list for PBXNativeTarget "PiRuntimeAdapter" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				73E01607EB3246ACEB79F65C /* Debug */,
-				5E0D4DE87A57BE84B026C5EE /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		519AB08EAD3A76B986AD8D30 /* Build configuration list for PBXNativeTarget "WorkspacePersistence" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2223,11 +1958,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "pikachu-supervisor" */ = {
+		5AAA3402C6BA5BE0098F4637 /* Build configuration list for PBXNativeTarget "ProcessSupervision" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AF2FAAFCD3931C59D75863F5 /* Debug */,
-				5CE35C2C0B5AA1D7F91A4F14 /* Release */,
+				F0F7570D818328DD77C821C6 /* Debug */,
+				D5869D09ABBEE2F8C9F0D779 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -2241,11 +1976,29 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3E14A43CDBC414260EEF721F /* Build configuration list for PBXNativeTarget "pi-compat-probe" */ = {
+		72E178B93CB3E306652D7B18 /* Build configuration list for PBXNativeTarget "PiRuntimeAdapter" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				80808604AE0CDAE0BD216E42 /* Debug */,
-				2361B5BA0A2A84E2E8AC7863 /* Release */,
+				73E01607EB3246ACEB79F65C /* Debug */,
+				5E0D4DE87A57BE84B026C5EE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0D6F98D42F3DFF97FD51931B /* Debug */,
+				02AFFAE103F0D7197CEC50F9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8D219F5F7EDA081BA49BF62B /* Build configuration list for PBXNativeTarget "workspace-verify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60313C8D48799AD3EA5F00AF /* Debug */,
+				9EBA5AC55207D61FCB54474A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -2259,11 +2012,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		8D219F5F7EDA081BA49BF62B /* Build configuration list for PBXNativeTarget "workspace-verify" */ = {
+		958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				60313C8D48799AD3EA5F00AF /* Debug */,
-				9EBA5AC55207D61FCB54474A /* Release */,
+				E3D3FC4E0EE3DCA487345010 /* Debug */,
+				C539BF4A169E032B0A0FD960 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -2282,15 +2035,6 @@
 			buildConfigurations = (
 				F677EA4D8422C359925EAE1E /* Debug */,
 				A2E321E666A70718B22E9076 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E3D3FC4E0EE3DCA487345010 /* Debug */,
-				C539BF4A169E032B0A0FD960 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
