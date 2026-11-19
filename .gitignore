@@ -5,6 +5,10 @@
 .m1-runs/
 .m2-runs/
 .m3-runs/
+.verification-runs/
+build/
 dist/
+xcuserdata/
+*.xcuserstate
 
 /.yuzio/

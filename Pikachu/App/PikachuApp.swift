@@ -2,6 +2,8 @@ import SwiftUI
 import AppKit
 import OrchestrationCore
 
+private let isHostingUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
 @main struct PikachuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var workspace: WorkspaceController?
@@ -11,14 +13,15 @@ import OrchestrationCore
     var body: some Scene {
         Window("Pikachu", id: "main") {
             VStack {
-                if let workspace { WorkbenchView(workspace: workspace, settings: settings, quitRequest: quitRequest) }
+                if isHostingUnitTests { EmptyView() }
+                else if let workspace { WorkbenchView(workspace: workspace, settings: settings, quitRequest: quitRequest) }
                 else if let startupError { ContentUnavailableView("工作台无法打开", systemImage: "exclamationmark.triangle", description: Text(startupError)) }
                 else { ProgressView("正在读取本地工作台…") }
             }
             .frame(minWidth: 860, minHeight: 620)
             .preferredColorScheme(settings.diagnosticAppearance)
             .task {
-                guard workspace == nil else { return }
+                guard workspace == nil, !isHostingUnitTests else { return }
                 do { let loaded = try await settings.bootstrap(); workspace = loaded; delegate.workspace = loaded }
                 catch { startupError = "本地存储无法打开。原文件未覆盖，请检查磁盘与访问权限。" }
             }

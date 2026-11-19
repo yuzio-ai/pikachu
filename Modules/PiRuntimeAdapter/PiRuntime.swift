@@ -154,7 +154,7 @@ private final class PiConnection: @unchecked Sendable {
                     arguments += ["-e", path.path]
                 }
             } else {
-                guard let policy = Bundle.module.url(forResource: "execution-policy", withExtension: "ts", subdirectory: "Resources"),
+                guard let policy = Bundle.piRuntimeAdapter.url(forResource: "execution-policy", withExtension: "ts"),
                       fm.isReadableFile(atPath: policy.path) else { throw RuntimeFailure(.setup, "无法加载 Pikachu 执行模式。") }
                 let tools = config.agentMode == .plan ? "read,grep,find,ls" : "read,grep,find,ls,pikachu_bash,pikachu_edit,pikachu_write"
                 arguments += ["--no-mcp", "--tools", tools, "-e", policy.path]
