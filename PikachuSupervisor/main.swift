@@ -5,6 +5,25 @@ import CProcessInspection
 
 // Independent watchdog; survives the RPC host and never consumes protocol stdin.
 let args = CommandLine.arguments
+if args.count >= 4, args[1] == "--relaunch-app", let parent = Int32(args[2]), parent > 1 {
+    // The old instance must release its workspace lock before Launch Services reopens it.
+    while getppid() == parent { Thread.sleep(forTimeInterval: 0.05) }
+
+    let open = Process()
+    open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+    // Request a new instance so Launch Services delivers argv even when
+    // another copy of Pikachu owns a different workspace.
+    let directory = FileManager.default.currentDirectoryPath
+    open.arguments = ["-n", "-a", args[3], "--env", "PIKACHU_RELAUNCH_DIRECTORY=\(directory)"]
+    if args.count > 4 { open.arguments?.append(contentsOf: ["--args"] + args.dropFirst(4)) }
+    do {
+        try open.run()
+        open.waitUntilExit()
+        exit(open.terminationStatus)
+    } catch {
+        exit(70)
+    }
+}
 guard args.count >= 6, args[4] == "--" else { exit(64) }
 let statusURL = URL(fileURLWithPath: args[1]), token = args[2]
 let ownerPID = Int32(args[3])!
