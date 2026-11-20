@@ -111,15 +111,21 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(ProviderLogo.assetName(for: "DeepSeek"), "deepseek")
         XCTAssertEqual(ProviderLogo.assetName(for: "openai-codex"), "openai")
         XCTAssertEqual(ProviderLogo.assetName(for: "google-vertex"), "googlegemini")
+        XCTAssertEqual(ProviderLogo.assetName(for: "zai-coding-cn"), "zai")
+        XCTAssertEqual(ProviderLogo.assetName(for: "glm"), "zai")
+        XCTAssertEqual(ProviderLogo.assetName(for: "qwen-token-plan-individual-cn"), "qwen")
+        XCTAssertEqual(ProviderLogo.assetName(for: "QWEN"), "qwen")
         XCTAssertNil(ProviderLogo.assetName(for: ""))
         XCTAssertNil(ProviderLogo.assetName(for: "unverified-provider"))
         // Wide or thin-stroked marks fill the 13 pt frame; square marks keep 12 pt.
         XCTAssertEqual(ProviderLogo.drawSide(for: "deepseek"), 13)
         XCTAssertEqual(ProviderLogo.drawSide(for: "google"), 13)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "qwen-token-plan"), 13)
         XCTAssertEqual(ProviderLogo.drawSide(for: "openai"), 12)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "zai"), 12)
         XCTAssertEqual(ProviderLogo.drawSide(for: "unverified-provider"), 12)
         let bundle = Bundle(for: AppDelegate.self)
-        for name in ["openai", "anthropic", "googlegemini", "deepseek"] {
+        for name in ["openai", "anthropic", "googlegemini", "deepseek", "qwen", "zai"] {
             let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"), name)
             let image = try XCTUnwrap(NSImage(contentsOf: url), name)
             // Templates must carry at least 2x pixels of their draw box so thin strokes survive.

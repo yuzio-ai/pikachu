@@ -744,6 +744,15 @@ struct ProviderLogo: View {
         "deepseek": .init(asset: "deepseek", side: frameSide),
         "google": .init(asset: "googlegemini", side: frameSide), "google-vertex": .init(asset: "googlegemini", side: frameSide),
         "google-gemini-cli": .init(asset: "googlegemini", side: frameSide),
+        // Qwen's mark is detailed enough that 12 pt cannot resolve its inner strokes.
+        "qwen": .init(asset: "qwen", side: frameSide), "qwen-token-plan": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-cn": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-individual": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-individual-cn": .init(asset: "qwen", side: frameSide),
+        "dashscope": .init(asset: "qwen", side: frameSide),
+        // GLM ships as Z.ai; the bold bars already carry enough weight at 12 pt.
+        "zai": .init(asset: "zai", side: defaultSide), "zai-coding-cn": .init(asset: "zai", side: defaultSide),
+        "glm": .init(asset: "zai", side: defaultSide), "zhipu": .init(asset: "zai", side: defaultSide),
     ]
     private static let images: [String: NSImage] = {
         var images: [String: NSImage] = [:]

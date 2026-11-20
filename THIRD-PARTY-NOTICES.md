@@ -30,7 +30,7 @@ SOFTWARE.
 
 ## Simple Icons
 
-Provider marks: `openai`, `anthropic`, `googlegemini`, `deepseek`.
+Provider marks: `openai`, `anthropic`, `googlegemini`, `deepseek`, `qwen`, `zai`.
 
 Source: https://github.com/simple-icons/simple-icons
 
