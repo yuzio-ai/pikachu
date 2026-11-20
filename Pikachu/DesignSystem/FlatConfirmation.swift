@@ -21,6 +21,7 @@ struct ConfirmationRequest: Identifiable {
 struct FlatConfirmation: View {
     let request: ConfirmationRequest
     let cancel: () -> Void
+    var width: CGFloat = 448
     var perform: (@escaping () -> Void) -> Void = { $0() }
 
     var body: some View {
@@ -62,7 +63,7 @@ struct FlatConfirmation: View {
             }
         }
         .padding(20)
-        .frame(width: 448)
+        .frame(width: width)
         .flatPanelContent()
         .onExitCommand(perform: request.defaultsToCancel ? cancel : nil)
     }

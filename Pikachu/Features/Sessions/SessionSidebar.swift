@@ -128,13 +128,55 @@ struct SessionSidebar: View {
                 if filter.isActive { filteredOpenExpansion = !showsOpen }
                 else { openExpanded = !showsOpen }
             }
+            if let warning = workspace.historyIndexWarning {
+                SessionHistoryWarning(message: warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            }
             SessionSidebarList(workspace: workspace, filter: filter, groups: groups, openExpanded: showsOpen)
-            Rectangle().fill(PikachuTheme.subtleDivider).frame(height: 1).accessibilityHidden(true)
             SessionSidebarFooter(workspace: workspace, openSettings: openSettings)
         }
         .foregroundStyle(PikachuTheme.primaryText)
         .background(PikachuTheme.sidebar)
         .onChange(of: filter.isActive) { filteredOpenExpansion = nil }
+    }
+}
+
+private struct SessionHistoryWarning: View {
+    let message: String
+    @State private var showsDetails = false
+
+    var body: some View {
+        Button { showsDetails.toggle() } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "exclamationmark.triangle")
+                    .accessibilityHidden(true)
+                Text("会话列表更新异常")
+                Image(systemName: "chevron.right")
+                    .accessibilityHidden(true)
+            }
+            .pikachuFont(.caption)
+            .foregroundStyle(PikachuTheme.warningText)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(PikachuTheme.warningSurface, in: .capsule)
+        }
+        .buttonStyle(FlatControlButtonStyle(inset: false, cornerRadius: 12))
+        .accessibilityIdentifier("session-history-warning")
+        .popover(isPresented: $showsDetails, arrowEdge: .trailing) {
+            ScrollView {
+                Text(verbatim: message)
+                    .pikachuFont(.callout)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .frame(width: 280)
+            .scrollBounceBehavior(.basedOnSize)
+            .defaultScrollAnchor(.top)
+            .frame(idealHeight: 110, maxHeight: 220)
+        }
     }
 }
 
@@ -182,10 +224,10 @@ private struct SessionSidebarControls: View {
                 }
             }
             projectMenu
-            SidebarIconButton("添加项目", symbol: "folder.badge.plus", action: openProject)
+            SidebarIconButton("添加项目", icon: IconButtonLabel(assetName: "SidebarFolderPlus"), action: openProject)
                 .disabled(!workspace.canManageProjects)
                 .accessibilityIdentifier("open-project")
-            SidebarIconButton("新建会话", symbol: "square.and.pencil", action: createSession)
+            SidebarIconButton("新建会话", icon: IconButtonLabel(assetName: "SidebarChat"), action: createSession)
                 .disabled(!workspace.canManageProjects || workspace.state.projects.isEmpty)
                 .accessibilityIdentifier("new-session")
         }
@@ -194,7 +236,7 @@ private struct SessionSidebarControls: View {
 
     private var projectMenu: some View {
         FlatMenu(width: 250) {
-            IconButtonLabel(systemName: filter.projectID == nil ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+            IconButtonLabel(assetName: "SidebarListFilter")
                 .foregroundStyle(filter.projectID == nil ? PikachuTheme.secondaryText : PikachuTheme.accentText)
         } content: { select in
             ScrollView {
@@ -629,8 +671,7 @@ private struct SidebarSessionCard: View {
                         .buttonStyle(FlatControlButtonStyle(inset: false))
                         .focused(focus, equals: .reopen(session.id))
                         .disabled(!showsActions)
-                        .opacity(showsActions ? 1 : 0)
-                        .allowsHitTesting(showsActions)
+                        .revealedAction(showsActions)
                         .accessibilityHidden(!showsActions)
                         .help("移回待处理")
                         .accessibilityLabel("移回待处理")
@@ -764,10 +805,8 @@ private struct SidebarSessionCard: View {
         .foregroundStyle(PikachuTheme.secondaryText)
         .lineLimit(1)
         .frame(width: 220, alignment: .leading)
-        .padding(AnchoredCardStyle.inset)
-        .flatSurface(radius: AnchoredCardStyle.cornerRadius)
+        .anchoredPreviewCard()
         .environment(\.pikachuTypography, typography)
-        .accessibilityHidden(true)
     }
 
     private var projectBadge: some View {
@@ -777,8 +816,8 @@ private struct SidebarSessionCard: View {
 
     private var activitySlot: some View {
         let isOpen = session.sidebarStatus == .open
-        // Reserve the action width only while the buttons are visible.
-        let slotWidth = isOpen ? (showsActions ? actionSlotWidth : nil) : timeWidth
+        // Keep the project column stable when actions replace the timestamp.
+        let slotWidth = isOpen ? max(actionSlotWidth, timeWidth) : timeWidth
         return activityTime
             .frame(width: slotWidth, alignment: .trailing)
             .opacity(showsActions ? 0 : 1)
@@ -812,8 +851,7 @@ private struct SidebarSessionCard: View {
             .buttonStyle(FlatControlButtonStyle(inset: false))
             .focused(focus, equals: .settle(session.id))
             .disabled(blocked != nil || !showsActions)
-            .opacity(showsActions ? 1 : 0)
-            .allowsHitTesting(showsActions)
+            .revealedAction(showsActions)
             .accessibilityHidden(!showsActions)
             .help(blocked.map { String(localized: $0) } ?? String(localized: "标记已处理"))
             .accessibilityLabel("标记已处理")
@@ -882,8 +920,7 @@ private struct SidebarReminderMenu: View {
         .fixedSize()
         .focused(focus, equals: .remind(sessionID))
         .disabled(!visible || !workspace.initialized || workspace.storageError != nil)
-        .opacity(visible ? 1 : 0)
-        .allowsHitTesting(visible)
+        .revealedAction(visible)
         .accessibilityHidden(!visible)
         .help(presentation.1)
         .accessibilityLabel(presentation.1)
@@ -930,17 +967,12 @@ private struct SessionSidebarFooter: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            SidebarIconButton("设置", symbol: "gearshape", action: openSettings)
-            SidebarIconButton("当前会话统计", symbol: "chart.bar") { workspace.usageExpanded.toggle() }
+            SidebarIconButton("设置", icon: IconButtonLabel(systemName: "gearshape"), action: openSettings)
+            SidebarIconButton("当前会话统计", icon: IconButtonLabel(systemName: "chart.bar")) { workspace.usageExpanded.toggle() }
                 .disabled(workspace.viewed == nil)
-            SidebarIconButton("刷新会话列表", symbol: "arrow.clockwise") {
-                Task { await workspace.refreshWorkspaceHistory() }
-            }
-            .disabled(!workspace.canManageProjects || workspace.state.projects.isEmpty)
-            .accessibilityIdentifier("refresh-sessions")
-            if workspace.refreshingHistoryIndex { FlatProgressView().controlSize(.mini).accessibilityLabel("正在刷新会话") }
             Spacer(minLength: 0)
             SidebarQuotaButton(windows: [])
+            SidebarUpgradeButton()
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -949,18 +981,18 @@ private struct SessionSidebarFooter: View {
 
 private struct SidebarIconButton: View {
     let title: LocalizedStringResource
-    let symbol: String
+    let icon: IconButtonLabel
     let action: () -> Void
 
-    init(_ title: LocalizedStringResource, symbol: String, action: @escaping () -> Void) {
+    init(_ title: LocalizedStringResource, icon: IconButtonLabel, action: @escaping () -> Void) {
         self.title = title
-        self.symbol = symbol
+        self.icon = icon
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
-            IconButtonLabel(systemName: symbol)
+            icon
                 .foregroundStyle(PikachuTheme.secondaryText)
         }
         .buttonStyle(FlatControlButtonStyle(inset: false))

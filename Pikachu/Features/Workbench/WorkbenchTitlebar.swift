@@ -10,9 +10,11 @@ struct WorkbenchTitlebar: NSViewRepresentable {
     let gitStore: GitStatusStore
     let detailWidth: CGFloat
     let hasSession: Bool
+    let createSession: (UUID) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(visibility: $sidebarVisibility, workspace: workspace, gitStore: gitStore, fontSize: typography.size)
+        Coordinator(visibility: $sidebarVisibility, workspace: workspace, gitStore: gitStore,
+                    fontSize: typography.size, createSession: createSession)
     }
 
     func makeNSView(context: Context) -> WindowAttachment {
@@ -58,6 +60,7 @@ struct WorkbenchTitlebar: NSViewRepresentable {
         private var hasSession: Bool
         private let workspace: WorkspaceController
         private let gitStore: GitStatusStore
+        private let createSession: (UUID) -> Void
         private var fontSize: InterfaceFontSize
         private let sessionHost: NSHostingView<WindowSessionControls>
         private let sessionWidth: NSLayoutConstraint
@@ -67,15 +70,18 @@ struct WorkbenchTitlebar: NSViewRepresentable {
         private weak var toggleHost: NSHostingView<SidebarToggleButton>?
         private var toggleLabel: String { sidebarVisible ? String(localized: "隐藏侧栏") : String(localized: "显示侧栏") }
 
-        init(visibility: Binding<NavigationSplitViewVisibility>, workspace: WorkspaceController, gitStore: GitStatusStore, fontSize: InterfaceFontSize) {
+        init(visibility: Binding<NavigationSplitViewVisibility>, workspace: WorkspaceController, gitStore: GitStatusStore,
+             fontSize: InterfaceFontSize, createSession: @escaping (UUID) -> Void) {
             self.visibility = visibility
             self.workspace = workspace
             self.gitStore = gitStore
+            self.createSession = createSession
             self.fontSize = fontSize
             sidebarVisible = visibility.wrappedValue != .detailOnly
             hasSession = workspace.viewed != nil
             let typography = PikachuTypography(size: fontSize)
-            let host = NSHostingView(rootView: WindowSessionControls(workspace: workspace, gitStore: gitStore, fontSize: fontSize))
+            let host = NSHostingView(rootView: WindowSessionControls(workspace: workspace, gitStore: gitStore,
+                                                                    fontSize: fontSize, createSession: createSession))
             sessionHost = host
             sessionWidth = host.widthAnchor.constraint(equalToConstant: 200)
             sessionHeight = host.heightAnchor.constraint(equalToConstant: typography.titlebarControlHeight)
@@ -111,7 +117,8 @@ struct WorkbenchTitlebar: NSViewRepresentable {
             if self.fontSize != fontSize {
                 self.fontSize = fontSize
                 let typography = PikachuTypography(size: fontSize)
-                sessionHost.rootView = WindowSessionControls(workspace: workspace, gitStore: gitStore, fontSize: fontSize)
+                sessionHost.rootView = WindowSessionControls(workspace: workspace, gitStore: gitStore,
+                                                             fontSize: fontSize, createSession: createSession)
                 sessionHeight.constant = typography.titlebarControlHeight
                 headingLabel?.font = typography.nsFont(.callout, weight: .semibold)
                 if let headingStack {
@@ -269,10 +276,11 @@ private struct WindowSessionControls: View {
     let workspace: WorkspaceController
     let gitStore: GitStatusStore
     let fontSize: InterfaceFontSize
+    let createSession: (UUID) -> Void
 
     var body: some View {
         if let viewed = workspace.viewed {
-            SessionHeader(workspace: workspace, presentation: viewed, gitStore: gitStore)
+            SessionHeader(workspace: workspace, presentation: viewed, gitStore: gitStore, createSession: createSession)
                 .id(viewed.id)
                 .padding(.horizontal, 2)
                 .pikachuTypography(fontSize)

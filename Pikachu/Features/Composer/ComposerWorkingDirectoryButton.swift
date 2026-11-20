@@ -7,7 +7,7 @@ struct ComposerWorkingDirectoryButton: View {
     let reference: SessionReference
     let project: ProjectRecord
     @Binding var isPresented: Bool
-    let panelsBlocked: Bool
+    let disabled: Bool
     @State private var worktrees: [GitWorktree]?
     @State private var loading = true
 
@@ -36,7 +36,7 @@ struct ComposerWorkingDirectoryButton: View {
         .accessibilityValue(Text(title))
         .accessibilityHint(path)
         .accessibilityIdentifier("composer-working-directory")
-        .disabled(panelsBlocked || workspace.isOperating(on: reference.id) || workspace.storageError != nil)
+        .disabled(disabled)
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             ComposerWorkingDirectoryPanel(
                 workspace: workspace, reference: reference, project: project,
@@ -187,6 +187,7 @@ private struct ComposerWorkingDirectoryPanel: View {
                 Button("返回") { showsCreation = false; error = nil }
                 Spacer()
                 Button("创建并选择", action: create)
+                    .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
                     .disabled(base.isEmpty || branch.isEmpty || destination.isEmpty)
             }
         }

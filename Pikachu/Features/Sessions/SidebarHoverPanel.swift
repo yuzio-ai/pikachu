@@ -53,7 +53,7 @@ struct SidebarHoverPanel<Content: View>: NSViewRepresentable {
                 return event
             }
             pending = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: AnchoredCardStyle.hoverDelay)
                 guard !Task.isCancelled else { return }
                 self?.show()
             }

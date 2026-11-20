@@ -889,7 +889,7 @@ private struct InteractionChoices: View {
                             }
                             .frame(minHeight: 20)
                         }
-                        .buttonStyle(FlatControlButtonStyle(treatment: selected ? .prominent : .quiet))
+                        .buttonStyle(FlatControlButtonStyle(isOpen: selected))
                         .focusable(false)
                         .accessibilityAddTraits(selected ? .isSelected : [])
                         .id(index)

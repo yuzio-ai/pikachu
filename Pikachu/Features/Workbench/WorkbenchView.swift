@@ -73,15 +73,18 @@ struct WorkbenchView: View {
         }
         .background {
             WorkbenchTitlebar(sidebarVisibility: $sidebarVisibility, workspace: workspace,
-                              gitStore: gitStore, detailWidth: detailWidth, hasSession: workspace.viewed != nil)
+                              gitStore: gitStore, detailWidth: detailWidth, hasSession: workspace.viewed != nil,
+                              createSession: { createSession(in: $0, showsSidebar: false) })
                 .frame(width: 0, height: 0)
         }
         .onGeometryChange(for: CGSize.self, of: \.size) { workbenchSize = $0 }
+        .task(id: workspace.initialized) { await workspace.refreshWorkspaceHistory() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if let id = workspace.selected?.id, let path = workspace.workingDirectory(for: id) {
                 gitStore.refresh(directory: path, force: true)
             }
             Task { await settings.notifications.refreshAuthorization() }
+            Task { await workspace.refreshWorkspaceHistory() }
             presentCurrentInteractionIfPossible()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndSheetNotification)) { _ in
@@ -222,11 +225,12 @@ struct WorkbenchView: View {
         if let action { action() }
         else { presentCurrentInteractionIfPossible() }
     }
-    private func createSession(in project: UUID) {
+    private func createSession(in project: UUID, showsSidebar: Bool = true) {
+        guard !preparingToQuit, modal == nil, actionAfterSheet == nil else { return }
         Task {
             if let id = await workspace.createSession(in: project), workspace.state.selectedSessionID == id {
                 sidebarFilter.reveal(in: project)
-                sidebarVisibility = .all
+                if showsSidebar { sidebarVisibility = .all }
             }
         }
     }
@@ -300,20 +304,6 @@ struct WorkbenchView: View {
     }
 }
 
-struct ProjectLocationView: View {
-    let project: ProjectRecord
-    var body: some View {
-        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
-            Text(verbatim: project.displayName).anchoredCardTitle()
-            Text("工作目录").foregroundStyle(.secondary)
-            Text(project.path).textSelection(.enabled)
-            Text("运行时可在此目录读取内容、修改文件和执行命令。")
-                .foregroundStyle(.secondary)
-        }
-        .anchoredPopoverCard(width: 344)
-    }
-}
-
 struct SessionDetail: View {
     let workspace: WorkspaceController
     let settings: AppSettings
@@ -354,7 +344,7 @@ struct SessionDetail: View {
         }
         return presentation.controller.draftPrompt.hasContent
     }
-    var modeDisabled: Bool {
+    var sessionConfigurationDisabled: Bool {
         !workspace.canChangeExecutionPolicy(for: presentation.id)
     }
     var currentModel: ComposerModel? {
@@ -476,7 +466,7 @@ struct SessionDetail: View {
                     activePolicy: workspace.runningPolicy(for: presentation.id),
                     isViewedSessionActive: workspace.execution(for: presentation.id) != nil,
                     isReadOnlyHistory: presentation.executionIssue != nil,
-                    modeDisabled: modeDisabled,
+                    sessionConfigurationDisabled: sessionConfigurationDisabled,
                     model: currentModel,
                     reference: reference,
                     project: workspace.state.projects.first { $0.id == reference?.projectID },
@@ -556,18 +546,24 @@ struct SessionHeader: View {
     let workspace: WorkspaceController
     let presentation: SessionPresentation
     let gitStore: GitStatusStore
-    @State private var showsProjectLocation = false
+    let createSession: (UUID) -> Void
     @State private var showsGitDetails = false
 
     var reference: SessionReference? { workspace.state.sessions.first { $0.id == presentation.id } }
+    private var owningProject: ProjectRecord? {
+        guard let reference else { return nil }
+        return workspace.state.projects.first { $0.id == reference.projectID }
+    }
     var project: ProjectRecord? {
-        guard let reference, var project = workspace.state.projects.first(where: { $0.id == reference.projectID }) else { return nil }
+        guard let reference, var project = owningProject else { return nil }
         project.path = reference.workingDirectory(in: project)
         return project
     }
     var activeController: SessionController? { workspace.execution(for: presentation.id) }
 
-    private var connectionStatus: (kind: ConnectionBadgeKind, label: LocalizedStringResource, description: String) {
+    private typealias ConnectionStatus = (kind: ConnectionBadgeKind, label: LocalizedStringResource, description: String)
+
+    private var connectionStatus: ConnectionStatus {
         if let active = activeController {
             switch active.connection {
             case .disconnected:
@@ -615,7 +611,7 @@ struct SessionHeader: View {
     }
 
     private func projectButton(_ project: ProjectRecord) -> some View {
-        Button { showsProjectLocation.toggle() } label: {
+        Button { createSession(project.id) } label: {
             HStack(spacing: 6) {
                 ProjectBadge(project: project, compact: true)
                 Text(verbatim: project.displayName)
@@ -624,54 +620,67 @@ struct SessionHeader: View {
                     .lineLimit(1)
             }
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: showsProjectLocation, inset: false))
-        .help(project.path)
+        .buttonStyle(FlatControlButtonStyle(inset: false))
+        .disabled(!workspace.canManageProjects)
+        .help(Text("在 \(project.displayName) 中新建会话\n\(project.path)"))
         .accessibilityLabel("项目 \(project.displayName)")
-        .accessibilityHint("显示工作目录")
-        .popover(isPresented: $showsProjectLocation) {
-            ProjectLocationView(project: project)
-        }
+        .accessibilityHint("新建会话")
+        .accessibilityIdentifier("new-session-in-viewed-project")
     }
 
-    private var identitySection: some View {
+    private func identitySection(status: ConnectionStatus) -> some View {
         HStack(spacing: 8) {
-            if let project {
-                projectButton(project)
+            if let owningProject {
+                projectButton(owningProject)
                 Text("/")
                     .pikachuFont(.headline, weight: .regular)
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
-            if let reference {
-                SessionTitleControl(workspace: workspace, session: reference)
-                    .id(reference.id)
-            } else {
-                Text("会话")
-                    .pikachuFont(.headline, weight: .semibold)
-                    .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 4) {
+                if let reference {
+                    SessionTitleControl(workspace: workspace, session: reference)
+                        .id(reference.id)
+                } else {
+                    Text("会话")
+                        .pikachuFont(.headline, weight: .semibold)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                if status.kind == .running {
+                    statusBadge(status)
+                }
             }
         }
     }
 
-    private var statusBadge: some View {
-        let status = connectionStatus
+    private func statusBadge(_ status: ConnectionStatus) -> some View {
+        let isRunning = status.kind == .running
         return HStack(spacing: 5) {
             Circle()
                 .fill(status.kind.color)
-                .frame(width: 8, height: 8)
+                .frame(width: isRunning ? 6 : 8, height: isRunning ? 6 : 8)
             Text(status.label)
-                .pikachuFont(.caption)
-                .foregroundStyle(.secondary)
+                .pikachuFont(.caption, weight: isRunning ? .medium : .regular)
+                .foregroundStyle(isRunning ? PikachuTheme.runningText : Color.secondary)
                 .lineLimit(1)
+        }
+        .padding(.horizontal, isRunning ? 7 : 0)
+        .padding(.vertical, isRunning ? 2 : 0)
+        .background {
+            if isRunning {
+                Capsule()
+                    .fill(PikachuTheme.runningText.opacity(0.12))
+                    .shadow(color: .black.opacity(0.10), radius: 2, y: 1)
+            }
         }
         .frame(height: 24)
         .fixedSize(horizontal: true, vertical: false)
-            .contentShape(.rect)
-            .help(status.description)
-            .accessibilityElement(children: .ignore)
-            .accessibilityIdentifier("runtime-status")
-            .accessibilityLabel("会话连接状态")
-            .accessibilityValue(status.description)
+        .layoutPriority(isRunning ? 1 : 0)
+        .help(status.description)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("runtime-status")
+        .accessibilityLabel("会话连接状态")
+        .accessibilityValue(status.description)
     }
 
     private func executionActionsSection(compact: Bool) -> some View {
@@ -691,42 +700,34 @@ struct SessionHeader: View {
                 .accessibilityLabel("结束受管进程")
                 .fixedSize()
             }
-            if let project {
-                if compact {
-                    Button { showsGitDetails.toggle() } label: {
-                        IconButtonLabel(systemName: "info.circle")
-                    }
-                    .buttonStyle(FlatControlButtonStyle(isOpen: showsGitDetails, inset: false))
-                    .help("Git 详情")
-                    .accessibilityLabel("Git 详情")
-                    .popover(isPresented: $showsGitDetails) {
-                        GitSummaryBar(project: project, gitStore: gitStore, displaysDetails: true)
-                    }
+            if compact, let project {
+                Button { showsGitDetails.toggle() } label: {
+                    IconButtonLabel(systemName: "info.circle")
                 }
-                Button { gitStore.refresh(directory: project.path, force: true) } label: {
-                    IconButtonLabel(systemName: "arrow.clockwise")
+                .buttonStyle(FlatControlButtonStyle(isOpen: showsGitDetails, inset: false))
+                .help("Git 详情")
+                .accessibilityLabel("Git 详情")
+                .popover(isPresented: $showsGitDetails) {
+                    GitSummaryBar(project: project, gitStore: gitStore, displaysDetails: true)
                 }
-                .buttonStyle(FlatControlButtonStyle(inset: false))
-                .help("刷新 Git 状态")
-                .accessibilityLabel("刷新 Git 状态")
-                .accessibilityIdentifier("refresh-git-status")
             }
         }
     }
 
     var body: some View {
+        let status = connectionStatus
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) {
-                identitySection.frame(minWidth: 150)
+                identitySection(status: status).frame(minWidth: 150, alignment: .leading)
                 Spacer(minLength: 6)
-                statusBadge
+                if status.kind != .running { statusBadge(status) }
                 if let project { GitSummaryBar(project: project, gitStore: gitStore).fixedSize() }
                 executionActionsSection(compact: false).fixedSize()
             }
             HStack(spacing: 8) {
-                identitySection
+                identitySection(status: status)
                 Spacer(minLength: 4)
-                statusBadge
+                if status.kind != .running { statusBadge(status) }
                 executionActionsSection(compact: true).fixedSize()
             }
         }
@@ -749,6 +750,7 @@ private struct SessionTitleControl: View {
     @State private var isSaving = false
     @State private var saveFailed = false
     @FocusState private var isTitleFocused: Bool
+    @FocusState private var isMenuFocused: Bool
 
     var body: some View {
         Button {
@@ -760,12 +762,13 @@ private struct SessionTitleControl: View {
                     .pikachuFont(.headline, weight: .semibold)
                     .lineLimit(1)
                 FlatDisclosureChevron(.down)
-                    .opacity(isHovered || isMenuOpen ? 1 : 0)
+                    .opacity(isHovered || isMenuFocused || isMenuOpen ? 1 : 0)
             }
             .padding(.horizontal, 4)
             .frame(height: 24)
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: isMenuOpen, inset: false))
+        .focused($isMenuFocused)
         .onHover { isHovered = $0 }
         .help(session.displayTitle)
         .accessibilityHint(Text("会话操作"))
@@ -851,9 +854,11 @@ private struct SessionTitleControl: View {
                     .keyboardShortcut(.cancelAction)
                     .disabled(isSaving)
                 Button("保存", action: save)
+                    .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canSave)
             }
+            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
         }
         .padding(12)
         .frame(width: 280)
@@ -1275,10 +1280,17 @@ private struct ActiveRunBanner: View {
                     .accessibilityIdentifier("open-background-session")
                     Spacer(minLength: 4)
                     if request != nil {
-                        Button("去处理", action: presentInteraction)
-                            .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
-                            .fixedSize()
-                            .accessibilityIdentifier("handle-background-interaction")
+                        let approvalCount = active.interactions.count { $0.kind == .confirm && $0.toolApproval != nil }
+                        Button(action: presentInteraction) {
+                            if approvalCount > 1 {
+                                Text("去处理（\(approvalCount)）")
+                            } else {
+                                Text("去处理")
+                            }
+                        }
+                        .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
+                        .fixedSize()
+                        .accessibilityIdentifier("handle-background-interaction")
                     }
                     FlatMenu(width: 168) {
                         IconButtonLabel(systemName: "ellipsis")

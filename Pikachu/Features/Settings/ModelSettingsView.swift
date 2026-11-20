@@ -152,9 +152,7 @@ struct ModelSettingsView: View {
             })) {
                 Text("在选择器中显示 \(model.name)")
             }
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
+            .toggleStyle(FlatToggleStyle(compact: true))
             .disabled(!available)
             .accessibilityIdentifier("model-visibility-\(model.id)")
         }

@@ -1,6 +1,60 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "%@（%lld）" : {
+      "comment" : "Menu bar task group name and session count",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%lld)"
+          }
+        }
+      }
+    },
+    "Pikachu：运行中 %lld，待审批 %lld，未读 %lld" : {
+      "comment" : "Accessible summary of the menu bar task counts",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pikachu: Running %lld, awaiting approval %lld, unread %lld"
+          }
+        }
+      }
+    },
+    "未读" : {
+      "comment" : "Compact caption under the unread completion count in the macOS menu bar",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unread"
+          }
+        }
+      }
+    },
+    "打开工作台" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Workbench"
+          }
+        }
+      }
+    },
+    "审批" : {
+      "comment" : "Compact caption under the pending approval count in the macOS menu bar",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval"
+          }
+        }
+      }
+    },
     "" : {
 
     },
@@ -163,6 +217,50 @@
         }
       }
     },
+    "%lld 次写入" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld write"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld writes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 次列目录" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld directory listing"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld directory listings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld 次搜索" : {
       "localizations" : {
         "en" : {
@@ -178,6 +276,28 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld searches"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 次文件查找" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file lookup"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file lookups"
                 }
               }
             }
@@ -386,6 +506,16 @@
         }
       }
     },
+    "macOS 通知已获准，但提示音已关闭。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are allowed, but notification sounds are turned off."
+          }
+        }
+      }
+    },
     "macOS 通知已获准。" : {
       "localizations" : {
         "en" : {
@@ -498,16 +628,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pikachu will keep your drafts, stop the current task, and clean up managed tool processes before reopening."
-          }
-        }
-      }
-    },
-    "Pikachu 将保留草稿、停止当前运行并清理受管工具进程。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pikachu will keep your drafts, stop the current run, and clean up managed tool processes."
           }
         }
       }
@@ -706,6 +826,16 @@
         }
       }
     },
+    "仅对新建会话生效，不影响已有会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies only to new sessions. Existing sessions are unchanged."
+          }
+        }
+      }
+    },
     "仅提供读取及搜索工具。适用范围为工具能力。" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -825,6 +955,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Session"
+          }
+        }
+      }
+    },
+    "会话列表更新异常" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session List Update Issue"
           }
         }
       }
@@ -1496,6 +1636,28 @@
         }
       }
     },
+    "最多 %lld 个条目" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld entry"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld entries"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "最多 %lld 条匹配" : {
       "localizations" : {
         "en" : {
@@ -1580,6 +1742,16 @@
         }
       }
     },
+    "写入文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write file"
+          }
+        }
+      }
+    },
     "分支 ·" : {
       "localizations" : {
         "en" : {
@@ -1654,6 +1826,16 @@
         }
       }
     },
+    "列出目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List directory"
+          }
+        }
+      }
+    },
     "创建并选择" : {
       "localizations" : {
         "en" : {
@@ -1724,32 +1906,12 @@
         }
       }
     },
-    "刷新 Git 状态" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh Git Status"
-          }
-        }
-      }
-    },
     "刷新会话" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh Sessions"
-          }
-        }
-      }
-    },
-    "刷新会话列表" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh Session List"
           }
         }
       }
@@ -1870,6 +2032,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Review Request"
+          }
+        }
+      }
+    },
+    "去处理（%lld）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Requests (%lld)"
           }
         }
       }
@@ -3071,6 +3243,16 @@
         }
       }
     },
+    "当前目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current directory"
+          }
+        }
+      }
+    },
     "当前目录不是 Git 仓库。" : {
       "localizations" : {
         "en" : {
@@ -3613,6 +3795,16 @@
         }
       }
     },
+    "按住 ⌘Q，或再按一次退出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold ⌘Q or press it again to quit"
+          }
+        }
+      }
+    },
     "按回车键换行，按 ⌘↩ 提交。文本上限 1 MiB。" : {
       "localizations" : {
         "en" : {
@@ -3955,6 +4147,16 @@
         }
       }
     },
+    "在 %@ 中新建会话\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New session in %1$@\n%2$@"
+          }
+        }
+      }
+    },
     "新建会话" : {
       "comment" : "An explicit source translation includes zh-Hans in the compiled bundle.",
       "localizations" : {
@@ -4018,6 +4220,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not save model settings. Try again."
+          }
+        }
+      }
+    },
+    "无法保存默认执行模式。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save the default execution mode. Try again."
           }
         }
       }
@@ -4193,6 +4405,7 @@
       }
     },
     "显示工作目录" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4517,6 +4730,16 @@
         }
       }
     },
+    "查找文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find files"
+          }
+        }
+      }
+    },
     "查看 / 关闭会话用量" : {
       "localizations" : {
         "en" : {
@@ -4707,16 +4930,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stopping…"
-          }
-        }
-      }
-    },
-    "正在刷新会话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refreshing Sessions"
           }
         }
       }
@@ -5105,6 +5318,16 @@
         }
       }
     },
+    "目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory"
+          }
+        }
+      }
+    },
     "目录缺失" : {
       "localizations" : {
         "en" : {
@@ -5332,6 +5555,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Usage is unavailable. Missing data is not counted as zero."
+          }
+        }
+      }
+    },
+    "继续工作" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Working"
           }
         }
       }
@@ -5957,6 +6190,16 @@
         }
       }
     },
+    "退出会停止任务，草稿会保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitting will stop tasks. Your drafts will be kept."
+          }
+        }
+      }
+    },
     "选择 Pi 可执行文件" : {
       "localizations" : {
         "en" : {
@@ -6389,6 +6632,24 @@
         }
       }
     },
+    "升级" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Update" } } }
+    },
+    "新版 %@ 可用，点击升级" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Version %@ is available. Click to update." } } }
+    },
+    "检查更新" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Check for Updates" } } }
+    },
+    "正在检查更新…" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Checking for updates…" } } }
+    },
+    "暂时无法检查更新，请稍后重试。" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not check for updates. Try again later." } } }
+    },
+    "没有可用的更新。" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No update is available." } } }
+    },
     "额度" : {
       "localizations" : {
         "en" : {
@@ -6426,6 +6687,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Default"
+          }
+        }
+      }
+    },
+    "正在保存默认执行模式…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving default execution mode…"
+          }
+        }
+      }
+    },
+    "默认执行模式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Execution Mode"
           }
         }
       }

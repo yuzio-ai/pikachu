@@ -87,6 +87,14 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
 }
 
 final class SessionDetailUITests: XCTestCase {
+    func testSidebarUpgradeOnlyOffersNewerStableVersions() {
+        XCTAssertEqual(PikachuReleaseCheck.newerVersion(tag: "v0.10.0", installed: "0.9.9"), "0.10.0")
+        XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v1.2.0", installed: "1.2"))
+        XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v1.2.9", installed: "1.10.0"))
+        XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v2.0.0-beta.1", installed: "1.2.0"))
+        XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v2..1", installed: "1.2.0"))
+    }
+
     @MainActor func testTranscriptScrollerFollowsSessionDetailWidth() async throws {
         let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
         let presentation = SessionPresentation(id: UUID())
@@ -161,6 +169,54 @@ final class SessionDetailUITests: XCTestCase {
             XCTAssertLessThan(session.bounds.width, width)
             XCTAssertLessThanOrEqual(session.convert(session.bounds, to: nil).maxX, width + 1)
         }
+    }
+
+    @MainActor func testWorkbenchProjectNameCreatesSessionWithoutOpeningSidebar() async throws {
+        let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
+        let otherProject = ProjectRecord(path: NSHomeDirectory())
+        let original = SessionReference(projectID: project.id)
+        var snapshot = WorkspaceSnapshot()
+        snapshot.projects = [otherProject, project]
+        snapshot.sessions = [SessionReference(projectID: otherProject.id), original]
+        snapshot.selectedSessionID = original.id
+        let store = MemoryStore(snapshot)
+        let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
+        await workspace.start()
+        let visibility = TestSidebarVisibility()
+        visibility.value = .detailOnly
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 620),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: WorkbenchView(
+            workspace: workspace, settings: AppSettings(), quitRequest: 0, openSettingsRequest: 0,
+            terminate: { _, cancel in cancel() },
+            sidebarVisibility: Binding(get: { visibility.value }, set: { visibility.value = $0 })
+        ))
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        await settleWindow(window)
+
+        let toolbarView = try XCTUnwrap(window.toolbar?.items.last?.view)
+        // The project badge is the leading control in the session header.
+        let location = toolbarView.convert(NSPoint(x: toolbarView.bounds.minX + 14, y: toolbarView.bounds.midY), to: nil)
+        for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
+            let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                                                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                                        context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+            window.sendEvent(event)
+        }
+        for _ in 0..<10 {
+            await settleWindow(window)
+            if (await store.load()).sessions.count == 3 { break }
+        }
+        await settleWindow(window)
+        XCTAssertEqual(workspace.state.sessions.count, 3)
+        XCTAssertNotEqual(workspace.selected?.id, original.id)
+        XCTAssertEqual(workspace.selected?.projectID, project.id)
+        XCTAssertEqual(workspace.viewed?.id, workspace.selected?.id)
+        XCTAssertEqual(visibility.value, .detailOnly)
     }
 
     @MainActor func testWorkbenchSidebarKeepsRoomForSearchAtNarrowWidths() async throws {
@@ -533,24 +589,24 @@ final class SessionDetailUITests: XCTestCase {
         }
     }
 
-    @MainActor func testRestartDetectsWorkThatNeedsStopConfirmation() async throws {
+    @MainActor func testTerminationConfirmsRunningWorkButNotIdleConnection() async throws {
         let workspace = await newConversationWorkspace()
         let id = try XCTUnwrap(workspace.selected?.id)
-        XCTAssertFalse(workspace.restartWouldInterruptWork)
+        XCTAssertFalse(workspace.terminationWouldInterruptWork)
 
         let connected = await workspace.activate(id)
         XCTAssertTrue(connected)
-        XCTAssertFalse(workspace.restartWouldInterruptWork)
+        XCTAssertFalse(workspace.terminationWouldInterruptWork)
 
         let controller = try XCTUnwrap(workspace.execution(for: id))
-        controller.draft = "Run the restart fixture"
+        controller.draft = "Run the termination fixture"
         await workspace.send(id)
-        XCTAssertTrue(workspace.restartWouldInterruptWork)
+        XCTAssertTrue(workspace.terminationWouldInterruptWork)
 
         controller.draft = "Keep this draft"
         let disconnected = await workspace.disconnectAll()
         XCTAssertTrue(disconnected)
-        XCTAssertFalse(workspace.restartWouldInterruptWork)
+        XCTAssertFalse(workspace.terminationWouldInterruptWork)
         XCTAssertEqual(workspace.selected?.draft, "Keep this draft")
     }
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import AgentRuntimeCore
 import OrchestrationCore
 import PiRuntimeAdapter
 
@@ -90,7 +91,7 @@ struct SettingsPanel: View {
                     VStack(alignment: .leading, spacing: 0) {
                         switch section {
                         case .general:
-                            GeneralSettingsView(settings: settings)
+                            GeneralSettingsView(workspace: workspace, settings: settings)
                         case .projects:
                             ProjectSettingsView(workspace: workspace, settings: settings, state: projects,
                                                 worktreesForProject: worktreesForProject)
@@ -123,7 +124,7 @@ struct SettingsPanel: View {
                     confirmTitle: "重新启动",
                     destructive: false,
                     cancelTitle: "稍后",
-                    defaultsToCancel: workspace.restartWouldInterruptWork
+                    defaultsToCancel: workspace.terminationWouldInterruptWork
                 ) {
                     restartAfterPrompt = true
                     showsRestartPrompt = false
@@ -218,7 +219,10 @@ private struct SettingsNavigation: View {
 }
 
 private struct GeneralSettingsView: View {
+    let workspace: WorkspaceController
     @Bindable var settings: AppSettings
+    @State private var savingMode = false
+    @State private var modeSaveError: String?
 
     var body: some View {
         SettingsCard {
@@ -247,6 +251,35 @@ private struct GeneralSettingsView: View {
             .padding(.vertical, 14)
             .padding(.horizontal, 16)
             .accessibilityIdentifier("interface-font-size")
+            PikachuDivider().padding(.horizontal, 16)
+            VStack(alignment: .leading, spacing: 8) {
+                FlatPanelPicker(title: "默认执行模式", selection: Binding(
+                    get: { workspace.defaultAgentMode },
+                    set: saveDefaultMode
+                ), options: AgentMode.allCases, detail: "仅对新建会话生效，不影响已有会话。") { mode in
+                    Text(mode.title)
+                }
+                .disabled(savingMode || workspace.isSavingDefaultAgentMode || !workspace.initialized || workspace.isShuttingDown)
+                .accessibilityIdentifier("default-agent-mode")
+                if savingMode || workspace.isSavingDefaultAgentMode {
+                    FlatProgressView("正在保存默认执行模式…").controlSize(.small)
+                }
+                if let modeSaveError { FeedbackBanner(text: modeSaveError, warning: true) }
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func saveDefaultMode(_ mode: AgentMode) {
+        guard !savingMode, mode != workspace.defaultAgentMode else { return }
+        savingMode = true
+        modeSaveError = nil
+        Task {
+            defer { savingMode = false }
+            if !(await workspace.setDefaultAgentMode(mode)) {
+                modeSaveError = workspace.storageError ?? String(localized: "无法保存默认执行模式。请重试。")
+            }
         }
     }
 }
@@ -279,7 +312,14 @@ private struct NotificationSettings: View {
                     Button("允许通知…", action: notifications.requestAuthorization)
                         .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                 case .authorized, .provisional:
-                    Text("macOS 通知已获准。").pikachuFont(.caption).foregroundStyle(.secondary)
+                    if notifications.soundSetting == .disabled {
+                        Text("macOS 通知已获准，但提示音已关闭。")
+                            .pikachuFont(.caption).foregroundStyle(.secondary)
+                        Button("打开系统通知设置…", action: notifications.openSystemSettings)
+                            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                    } else {
+                        Text("macOS 通知已获准。").pikachuFont(.caption).foregroundStyle(.secondary)
+                    }
                 default:
                     EmptyView()
                 }
@@ -710,6 +750,7 @@ private struct PiRuntimeSettings: View {
                     TextField("Pi 可执行文件", text: $settings.piPath)
                         .flatInputSurface()
                     Button("选择 Pi…") { settings.choosePi() }
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                 }
                 PikachuDivider().gridCellColumns(3).gridCellUnsizedAxes(.horizontal)
                 GridRow {
@@ -739,6 +780,7 @@ private struct PiRuntimeSettings: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     Button("添加工具目录…", action: addDirectories)
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                         .fixedSize(horizontal: true, vertical: false)
                         .accessibilityIdentifier("add-pi-tool-directory")
                 }
@@ -776,6 +818,7 @@ private struct PiTrustedExtensions: View {
                 }
                 Spacer(minLength: 0)
                 Button("添加信任的 Pi 扩展…") { settings.chooseExtension() }
+                    .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                     .fixedSize(horizontal: true, vertical: false)
             }
             ForEach(settings.extensionPaths, id: \.self) { path in
@@ -784,6 +827,7 @@ private struct PiTrustedExtensions: View {
                         .lineLimit(1).truncationMode(.middle).help(path)
                     Spacer()
                     Button("移除") { settings.extensionPaths.removeAll { $0 == path } }
+                        .buttonStyle(FlatControlButtonStyle())
                 }
                 .pikachuFont(.caption)
             }
@@ -833,12 +877,14 @@ private struct PiEnvironmentEditor: View {
                 }
                 HStack {
                     Button("添加变量") { draft?.append(.init(name: "", value: "")) }
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                     if !rows.wrappedValue.isEmpty {
                         Button {
                             revealsValues.toggle()
                         } label: {
                             Text(revealsValues ? "遮蔽变量值" : "显示变量值")
                         }
+                        .buttonStyle(FlatControlButtonStyle(isOpen: revealsValues))
                     }
                     Spacer()
                     Button("保存环境变量", action: save)
@@ -853,6 +899,7 @@ private struct PiEnvironmentEditor: View {
                 FeedbackBanner(text: error, warning: true)
                 if !settings.piEnvironmentLoaded {
                     Button("重试读取环境变量") { Task { await settings.reloadPiEnvironment(); loadDraft() } }
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                         .disabled(settings.piEnvironmentUpdating)
                 }
             }

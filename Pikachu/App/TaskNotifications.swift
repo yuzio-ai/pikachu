@@ -70,6 +70,7 @@ enum TaskNotificationDestination: Equatable, Sendable {
     private var refreshID = UUID()
     private(set) var enabled: Bool
     private(set) var authorization: UNAuthorizationStatus?
+    private(set) var soundSetting: UNNotificationSetting?
     private(set) var requestFailed = false
 
     init() {
@@ -79,9 +80,12 @@ enum TaskNotificationDestination: Equatable, Sendable {
     @discardableResult func refreshAuthorization() async -> UNAuthorizationStatus {
         let id = UUID()
         refreshID = id
-        let current = await center.notificationSettings().authorizationStatus
-        if refreshID == id { authorization = current }
-        return current
+        let settings = await center.notificationSettings()
+        if refreshID == id {
+            authorization = settings.authorizationStatus
+            soundSetting = settings.soundSetting
+        }
+        return settings.authorizationStatus
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -97,7 +101,7 @@ enum TaskNotificationDestination: Equatable, Sendable {
             defer { permissionRequest = nil }
             let current = await refreshAuthorization()
             guard enabled, current == .notDetermined else { return }
-            do { _ = try await center.requestAuthorization(options: [.alert]) }
+            do { _ = try await center.requestAuthorization(options: [.alert, .sound]) }
             catch { requestFailed = true }
             await refreshAuthorization()
         }
@@ -136,6 +140,7 @@ enum TaskNotificationDestination: Equatable, Sendable {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
+        content.sound = .default
         content.userInfo = TaskNotificationDestination.payload(sessionID: sessionID)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         Task {

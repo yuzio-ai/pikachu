@@ -47,7 +47,11 @@ private struct ComposerIssuePills: View {
     let presentToolFailures: ([TranscriptItem]) -> Void
     @State private var dismissedFailureIDs: Set<String> = []
     @State private var isHoveringFailure = false
-    @FocusState private var dismissFocused: Bool
+    @FocusState private var failureFocus: FailureFocus?
+
+    private enum FailureFocus: Hashable {
+        case details, dismiss
+    }
 
     var body: some View {
         let items = controller.transcript.reversed()
@@ -74,36 +78,45 @@ private struct ComposerIssuePills: View {
     }
 
     private func failurePill(_ failures: [TranscriptItem]) -> some View {
-        let showsClose = isHoveringFailure || dismissFocused
+        let showsClose = !panelsBlocked && (isHoveringFailure || failureFocus != nil)
         return ZStack(alignment: .trailing) {
             Button { presentToolFailures(failures) } label: {
                 pillLabel("工具调用失败", color: PikachuTheme.mutedWarningText)
-                    .padding(.trailing, showsClose ? 13 : 0)
+                    .padding(.trailing, 13)
             }
             .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 16))
+            .focused($failureFocus, equals: .details)
             .accessibilityIdentifier("composer-failed-tool")
+            .accessibilityActions {
+                if !panelsBlocked {
+                    Button("关闭工具调用失败提示") { dismiss(failures) }
+                }
+            }
 
-            Button {
-                dismissedFailureIDs.formUnion(failures.map(\.id))
-                isHoveringFailure = false
-            } label: {
+            Button { dismiss(failures) } label: {
                 Image(systemName: "xmark")
                     .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.tertiaryText)
                     .frame(width: 18, height: 20)
             }
             .buttonStyle(FlatControlButtonStyle(inset: false, cornerRadius: 9))
-            .focused($dismissFocused)
+            .focused($failureFocus, equals: .dismiss)
             .help("关闭工具调用失败提示")
             .accessibilityLabel("关闭工具调用失败提示")
             .accessibilityIdentifier("dismiss-composer-failed-tool")
             .padding(.trailing, 4)
-            .opacity(showsClose ? 1 : 0)
-            .allowsHitTesting(showsClose)
+            .revealedAction(showsClose)
         }
         .contentShape(.rect)
         .onHover { isHoveringFailure = $0 }
+        .onDisappear { isHoveringFailure = false }
         .disabled(panelsBlocked)
+    }
+
+    private func dismiss(_ failures: [TranscriptItem]) {
+        guard !panelsBlocked else { return }
+        dismissedFailureIDs.formUnion(failures.map(\.id))
+        isHoveringFailure = false
     }
 }
 
@@ -115,7 +128,7 @@ struct ComposerView: View {
     let activePolicy: AgentExecutionPolicy?
     let isViewedSessionActive: Bool
     let isReadOnlyHistory: Bool
-    let modeDisabled: Bool
+    let sessionConfigurationDisabled: Bool
     let model: ComposerModel?
     let reference: SessionReference?
     let project: ProjectRecord?
@@ -139,7 +152,16 @@ struct ComposerView: View {
     @State private var imagePasteFailed = false
     @State private var previewImage: AttachmentImagePreview.Selection?
 
-    private enum Panel { case mode, approval, context, model, sendMode, workingDirectory }
+    private enum Panel {
+        case mode, approval, context, model, sendMode, workingDirectory
+
+        var configuresSession: Bool {
+            switch self {
+            case .mode, .approval, .model, .workingDirectory: true
+            case .context, .sendMode: false
+            }
+        }
+    }
 
     private var showsStopButton: Bool {
         isViewedSessionActive && controller.connection == .connected &&
@@ -148,7 +170,7 @@ struct ComposerView: View {
     }
 
     private var canConfigureModel: Bool {
-        reference.map { !workspace.isOperating(on: $0.id) } == true && !panelsBlocked
+        reference != nil && !sessionConfigurationDisabled && !panelsBlocked
     }
 
     private func setPanel(_ value: Panel?) {
@@ -162,7 +184,8 @@ struct ComposerView: View {
     }
 
     private func show(_ value: Panel) {
-        guard !panelsBlocked, !savingModel else { return }
+        guard !panelsBlocked, !savingModel,
+              !value.configuresSession || !sessionConfigurationDisabled else { return }
         setPanel(value)
     }
 
@@ -241,7 +264,8 @@ struct ComposerView: View {
                         approvalButton
                         if let reference, let project {
                             ComposerWorkingDirectoryButton(workspace: workspace, reference: reference, project: project,
-                                                           isPresented: panelBinding(.workingDirectory), panelsBlocked: panelsBlocked)
+                                                           isPresented: panelBinding(.workingDirectory),
+                                                           disabled: sessionConfigurationDisabled || panelsBlocked)
                         }
                     }
                     HStack(spacing: 4) {
@@ -274,8 +298,8 @@ struct ComposerView: View {
         }
         .onChange(of: controller.connection) { _, state in if state == .connected { focused = true } }
         .onChange(of: focusSignal) { _, _ in focused = true }
-        .onChange(of: modeDisabled) { _, disabled in
-            if disabled && panel == .mode { setPanel(nil) }
+        .onChange(of: sessionConfigurationDisabled) { _, disabled in
+            if disabled, panel?.configuresSession == true, !savingModel { setPanel(nil) }
         }
         .onChange(of: panelsBlocked) { _, blocked in
             if blocked { setPanel(nil) }
@@ -299,7 +323,7 @@ struct ComposerView: View {
             guard current == nil, !panelsBlocked else { return }
             switch previous {
             case .model:
-                if restoreInputFocus { focused = true }
+                if restoreInputFocus || !canConfigureModel { focused = true }
                 else { modelFocused = true }
             case .sendMode:
                 if restoreInputFocus { focused = true }
@@ -311,7 +335,7 @@ struct ComposerView: View {
     }
 
     private var editorRow: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             if showsStopButton { sendModeMenu }
             TextField("⚡️Pika! 告诉我你想实现什么、修复什么，或直接提问…", text: $controller.draft, axis: .vertical)
                 .lineLimit(2...5).textFieldStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
@@ -414,8 +438,8 @@ struct ComposerView: View {
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: panel == .mode, height: typography.composerActionButtonSize))
         .fixedSize()
-        .disabled(modeDisabled || panelsBlocked)
-        .help(modeDisabled ? "运行或保存期间不可切换执行模式" : "切换执行模式")
+        .disabled(sessionConfigurationDisabled || panelsBlocked)
+        .help(sessionConfigurationDisabled ? "运行或保存期间不可切换执行模式" : "切换执行模式")
         .accessibilityLabel("执行模式")
         .accessibilityValue(Text(executionPolicy.mode.title))
         .accessibilityIdentifier("agent-mode")
@@ -458,7 +482,7 @@ struct ComposerView: View {
         .accessibilityLabel("工具审批")
         .accessibilityValue("\(info.buttonText)，\(info.status)")
         .accessibilityIdentifier("composer-permissions")
-        .disabled(panelsBlocked)
+        .disabled(sessionConfigurationDisabled || panelsBlocked)
         .popover(isPresented: panelBinding(.approval), arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
                 HStack {
@@ -501,7 +525,6 @@ struct ComposerView: View {
                         .buttonStyle(FlatControlButtonStyle(isOpen: option == info.displayed.approval))
                         .accessibilityAddTraits(option == info.displayed.approval ? .isSelected : [])
                         .accessibilityIdentifier("tool-approval-\(option.rawValue)")
-                        .disabled(modeDisabled)
                     }
                     if info.displayed.mode == .plan {
                         Text("制定计划只开放读取、搜索、查找和列目录。")
@@ -574,7 +597,7 @@ struct ComposerView: View {
                 fill: sendEnabled ? PikachuTheme.lightningYellow : PikachuTheme.mutedSurface
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(OverlayFeedbackButtonStyle(shape: Circle()))
         .keyboardShortcut(.return, modifiers: .command)
         .help("发送（⌘↩）")
         .accessibilityLabel("发送")
@@ -591,7 +614,7 @@ struct ComposerView: View {
                 fill: PikachuTheme.mutedSurface, border: PikachuTheme.border
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(OverlayFeedbackButtonStyle(shape: Circle()))
         .help(stopping ? Text("正在停止") : Text("停止（⌘.）"))
         .accessibilityLabel(stopping ? Text("正在停止") : Text("停止"))
         .accessibilityIdentifier("stop-run")

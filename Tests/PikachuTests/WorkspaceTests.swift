@@ -323,6 +323,48 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         _ = await workspace.disconnectAll()
     }
 
+    func testMenuBarCountsTrackApprovalCompletionAndReview() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = WorkspaceTestRuntime()
+        let workspace = WorkspaceController(store: MemoryWorkspaceStore(), reader: PiHistoryReader(roots: [])) { _, _ in runtime }
+        await workspace.start()
+        _ = await workspace.addProject(root)
+        let id = try XCTUnwrap(workspace.selected?.id)
+        let activated = await workspace.activate(id)
+        XCTAssertTrue(activated)
+        let controller = try XCTUnwrap(workspace.execution(for: id))
+        XCTAssertTrue(TaskStatusSnapshot(workspace: workspace).running.isEmpty, "Idle allocations are not running tasks")
+
+        controller.receive(.init(instanceID: runtime.instanceID, event: .phase(.running)))
+        XCTAssertEqual(TaskStatusSnapshot(workspace: workspace).running.map(\.id), [id])
+        let tool = RuntimeToolApproval(workingDirectory: root.path, operation: .command(text: "printf test", timeoutSeconds: 10))
+        let requests = ["first", "second"].map {
+            RuntimeInteraction(instanceID: runtime.instanceID, requestID: $0, kind: .confirm,
+                               title: "Run command?", toolApproval: tool)
+        }
+        for request in requests {
+            controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+        }
+        let pending = TaskStatusSnapshot(workspace: workspace)
+        XCTAssertTrue(pending.running.isEmpty)
+        XCTAssertEqual(pending.awaitingApproval.map(\.id), [id], "Count sessions, not individual approval prompts")
+        for request in requests {
+            controller.receive(.init(instanceID: runtime.instanceID, event: .interactionEnded(request.id, .answered)))
+        }
+        XCTAssertTrue(TaskStatusSnapshot(workspace: workspace).awaitingApproval.isEmpty)
+        XCTAssertEqual(TaskStatusSnapshot(workspace: workspace).running.map(\.id), [id])
+
+        controller.receive(.init(instanceID: runtime.instanceID, event: .settled(aborted: false)))
+        XCTAssertTrue(TaskStatusSnapshot(workspace: workspace).running.isEmpty)
+        XCTAssertEqual(TaskStatusSnapshot(workspace: workspace).unreadCompletions.map(\.id), [id])
+        await workspace.select(id)
+        XCTAssertEqual(TaskStatusSnapshot(workspace: workspace).unreadCompletions.map(\.id), [id])
+        await workspace.openSessionForReview(id)
+        XCTAssertTrue(TaskStatusSnapshot(workspace: workspace).unreadCompletions.isEmpty)
+        _ = await workspace.disconnectAll()
+    }
+
     func testSidebarCompletionStaysUnreadUntilCardOpens() async throws {
         let root = try directory()
         defer { try? FileManager.default.removeItem(at: root) }

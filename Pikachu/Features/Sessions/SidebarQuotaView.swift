@@ -92,6 +92,117 @@ struct SidebarQuotaButton: View {
     }
 }
 
+enum PikachuReleaseCheck {
+    private static let endpoint = URL(string: "https://api.github.com/repos/yuzio-ai/pikachu/releases/latest")!
+    static let releasePage = URL(string: "https://github.com/yuzio-ai/pikachu/releases/latest")!
+
+    private struct Release: Decodable {
+        let tag_name: String
+        let draft: Bool
+        let prerelease: Bool
+    }
+
+    static func newerVersion(tag: String, installed: String) -> String? {
+        func components(_ value: String) -> (String, [Int])? {
+            let version = value.hasPrefix("v") ? String(value.dropFirst()) : value
+            let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+            guard (1...3).contains(parts.count) else { return nil }
+            let numbers = parts.compactMap { part in
+                part.utf8.allSatisfy { (48...57).contains($0) } ? Int(part) : nil
+            }
+            guard numbers.count == parts.count else { return nil }
+            return (version, numbers + Array(repeating: 0, count: 3 - numbers.count))
+        }
+        guard let (version, candidate) = components(tag), let (_, current) = components(installed),
+              current.lexicographicallyPrecedes(candidate) else { return nil }
+        return version
+    }
+
+    static func latestVersion(installed: String) async throws -> String? {
+        var request = URLRequest(url: endpoint, timeoutInterval: 10)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        if http.statusCode == 404 { return nil } // No public stable release yet.
+        guard http.statusCode == 200 else { throw URLError(.badServerResponse) }
+        let release = try JSONDecoder().decode(Release.self, from: data)
+        guard !release.draft, !release.prerelease else { return nil }
+        return newerVersion(tag: release.tag_name, installed: installed)
+    }
+}
+
+struct SidebarUpgradeButton: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var availableVersion: String?
+    @State private var lastCheck: Date?
+    @State private var checking = false
+    @State private var checkFailed = false
+    @State private var showsResult = false
+
+    var body: some View {
+        let available = availableVersion != nil
+        Button {
+            if available {
+                openURL(PikachuReleaseCheck.releasePage)
+            } else {
+                Task { await check(showResult: true) }
+            }
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                Label("升级", systemImage: available ? "arrow.up.circle.fill" : "arrow.up.circle")
+                    .padding(.horizontal, 6)
+                    .fixedSize()
+                IconButtonLabel(systemName: available ? "arrow.up.circle.fill" : "arrow.up.circle")
+            }
+            .pikachuFont(.caption)
+            .foregroundStyle(available ? PikachuTheme.accentText : PikachuTheme.secondaryText)
+            .frame(height: IconButtonLabel.side)
+        }
+        .buttonStyle(FlatControlButtonStyle(treatment: available ? .prominent : .quiet, inset: false))
+        .disabled(checking && !available)
+        .help(hint)
+        .accessibilityLabel("升级")
+        .accessibilityValue(hint)
+        .accessibilityIdentifier("app-upgrade")
+        .popover(isPresented: $showsResult, arrowEdge: .bottom) {
+            Text(checkFailed ? "暂时无法检查更新，请稍后重试。" : "没有可用的更新。")
+                .pikachuFont(.callout)
+                .anchoredPopoverCard(width: 225)
+        }
+        .task(id: scenePhase) {
+            guard scenePhase == .active,
+                  lastCheck.map({ Date.now.timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true else { return }
+            await check(showResult: false)
+        }
+    }
+
+    private var hint: String {
+        if let availableVersion { return String(localized: "新版 \(availableVersion) 可用，点击升级") }
+        if checking { return String(localized: "正在检查更新…") }
+        return String(localized: "检查更新")
+    }
+
+    private func check(showResult: Bool) async {
+        guard !checking, let installed = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else { return }
+        checking = true
+        defer { checking = false }
+        do {
+            let version = try await PikachuReleaseCheck.latestVersion(installed: installed)
+            guard !Task.isCancelled else { return }
+            availableVersion = version
+            checkFailed = false
+            if showResult, version != nil { openURL(PikachuReleaseCheck.releasePage) }
+            else if showResult { showsResult = true }
+        } catch {
+            guard !Task.isCancelled else { return }
+            checkFailed = true
+            if showResult { showsResult = true }
+        }
+        lastCheck = .now
+    }
+}
+
 private struct SidebarQuotaDetails: View {
     let windows: [AccountQuotaWindow]
     let date: Date

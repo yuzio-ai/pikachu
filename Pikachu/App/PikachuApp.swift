@@ -4,7 +4,6 @@ import OrchestrationCore
 
 @main struct PikachuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var quitRequest = 0
     @State private var openSettingsRequest = 0
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     private var workspace: WorkspaceController? { delegate.workspace }
@@ -15,7 +14,7 @@ import OrchestrationCore
             VStack {
                 if delegate.isHostingUnitTests { EmptyView() }
                 else if let workspace {
-                    WorkbenchView(workspace: workspace, settings: settings, quitRequest: quitRequest,
+                    WorkbenchView(workspace: workspace, settings: settings, quitRequest: delegate.quitRequest,
                                   openSettingsRequest: openSettingsRequest, terminate: delegate.requestTermination,
                                   sidebarVisibility: $sidebarVisibility)
                 }
@@ -40,6 +39,23 @@ import OrchestrationCore
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+            }
+            .overlay(alignment: .top) {
+                if delegate.showsQuitShortcutHint {
+                    Text("按住 ⌘Q，或再按一次退出")
+                        .pikachuFont(.callout, weight: .semibold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color(white: 0.13), in: Capsule())
+                        .overlay { Capsule().strokeBorder(.white.opacity(0.18)) }
+                        .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+                        .padding(.top, 28)
+                        .allowsHitTesting(false)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+                delegate.cancelQuitShortcut()
             }
             .pikachuTypography(settings.interfaceFontSize)
             .preferredColorScheme(settings.diagnosticAppearance)
@@ -79,10 +95,8 @@ import OrchestrationCore
                     .disabled(workspace == nil)
             }
             CommandGroup(replacing: .appTermination) {
-                Button("退出 Pikachu") {
-                    if workspace != nil { quitRequest += 1 }
-                    else { NSApp.terminate(nil) }
-                }.keyboardShortcut("q")
+                Button("退出 Pikachu", action: delegate.quitFromMenu)
+                    .keyboardShortcut("q")
             }
             CommandGroup(replacing: .newItem) {
                 Button("打开项目…") {
