@@ -9,7 +9,30 @@ struct AttachmentImagePreview: View {
         var id: URL { file }
     }
 
-    let file: URL
+    private enum Source: Equatable, Sendable {
+        case file(URL)
+        case toolResult(Data, name: String)
+
+        var name: String {
+            switch self {
+            case .file(let file): file.lastPathComponent
+            case .toolResult(_, let name): name
+            }
+        }
+
+        nonisolated func loadPreview() -> CGImage? {
+            switch self {
+            case .file(let file): ImageAttachmentThumbnail.loadThumbnail(for: file, maxPixels: 2800)
+            case .toolResult(let data, _): ImageAttachmentThumbnail.loadThumbnail(from: data, maxPixels: 2800)
+            }
+        }
+    }
+
+    private let source: Source
+
+    init(file: URL) { source = .file(file) }
+    init(toolResult: Data, name: String) { source = .toolResult(toolResult, name: name) }
+
     @Environment(\.dismiss) private var dismiss
     @State private var image: CGImage?
     @State private var loaded = false
@@ -17,7 +40,7 @@ struct AttachmentImagePreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(verbatim: file.lastPathComponent)
+                Text(verbatim: source.name)
                     .pikachuFont(.headline)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -28,7 +51,7 @@ struct AttachmentImagePreview: View {
             Group {
                 if let image {
                     Image(decorative: image, scale: 1).resizable().scaledToFit()
-                        .accessibilityLabel(file.lastPathComponent)
+                        .accessibilityLabel(source.name)
                 } else if loaded {
                     Text("无法预览此图片。")
                         .foregroundStyle(.secondary)
@@ -38,10 +61,12 @@ struct AttachmentImagePreview: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(PikachuTheme.mutedSurface, in: .rect(cornerRadius: 8))
-            HStack {
-                Spacer()
-                Button("打开原图") { NSWorkspace.shared.open(file) }
-                    .disabled(image == nil)
+            if case .file(let file) = source {
+                HStack {
+                    Spacer()
+                    Button("打开原图") { NSWorkspace.shared.open(file) }
+                        .disabled(image == nil)
+                }
             }
         }
         .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
@@ -49,9 +74,9 @@ struct AttachmentImagePreview: View {
         .frame(width: 560, height: 430)
         .flatPanelContent()
         .accessibilityIdentifier("attachment-image-preview")
-        .task(id: file) {
-            let preview = await Task.detached(priority: .userInitiated) {
-                ImageAttachmentThumbnail.loadThumbnail(for: file, maxPixels: 2800)
+        .task(id: source) {
+            let preview = await Task.detached(priority: .userInitiated) { [source] in
+                source.loadPreview()
             }.value
             guard !Task.isCancelled else { return }
             image = preview
@@ -71,6 +96,7 @@ struct ImageAttachmentThumbnail: View {
     @FocusState private var removeFocused: Bool
 
     static let defaultSize: CGFloat = 120
+    static let cornerRadius: CGFloat = 9
 
     private struct Request: Equatable {
         let file: URL
@@ -78,7 +104,7 @@ struct ImageAttachmentThumbnail: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 9)
+        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius)
         let request = Request(file: file, maxPixels: Int((size * displayScale).rounded(.up)))
         let showsRemove = isHovered || removeFocused
         let content = ZStack {
@@ -108,7 +134,7 @@ struct ImageAttachmentThumbnail: View {
         Group {
             if let onPreview {
                 Button(action: onPreview) { content }
-                    .buttonStyle(.plain)
+                    .buttonStyle(OverlayFeedbackButtonStyle(shape: shape))
                     .accessibilityLabel("预览 \(file.lastPathComponent)")
                     .accessibilityIdentifier("preview-draft-image")
                     .accessibilityActions {
@@ -129,14 +155,14 @@ struct ImageAttachmentThumbnail: View {
                 }
                 .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 11))
                 .focused($removeFocused)
+                .help("移除 \(file.lastPathComponent)")
                 .accessibilityLabel("移除 \(file.lastPathComponent)")
                 .padding(5)
-                .opacity(showsRemove ? 1 : 0)
-                .allowsHitTesting(showsRemove)
+                .revealedAction(showsRemove)
             }
         }
         .contentShape(shape)
-        .onHover { if remove != nil { isHovered = $0 } }
+        .onHover { isHovered = $0 && remove != nil }
         .help(file.path)
         .task(id: request) {
             let image = await Task.detached(priority: .utility) {
@@ -152,8 +178,17 @@ struct ImageAttachmentThumbnail: View {
     }
 
     nonisolated static func loadThumbnail(for file: URL, maxPixels: Int) -> CGImage? {
-        guard let source = CGImageSourceCreateWithURL(file as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
-        else { return nil }
+        let source = CGImageSourceCreateWithURL(file as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
+        return loadThumbnail(from: source, maxPixels: maxPixels)
+    }
+
+    nonisolated static func loadThumbnail(from data: Data, maxPixels: Int) -> CGImage? {
+        let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary)
+        return loadThumbnail(from: source, maxPixels: maxPixels)
+    }
+
+    private nonisolated static func loadThumbnail(from source: CGImageSource?, maxPixels: Int) -> CGImage? {
+        guard let source else { return nil }
         return CGImageSourceCreateThumbnailAtIndex(source, 0, [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,

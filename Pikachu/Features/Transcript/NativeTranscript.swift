@@ -258,6 +258,7 @@ struct NativeTranscript: NSViewRepresentable {
         var onShowToolOutput: ((ToolOutputSelection) -> Void)?
         private let toolExpansion = ToolCallExpansion()
         private let turnChangesExpansion = TurnChangesExpansion()
+        private let replyHover = TranscriptReplyHover()
         private var follow = true
         private var followBinding: Binding<Bool>?
         private var lastJump: Jump?
@@ -288,7 +289,8 @@ struct NativeTranscript: NSViewRepresentable {
         private func estimate(_ row: Int) -> CGFloat {
             guard rows.indices.contains(row) else { return 120 }
             switch rows[row].content {
-            case .turnHeader, .runningTool, .toolCalls: return 24
+            case .turnHeader: return ceil(PikachuTypography(size: fontSize).pointSize(for: .caption) * 1.25) + 14
+            case .runningTool, .toolCalls: return 24
             case .turnChanges: return 38
             case .item: return 120
             }
@@ -343,6 +345,7 @@ struct NativeTranscript: NSViewRepresentable {
                 onPreviewImage: { [weak self] in self?.onPreviewImage?($0) },
                 onShowToolOutput: { [weak self] in self?.onShowToolOutput?($0) },
                 turnChangesExpansion: turnChangesExpansion,
+                replyHover: replyHover,
                 queueFooter: queueFooter?.itemID == id ? queueFooter?.text : nil
             ) { [weak self, weak cell] in
                 self?.scheduleMeasure(for: cell, expectedID: id)
@@ -631,22 +634,25 @@ private struct TranscriptHost: View {
     var onPreviewImage: ((URL) -> Void)? = nil
     var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
     var turnChangesExpansion = TurnChangesExpansion()
+    var replyHover = TranscriptReplyHover()
     var queueFooter: String? = nil
     let changed: () -> Void
     var body: some View {
         if let row {
             Group {
                 switch row.content {
+                case .item(let item) where item.kind == .assistant:
+                    replyRegion(row) { messageRow(item) }
                 case .item(let item):
-                    TranscriptRow(item: item, width: width, onEditUserMessage: onEditUserMessage,
-                                  onPreviewImage: onPreviewImage, queueFooter: queueFooter, replyFooter: row.replyFooter,
-                                  contentChanged: changed)
+                    messageRow(item)
                 case .turnHeader(let turn):
                     TurnHeaderView(turn: turn)
                         .accessibilityIdentifier(row.id)
                 case .turnChanges(let turn):
                     if let changes = turn.fileChanges {
-                        TurnChangesRow(changes: changes, id: row.id, expansion: turnChangesExpansion, contentChanged: changed)
+                        replyRegion(row) {
+                            TurnChangesRow(changes: changes, id: row.id, expansion: turnChangesExpansion, contentChanged: changed)
+                        }
                     }
                 case .runningTool(let item):
                     ToolRow(item: item, expanded: toolExpansion.detailBinding(for: item, isSingle: true),
@@ -662,5 +668,22 @@ private struct TranscriptHost: View {
             .fixedSize(horizontal: false, vertical: true)
             .transaction { $0.animation = nil }
         }
+    }
+
+    private func messageRow(_ item: TranscriptItem) -> some View {
+        TranscriptRow(item: item, width: width, onEditUserMessage: onEditUserMessage,
+                      onPreviewImage: onPreviewImage, queueFooter: queueFooter, contentChanged: changed)
+    }
+
+    private func replyRegion<Content: View>(_ row: NativeTranscriptRow, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content()
+            if let reply = row.replyFooter {
+                AssistantReplyActions(reply: reply, rowID: row.id, hover: replyHover)
+            }
+        }
+        .contentShape(.rect)
+        .onHover { replyHover.setHovered($0, rowID: row.id) }
+        .onDisappear { replyHover.setHovered(false, rowID: row.id) }
     }
 }

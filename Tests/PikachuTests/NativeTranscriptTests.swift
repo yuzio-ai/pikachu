@@ -813,8 +813,11 @@ import XCTest
         let table = try XCTUnwrap(findTable(in: host))
         XCTAssertEqual(table.numberOfRows, 4, "No placeholder row before the streaming reply has text")
         XCTAssertEqual(table.intercellSpacing.height, 4)
-        for row in 0..<table.numberOfRows {
-            XCTAssertLessThanOrEqual(table.rect(ofRow: row).height, 34, "Compact row \(row)")
+        // The turn header reserves space for its divider and top inset;
+        // tool rows must remain compact independently of the header.
+        XCTAssertLessThanOrEqual(table.rect(ofRow: 0).height, 42, "Turn header")
+        for row in 1..<table.numberOfRows {
+            XCTAssertLessThanOrEqual(table.rect(ofRow: row).height, 34, "Compact tool row \(row)")
         }
 
         running.tool?.output = String(repeating: "partial output ", count: 40)

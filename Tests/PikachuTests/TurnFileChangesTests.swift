@@ -139,7 +139,7 @@ final class TurnFileChangesTests: XCTestCase {
         XCTAssertFalse(pikachu.wrappedValue)
     }
 
-    @MainActor func testNativeTranscriptPlacesChangeRowAfterReplyWithActions() async throws {
+    @MainActor func testNativeTranscriptPlacesReplyActionsOnChangeRow() async throws {
         let coordinator = NativeTranscript.Coordinator()
         let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 600, height: 340),
@@ -150,7 +150,10 @@ final class TurnFileChangesTests: XCTestCase {
         let turn = TurnRecord(status: .completed, displayID: "fixture", fileChanges: changes)
         let reply = TranscriptItem(id: "reply", kind: .assistant, text: "Updated the file.", turn: turn)
         let rows = TranscriptDisplayRow.project([reply])
-        coordinator.update(rows, follow: .constant(true), replyFooters: TranscriptReplyFooter.project(rows))
+        let footers = TranscriptReplyFooter.project(rows)
+        XCTAssertNil(footers[reply.id])
+        XCTAssertEqual(footers["turn-changes:fixture"]?.markdown, reply.text)
+        coordinator.update(rows, follow: .constant(true), replyFooters: footers)
         for _ in 0..<4 {
             scroll.layoutSubtreeIfNeeded()
             await withCheckedContinuation { continuation in

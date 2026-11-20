@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct FlatToggleStyle: ToggleStyle {
+    var compact = false
+
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
         } label: {
             HStack(spacing: 8) {
-                configuration.label
-                Spacer(minLength: 8)
+                if !compact {
+                    configuration.label
+                    Spacer(minLength: 8)
+                }
                 Capsule()
                     .fill(configuration.isOn ? PikachuTheme.accentText : PikachuTheme.mutedSurface)
                     .overlay {

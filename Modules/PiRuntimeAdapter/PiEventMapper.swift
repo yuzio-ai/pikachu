@@ -6,6 +6,8 @@ import ProcessSupervision
 struct PiEventMapper {
     var currentAssistant: UUID?
     var tools: [String: RuntimeTool] = [:]
+    // A failed attempt can be followed by a retry or compaction before Pi settles the run.
+    private var pendingAssistantFailure: RuntimeFailure?
     static func text(_ raw: Any?) -> String {
         if let text = raw as? String { return text }
         return (raw as? [Record] ?? []).compactMap { $0["text"] as? String }.joined(separator: "\n")
@@ -17,6 +19,19 @@ struct PiEventMapper {
         let reported = truncation?["truncated"] as? Bool
         let upstream = reported ?? (failed && (name == "bash" || name == "pikachu_bash") && hasBashTruncationMarker(text))
         return (String(retained), upstream || retained.endIndex < text.endIndex)
+    }
+
+    static func readOutputImage(_ content: Any?, name: String, failed: Bool) -> Data? {
+        guard !failed, name == "read" || name == "pikachu_read",
+              let blocks = content as? [Record] else { return nil }
+        // Retain at most one image per read, with a bound on the encoded payload.
+        for block in blocks where block["type"] as? String == "image" {
+            guard let mimeType = block["mimeType"] as? String, mimeType.hasPrefix("image/"),
+                  let encoded = block["data"] as? String, encoded.utf8.count <= 8 * 1024 * 1024,
+                  let data = Data(base64Encoded: encoded), !data.isEmpty else { continue }
+            return data
+        }
+        return nil
     }
 
     private static func hasBashTruncationMarker(_ text: String) -> Bool {
@@ -40,8 +55,14 @@ struct PiEventMapper {
         tool.arguments = String(preview)
         tool.argumentsTruncated = preview.endIndex < text.endIndex ? true : nil
         tool.editArguments = nil
-        if tool.name == "edit" || tool.name == "pikachu_edit", let data {
-            tool.editArguments = try? RuntimeTool.EditArguments.decodeToolArguments(from: data)
+        tool.writePath = nil
+        switch tool.name {
+        case "edit", "pikachu_edit":
+            if let data { tool.editArguments = try? RuntimeTool.EditArguments.decodeToolArguments(from: data) }
+        case "write", "pikachu_write":
+            tool.writePath = (raw as? Record)?["path"] as? String
+        default:
+            break
         }
     }
     static func failure(_ error: String) -> RuntimeFailure {
@@ -54,6 +75,15 @@ struct PiEventMapper {
         if lower.contains("node") { return .init(.setup, String(localized: "未找到可用的 Node，请检查连接设置。", bundle: #bundle)) }
         return .init(.connection, String(localized: "运行时请求失败。请结束受管进程并检查 Pi 配置后手动重连。", bundle: #bundle))
     }
+    static func assistantFailure(_ raw: Any?) -> RuntimeFailure {
+        let error = raw as? String ?? ""
+        let mapped = failure(error)
+        if mapped.kind == .authentication || mapped.kind == .model { return mapped }
+        if error.contains("UND_ERR_SOCKET") {
+            return .init(.model, String(localized: "模型服务连接中断（UND_ERR_SOCKET）。", bundle: #bundle))
+        }
+        return .init(.model, String(localized: "模型响应失败，请检查服务配置后手动重试。", bundle: #bundle))
+    }
     static func epochMs(_ raw: Any?) -> Int64? {
         guard let value = raw as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID() else { return nil }
         let ms = value.doubleValue
@@ -65,7 +95,10 @@ struct PiEventMapper {
         case "agent_start": return [.phase(.running), .runStarted]
         case "auto_retry_start", "summarization_retry_scheduled", "summarization_retry_attempt_start": return [.phase(.retrying)]
         case "compaction_start": return [.phase(.compacting)]
-        case "compaction_end", "auto_retry_end": return [.phase(.running)]
+        case "compaction_end": return [.phase(.running)]
+        case "auto_retry_end":
+            if record["success"] as? Bool == true { pendingAssistantFailure = nil }
+            return [.phase(.running)]
         case "message_start":
             guard let message = record["message"] as? Record else { return [] }
             if message["role"] as? String == "user", let ts = Self.epochMs(message["timestamp"]) {
@@ -88,8 +121,11 @@ struct PiEventMapper {
             if let ts = Self.epochMs(message["timestamp"]) { events.append(.assistantTimestamp(id, ts)) }
             events.append(.assistantCompleted(id, Self.text(message["content"])))
             if message["stopReason"] as? String == "error" {
-                let failure = Self.failure(message["errorMessage"] as? String ?? "model failure")
-                events.append(.failure(failure.kind == .connection ? .init(.model, String(localized: "模型响应失败，请检查服务配置后手动重试。", bundle: #bundle)) : failure))
+                let failure = Self.assistantFailure(message["errorMessage"])
+                pendingAssistantFailure = failure
+                events.append(.assistantAttemptFailed(id, failure))
+            } else {
+                pendingAssistantFailure = nil
             }
             return events
         case "tool_execution_start", "tool_execution_update", "tool_execution_end":
@@ -104,11 +140,20 @@ struct PiEventMapper {
                 tool.output = retained.text
                 tool.truncated = retained.truncated
             }
-            if end { tool.state = failed ? .failed : .completed }
+            if end {
+                tool.state = failed ? .failed : .completed
+                tool.outputImage = Self.readOutputImage(result?["content"], name: tool.name, failed: failed)
+            }
             if end { tools.removeValue(forKey: id) } else { tools[id] = tool }
             return [.tool(tool)]
         case "queue_update": return [.queue(.init(steering: record["steering"] as? [String] ?? [], followUp: record["followUp"] as? [String] ?? []))]
-        case "agent_settled": return [.settled(aborted: record["aborted"] as? Bool ?? false)]
+        case "agent_settled":
+            let aborted = record["aborted"] as? Bool ?? false
+            defer { pendingAssistantFailure = nil }
+            if !aborted, let failure = pendingAssistantFailure {
+                return [.failure(failure), .settled(aborted: false)]
+            }
+            return [.settled(aborted: aborted)]
         default: return []
         }
     }

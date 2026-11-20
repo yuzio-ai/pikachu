@@ -120,11 +120,13 @@ public actor PiHistoryReader: RuntimeHistoryReader {
         var openTurnLastAssistantMs: Int64?
         var openTurnToolID: String?
         var openTurnStopReason: String?
+        var openTurnHadAssistantFailure = false
         var openTurnEndTimestamp: Date?
         var openTurnToolIndices: [Int] = []
         var pendingUser: (id: String, timestamp: Int64?)?
 
         func flushTurn() {
+            defer { openTurnHadAssistantFailure = false }
             guard let turnID = openTurnID, !openTurnItems.isEmpty || openTurnUserID != nil else {
                 openTurnID = nil; openTurnItems = []; openTurnUserID = nil; openTurnUserMs = nil; openTurnAssistantMs = nil
                 openTurnLastAssistantMs = nil
@@ -156,7 +158,8 @@ public actor PiHistoryReader: RuntimeHistoryReader {
             turns.append(.init(id: turnID, itemIDs: openTurnItems, firstUserItemID: openTurnUserID, firstUserTimestampMs: openTurnUserMs,
                                firstAssistantTimestampMs: openTurnAssistantMs, lastAssistantTimestampMs: openTurnLastAssistantMs,
                                firstToolCallID: openTurnToolID,
-                               endedAt: endedAt, durationSeconds: nil, status: status))
+                               endedAt: endedAt, durationSeconds: nil, status: status,
+                               hadAssistantFailure: openTurnHadAssistantFailure))
             openTurnID = nil; openTurnItems = []; openTurnUserID = nil; openTurnUserMs = nil; openTurnAssistantMs = nil
             openTurnLastAssistantMs = nil
             openTurnToolID = nil; openTurnStopReason = nil; openTurnEndTimestamp = nil; openTurnToolIndices = []
@@ -224,8 +227,11 @@ public actor PiHistoryReader: RuntimeHistoryReader {
                     openTurnEndTimestamp = timestamp(entry["timestamp"])
                     needsReply = stop == "toolUse" || stop == "error" || stop == "aborted"
                         || blocks.contains { $0["type"] as? String == "toolCall" }
-                    if message["stopReason"] as? String == "error" {
-                        items.append(.init(id: "history-end:" + id, kind: .notice, text: PiEventMapper.failure(message["errorMessage"] as? String ?? "model failure").detail))
+                    if stop == "error" {
+                        let noticeID = "history-end:" + id
+                        openTurnHadAssistantFailure = true
+                        openTurnItems.append(noticeID)
+                        items.append(.init(id: noticeID, kind: .notice, text: PiEventMapper.assistantFailure(message["errorMessage"]).detail))
                     } else if message["stopReason"] as? String == "aborted" {
                         items.append(.init(id: "history-end:" + id, kind: .notice, text: String(localized: "该轮回复已中断，不能据此确认任务完成。", bundle: #bundle)))
                     }
@@ -241,6 +247,7 @@ public actor PiHistoryReader: RuntimeHistoryReader {
                     tool.state = failed ? .failed : .completed
                     tool.output = retained.text
                     tool.truncated = retained.truncated
+                    tool.outputImage = PiEventMapper.readOutputImage(message["content"], name: tool.name, failed: failed)
                     if let index {
                         items[index].tool = tool
                     } else {

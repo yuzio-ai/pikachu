@@ -3,13 +3,38 @@ import SwiftUI
 struct IconButtonLabel: View {
     nonisolated static let side: CGFloat = 26
 
-    let systemName: String
-    var weight: Font.Weight? = nil
+    private enum Source {
+        case system(String, Font.Weight?)
+        case asset(String)
+    }
+
+    @Environment(\.pikachuTypography) private var typography
+    private let source: Source
+
+    init(systemName: String, weight: Font.Weight? = nil) {
+        source = .system(systemName, weight)
+    }
+
+    init(assetName: String) {
+        source = .asset(assetName)
+    }
 
     var body: some View {
-        Image(systemName: systemName)
-            .pikachuFont(.callout, weight: weight)
-            .frame(width: Self.side, height: Self.side)
+        Group {
+            switch source {
+            case let .system(name, weight):
+                Image(systemName: name)
+                    .pikachuFont(.callout, weight: weight)
+            case let .asset(name):
+                let side = typography.pointSize(for: .callout) + 4
+                Image(name)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: side, height: side)
+            }
+        }
+        .frame(width: Self.side, height: Self.side)
     }
 }
 
@@ -18,12 +43,13 @@ struct ToolCallIcon: View {
     var tool: String? = nil
 
     private var assetName: String {
-        switch tool {
-        case "read", "pikachu_read": "ToolCallFile"
-        case "grep", "pikachu_grep": "ToolCallFileSearch"
-        case "edit", "pikachu_edit": "ToolCallFileCode"
-        case "bash", "pikachu_bash": "ToolCallTerminal"
-        default: "ToolCallCodeSparkle"
+        switch ToolCallKind(name: tool ?? "") {
+        case .read: "ToolCallFileArrowRight"
+        case .list: "ToolCallFile"
+        case .search, .find: "ToolCallFileSearch"
+        case .edit, .write: "ToolCallFileCode"
+        case .command: "ToolCallTerminal"
+        case .other: "ToolCallTools"
         }
     }
 

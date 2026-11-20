@@ -291,6 +291,21 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(ToolCallsSummary(items: [group[4]]).composition.isEmpty)
     }
 
+    @MainActor func testToolGroupIconFollowsLastRunningToolInTranscriptOrder() {
+        func runningToolName(readState: ToolState, searchState: ToolState) -> String? {
+            let states: [(String, ToolState)] = [
+                ("pikachu_read", readState), ("grep", searchState), ("bash", .completed)
+            ]
+            let items = states.map { name, state in
+                TranscriptItem(id: name, kind: .tool, tool: .init(id: name, name: name, state: state))
+            }
+            return ToolCallsSummary(items: items).runningToolName
+        }
+        XCTAssertEqual(runningToolName(readState: .running, searchState: .running), "grep")
+        XCTAssertEqual(runningToolName(readState: .running, searchState: .completed), "pikachu_read")
+        XCTAssertNil(runningToolName(readState: .interrupted, searchState: .completed))
+    }
+
     @MainActor func testGrepSummariesUseThePatternAndOptionalScope() throws {
         for name in ["grep", "pikachu_grep"] {
             let raw = #"{"pattern":"first|第二","path":"Pikachu\/Features","glob":"*.swift","limit":30}"#
@@ -308,6 +323,50 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(presentation.object, "test")
         XCTAssertNil(search.limit)
         XCTAssertTrue(presentation.qualifiers.isEmpty)
+    }
+
+    @MainActor func testDirectoryFindAndWriteSummariesRecognizePiToolAliases() throws {
+        for prefix in ["", "pikachu_"] {
+            let list = try toolPresentation(prefix + "ls", arguments: #"{"path":"Pikachu\/Features","limit":20}"#)
+            guard case .list(let directory) = list.parameters else { return XCTFail("Expected a directory listing") }
+            XCTAssertEqual(list.operationLabel.map { String(localized: $0) }, String(localized: "列出目录"))
+            XCTAssertEqual(list.object, "Pikachu/Features")
+            XCTAssertEqual(directory.limit, 20)
+            XCTAssertEqual(try toolPresentation(prefix + "ls", arguments: "{}").object, String(localized: "当前目录"))
+
+            let find = try toolPresentation(prefix + "find", arguments: #"{"pattern":"**/*.swift","path":"Pikachu","limit":10}"#)
+            guard case .find(let search) = find.parameters else { return XCTFail("Expected a file search") }
+            XCTAssertEqual(find.operationLabel.map { String(localized: $0) }, String(localized: "查找文件"))
+            XCTAssertEqual(find.object, "**/*.swift")
+            XCTAssertEqual(search.limit, 10)
+            XCTAssertTrue(find.accessibilityDescription.contains("Pikachu"))
+
+            let write = try toolPresentation(prefix + "write", arguments: #"{"path":"Pikachu/View.swift","content":"body"}"#)
+            guard case .write(let path) = write.parameters else { return XCTFail("Expected a file write") }
+            XCTAssertEqual(write.operationLabel.map { String(localized: $0) }, String(localized: "写入文件"))
+            XCTAssertEqual(path, "Pikachu/View.swift")
+            XCTAssertEqual(write.object, "View.swift")
+            XCTAssertFalse(write.accessibilityDescription.contains("body"))
+
+            var tool = RuntimeTool(id: "long-write", name: prefix + "write")
+            PiEventMapper.setToolArguments(["path": "Pikachu/View.swift", "content": String(repeating: "x", count: 20_000)], on: &tool)
+            XCTAssertEqual(tool.argumentsTruncated, true)
+            let item = TranscriptItem(id: tool.id, kind: .tool, tool: tool)
+            let longWrite = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
+            XCTAssertEqual(longWrite.object, "View.swift")
+        }
+    }
+
+    @MainActor func testDirectoryFindAndWriteAreNotCountedAsOther() {
+        let names = ["ls", "pikachu_ls", "find", "pikachu_find", "write", "pikachu_write"]
+        let items = names.map { TranscriptItem(id: $0, kind: .tool, tool: .init(id: $0, name: $0)) }
+        let summary = ToolCallsSummary(items: items)
+        XCTAssertEqual(summary.listings, 2)
+        XCTAssertEqual(summary.finds, 2)
+        XCTAssertEqual(summary.writes, 2)
+        XCTAssertEqual(summary.composition.map { String(localized: $0) }, [
+            String(localized: "\(2) 次列目录"), String(localized: "\(2) 次文件查找"), String(localized: "\(2) 次写入")
+        ])
     }
 
     func testToolOutputPreviewLimitsLinesAndFindsDiagnosticsBeyondThePreview() {
@@ -565,7 +624,8 @@ final class TranscriptRenderingTests: XCTestCase {
         {"type":"message","id":"u1","parentId":null,"message":{"role":"user","content":"same text","timestamp":1795000000000}}
         {"type":"message","id":"a1","parentId":"u1","message":{"role":"assistant","content":[{"type":"toolCall","id":"first","name":"read","arguments":{}}],"stopReason":"toolUse","timestamp":1795000001000}}
         {"type":"message","id":"r1","parentId":"a1","message":{"role":"toolResult","toolCallId":"first","toolName":"read","content":"failed","isError":true}}
-        {"type":"message","id":"a2","parentId":"r1","message":{"role":"assistant","content":"first response","stopReason":"stop","timestamp":1795000002000}}
+        {"type":"message","id":"retry","parentId":"r1","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"UND_ERR_SOCKET","timestamp":1795000001500}}
+        {"type":"message","id":"a2","parentId":"retry","message":{"role":"assistant","content":"first response","stopReason":"stop","timestamp":1795000002000}}
         {"type":"message","id":"u2","parentId":"a2","message":{"role":"user","content":"same text","timestamp":1795000000000}}
         {"type":"message","id":"a3","parentId":"u2","message":{"role":"assistant","content":[],"stopReason":"stop","timestamp":1795000003000}}
 
@@ -576,16 +636,18 @@ final class TranscriptRenderingTests: XCTestCase {
         let controller = SessionController()
         let first = RecordedTurnRecord(anchorAssistantTimestampMs: 1_795_000_001_000,
                                        endAssistantTimestampMs: 1_795_000_002_000,
-                                       endedAt: Date(), durationSeconds: 5, status: .completed)
+                                       endedAt: Date(), durationSeconds: 5, status: .failed)
         controller.showHistory(history.items, turns: history.turns, recordedTurns: [first])
         let rows = TranscriptDisplayRow.project(controller.transcript)
         XCTAssertEqual(rows.map(\.id), [
-            "history:u1", "turn-header:turn:a1", "history-tool:0:history:a1", "history:a2",
+            "history:u1", "turn-header:turn:a1", "history-tool:0:history:a1", "history-end:history:retry", "history:a2",
             "history:u2", "turn-header:turn:a3",
         ])
-        guard case .turnHeader(let firstTurn) = rows[1], case .turnHeader(let secondTurn) = rows[5] else {
+        guard case .turnHeader(let firstTurn) = rows[1], case .turnHeader(let secondTurn) = rows[6] else {
             return XCTFail("Expected two distinct headers")
         }
+        XCTAssertEqual(firstTurn.status, .completed)
+        XCTAssertTrue(controller.transcript.contains { $0.kind == .notice && $0.text.contains("UND_ERR_SOCKET") })
         XCTAssertEqual(firstTurn.durationSeconds, 5)
         XCTAssertNil(secondTurn.durationSeconds)
     }

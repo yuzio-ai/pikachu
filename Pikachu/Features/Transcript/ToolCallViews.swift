@@ -12,29 +12,81 @@ struct ToolRow: View {
     var body: some View {
         if let tool = item.toolSummary {
             let presentation = ToolCallPresentation(tool)
-            DisclosureGroup(isExpanded: $expanded) {
-                if expanded {
-                    TranscriptToolDetails(item: item, presentation: presentation, onShowOutput: onShowOutput,
-                                          contentChanged: contentChanged)
-                }
-            } label: {
-                ToolRowLabel(presentation: presentation, expanded: expanded)
+            ToolCallDisclosure(isExpanded: $expanded, isRunning: tool.state == .running) {
+                TranscriptToolDetails(item: item, presentation: presentation, onShowOutput: onShowOutput,
+                                      contentChanged: contentChanged)
+            } label: { emphasized in
+                ToolRowLabel(presentation: presentation, expanded: expanded, emphasized: emphasized)
             }
-            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: nil))
             .accessibilityIdentifier(item.id)
             .onChange(of: expanded) { _, _ in contentChanged() }
         }
     }
 }
 
+struct ToolCallDisclosure<Content: View, Label: View>: View {
+    @Binding var isExpanded: Bool
+    let isRunning: Bool
+    @ViewBuilder let content: () -> Content
+    @ViewBuilder let label: (Bool) -> Label
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        let emphasized = isEnabled && (isHovered || isFocused)
+        VStack(alignment: .leading, spacing: 0) {
+            Button { isExpanded.toggle() } label: {
+                label(emphasized)
+                    .foregroundStyle(emphasized ? PikachuTheme.primaryText : PikachuTheme.tertiaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background {
+                        if isRunning && !reduceMotion { ToolCallSweep() }
+                    }
+                    .contentShape(Rectangle())
+                    .onHover { isHovered = $0 }
+            }
+            .buttonStyle(.plain)
+            .focused($isFocused)
+            .accessibilityValue(isExpanded ? Text("已展开") : Text("已折叠"))
+
+            if isExpanded { content() }
+        }
+    }
+}
+
+private struct ToolCallSweep: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+            Canvas { context, size in
+                let phase = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.8) / 1.8
+                let band = min(size.width * 0.4, 180)
+                guard band > 0 else { return }
+                let leading = (size.width + band) * phase - band
+                let bounds = CGRect(origin: .zero, size: size)
+                context.fill(Path(roundedRect: bounds, cornerRadius: 5), with: .linearGradient(
+                    Gradient(colors: [.clear, PikachuTheme.lightningYellow.opacity(0.18), .clear]),
+                    startPoint: CGPoint(x: leading, y: 0), endPoint: CGPoint(x: leading + band, y: 0)
+                ))
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct ToolRowLabel: View {
     let presentation: ToolCallPresentation
     let expanded: Bool
+    let emphasized: Bool
 
     var body: some View {
         let tool = presentation.summary
         let object = presentation.object
         let qualifiers = presentation.qualifiers
+        let secondary = emphasized ? PikachuTheme.secondaryText : PikachuTheme.tertiaryText
+        let objectColor = emphasized && presentation.isFileOperation ? PikachuTheme.primaryText : secondary
         HStack(spacing: 7) {
             ToolCallIcon(tool: tool.name)
             if let operation = presentation.operationLabel {
@@ -46,21 +98,22 @@ private struct ToolRowLabel: View {
             if !object.isEmpty {
                 Text(verbatim: object)
                     .pikachuFont(.caption, design: .monospaced)
-                    .foregroundStyle(presentation.isFileOperation ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
+                    .foregroundStyle(objectColor)
                     .lineLimit(1).truncationMode(presentation.isFileOperation ? .middle : .tail)
                     .layoutPriority(1)
             }
             if !qualifiers.isEmpty {
                 ViewThatFits(in: .horizontal) {
                     Text(verbatim: qualifiers.map { String(localized: $0) }.joined(separator: " · "))
-                        .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                        .pikachuFont(.caption)
+                            .foregroundStyle(secondary)
                     Color.clear.frame(width: 0, height: 0)
                 }
             }
             if tool.state != .completed {
                 Text(tool.state.statusLabel).pikachuFont(.caption).foregroundStyle(tool.state.statusColor).fixedSize()
             }
-            FlatDisclosureChevron(expanded: expanded)
+            FlatDisclosureChevron(expanded: expanded).opacity(emphasized ? 1 : 0)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .ignore)
@@ -109,7 +162,18 @@ private struct TranscriptToolDetails: View {
                         Text(verbatim: read.rangeLabels.map { String(localized: $0) }.joined(separator: " · "))
                             .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
                     }
-                case .search(let search):
+                case .list(let directory):
+                    ToolDetailLabel(title: "目录")
+                    ToolMonospaceText(text: presentation.object)
+                    if let limit = directory.limit, limit >= 0 {
+                        Text("最多 \(limit) 个条目").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                    }
+                case .write(let path):
+                    if let path {
+                        ToolDetailLabel(title: "文件")
+                        ToolMonospaceText(text: path)
+                    }
+                case .search(let search), .find(let search):
                     ToolDetailLabel(title: "搜索模式")
                     ToolMonospaceText(text: search.pattern)
                     if let path = search.path, !path.isEmpty {
@@ -133,8 +197,11 @@ private struct TranscriptToolDetails: View {
                 if !tool.output.isEmpty || tool.truncated {
                     PikachuDivider()
                     ToolOutputSection(tool: tool, presentation: output, onShowOutput: onShowOutput)
-                } else if tool.state != .running {
+                } else if tool.state != .running && tool.outputImage == nil {
                     Text("无输出").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                }
+                if let image = tool.outputImage {
+                    ToolReadImageThumbnail(data: image, name: presentation.object, contentChanged: contentChanged)
                 }
 
                 if !tool.arguments.isEmpty {
@@ -165,6 +232,56 @@ private struct TranscriptToolDetails: View {
             .accessibilityIdentifier("tool-details-\(item.id)")
             .onChange(of: tool) { _, _ in contentChanged() }
             .onChange(of: rawExpanded) { _, _ in contentChanged() }
+        }
+    }
+}
+
+private struct ToolReadImageThumbnail: View {
+    let data: Data
+    let name: String
+    let contentChanged: () -> Void
+    @State private var thumbnail: CGImage?
+    @State private var thumbnailFailed = false
+    @State private var showingPreview = false
+
+    private struct Request: Equatable {
+        let data: Data
+        let maxPixels: Int
+    }
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        let size: CGFloat = 120
+        let request = Request(data: data, maxPixels: Int((size * displayScale).rounded(.up)))
+        VStack(alignment: .leading, spacing: 0) {
+            if let thumbnail {
+                Button { showingPreview = true } label: {
+                    Image(decorative: thumbnail, scale: displayScale)
+                        .resizable().scaledToFit()
+                        .frame(width: size, height: size)
+                        .flatSurface(PikachuTheme.surface, radius: 8)
+                        .contentShape(.rect(cornerRadius: 8))
+                }
+                .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: 8)))
+                .accessibilityLabel("预览 \(name)")
+                .accessibilityIdentifier("tool-image-thumbnail")
+            } else if thumbnailFailed {
+                Text("无法预览此图片。")
+                    .pikachuFont(.caption)
+                    .foregroundStyle(PikachuTheme.secondaryText)
+            }
+        }
+        .sheet(isPresented: $showingPreview) {
+            AttachmentImagePreview(toolResult: data, name: name)
+        }
+        .task(id: request) {
+            let image = await Task.detached(priority: .utility) {
+                ImageAttachmentThumbnail.loadThumbnail(from: request.data, maxPixels: request.maxPixels)
+            }.value
+            guard !Task.isCancelled else { return }
+            thumbnail = image
+            thumbnailFailed = image == nil
+            contentChanged()
         }
     }
 }

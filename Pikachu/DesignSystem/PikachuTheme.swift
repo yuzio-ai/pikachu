@@ -18,7 +18,8 @@ enum PikachuTheme {
     static let selectionBorder = adaptive(light: 0x858585, dark: 0x888888)
     static let focusBorder = adaptive(light: 0x6C6C6C, dark: 0xA0A0A0)
     static let accentText = adaptive(light: 0x444444, dark: 0xDEDEDE)
-    static let hover = adaptive(light: 0xEEEEEE, dark: 0x2C2C2C)
+    static let controlHover = adaptive(light: 0xEEEEEE, dark: 0x2C2C2C)
+    static let prominentControlHover = adaptive(light: 0xE2E2E2, dark: 0x3B3B3B)
     static let pressed = adaptive(light: 0xDFDFDF, dark: 0x404040)
     static let warningText = adaptive(light: 0x805300, dark: 0xF0BB65)
     static let mutedWarningText = adaptive(light: 0x8F6633, dark: 0xD9AD70)
@@ -99,9 +100,17 @@ enum AnchoredCardStyle {
     static let inset: CGFloat = 12
     static let compactInset: CGFloat = 6
     static let spacing: CGFloat = 7
+    static let hoverDelay: Duration = .milliseconds(500)
 }
 
 extension View {
+    func anchoredPreviewCard() -> some View {
+        padding(AnchoredCardStyle.inset)
+            .flatSurface(radius: AnchoredCardStyle.cornerRadius)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     func anchoredCardTitle() -> some View {
         pikachuFont(.callout, weight: .medium)
             .foregroundStyle(PikachuTheme.primaryText)

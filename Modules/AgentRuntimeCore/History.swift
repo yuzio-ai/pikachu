@@ -41,13 +41,16 @@ public struct HistoryTurnInfo: Sendable, Equatable {
     public let endedAt: Date?
     public let durationSeconds: TimeInterval?
     public let status: TurnStatus
+    public let hadAssistantFailure: Bool
     public init(id: String, itemIDs: [String], firstUserItemID: String? = nil,
                 firstUserTimestampMs: Int64? = nil, firstAssistantTimestampMs: Int64? = nil, lastAssistantTimestampMs: Int64? = nil,
-                firstToolCallID: String? = nil, endedAt: Date? = nil, durationSeconds: TimeInterval? = nil, status: TurnStatus) {
+                firstToolCallID: String? = nil, endedAt: Date? = nil, durationSeconds: TimeInterval? = nil,
+                status: TurnStatus, hadAssistantFailure: Bool = false) {
         self.id = id; self.itemIDs = itemIDs; self.firstUserItemID = firstUserItemID; self.firstUserTimestampMs = firstUserTimestampMs
         self.firstAssistantTimestampMs = firstAssistantTimestampMs; self.firstToolCallID = firstToolCallID
         self.lastAssistantTimestampMs = lastAssistantTimestampMs ?? firstAssistantTimestampMs
         self.endedAt = endedAt; self.durationSeconds = durationSeconds; self.status = status
+        self.hadAssistantFailure = hadAssistantFailure
     }
 }
 public struct RuntimeHistory: Sendable {

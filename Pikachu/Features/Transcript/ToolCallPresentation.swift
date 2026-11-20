@@ -3,7 +3,7 @@ import AgentRuntimeCore
 import OrchestrationCore
 
 enum ToolCallKind {
-    case command, edit, read, search, other
+    case command, edit, read, search, list, find, write, other
 
     init(name: String) {
         switch name {
@@ -11,6 +11,9 @@ enum ToolCallKind {
         case "edit", "pikachu_edit": self = .edit
         case "read", "pikachu_read": self = .read
         case "grep", "pikachu_grep": self = .search
+        case "ls", "pikachu_ls": self = .list
+        case "find", "pikachu_find": self = .find
+        case "write", "pikachu_write": self = .write
         default: self = .other
         }
     }
@@ -60,11 +63,23 @@ struct ToolCallPresentation {
         }
     }
 
+    struct Directory: Decodable {
+        let path: String?
+        let limit: Int?
+    }
+
+    private struct Write: Decodable {
+        let path: String
+    }
+
     enum Parameters {
         case command(String)
         case edit(RuntimeTool.EditArguments)
         case read(Read)
         case search(Search)
+        case list(Directory)
+        case find(Search)
+        case write(String?)
         case raw
     }
 
@@ -94,11 +109,18 @@ struct ToolCallPresentation {
                read.path.contains(where: { !$0.isWhitespace }) {
                 return .read(read)
             }
-        case .search:
+        case .search, .find:
             if let search = try? JSONDecoder().decode(Search.self, from: Data(arguments.utf8)),
                !search.pattern.isEmpty {
-                return .search(search)
+                return ToolCallKind(name: summary.name) == .find ? .find(search) : .search(search)
             }
+        case .list:
+            if let directory = try? JSONDecoder().decode(Directory.self, from: Data(arguments.utf8)) {
+                return .list(directory)
+            }
+        case .write:
+            let path = summary.writePath ?? (try? JSONDecoder().decode(Write.self, from: Data(arguments.utf8)))?.path
+            return .write(path.flatMap { $0.contains(where: { !$0.isWhitespace }) ? $0 : nil })
         case .other:
             break
         }
@@ -111,6 +133,9 @@ struct ToolCallPresentation {
         case .edit: "编辑"
         case .read: "读取"
         case .search: "搜索"
+        case .list: "列出目录"
+        case .find: "查找文件"
+        case .write: "写入文件"
         case .raw: nil
         }
     }
@@ -123,7 +148,11 @@ struct ToolCallPresentation {
             return Self.fileName(edit.path)
         case .read(let read):
             return Self.fileName(read.path)
-        case .search(let search):
+        case .list(let directory):
+            return directory.path.flatMap { $0.isEmpty ? nil : $0 } ?? String(localized: "当前目录")
+        case .write(let path):
+            return path.map(Self.fileName) ?? ""
+        case .search(let search), .find(let search):
             return search.pattern.split(maxSplits: 1, omittingEmptySubsequences: false, whereSeparator: \.isNewline)
                 .first.map(String.init) ?? search.pattern
         case .raw:
@@ -137,8 +166,8 @@ struct ToolCallPresentation {
 
     var isFileOperation: Bool {
         switch parameters {
-        case .edit, .read: true
-        case .command, .search, .raw: false
+        case .edit, .read, .write, .list: true
+        case .command, .search, .find, .raw: false
         }
     }
 
@@ -146,9 +175,9 @@ struct ToolCallPresentation {
         switch parameters {
         case .edit(let edit): ["\(edit.replacementCount) 处替换"]
         case .read(let read): read.rangeLabels
-        case .search(let search):
+        case .search(let search), .find(let search):
             if let path = search.path, !path.isEmpty { ["在 \(path)"] } else { [] }
-        case .command, .raw: []
+        case .command, .list, .write, .raw: []
         }
     }
 

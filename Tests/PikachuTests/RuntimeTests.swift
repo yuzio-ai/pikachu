@@ -281,6 +281,63 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
         var mapper = PiEventMapper()
         for role in ["system","user","toolResult"] { XCTAssertTrue(mapper.map(["type":"message_start","message":["role":role]]).isEmpty) }
     }
+    func testAssistantFailureIsOnlyShownWhenRunSettlesWithoutRecovery() async {
+        enum Outcome: CaseIterable { case recovered, recoveredWithoutRetryEvent, exhausted, notRetried, cancelled }
+        for outcome in Outcome.allCases {
+            let runtime = ControlledRuntime(), store = SessionController()
+            await store.connect(runtime)
+            var mapper = PiEventMapper()
+            func receive(_ record: [String: Any]) {
+                for event in mapper.map(record) {
+                    store.receive(.init(instanceID: runtime.instanceID, event: event))
+                }
+            }
+            func endAssistant(stopReason: String, content: String = "", error: String = "") {
+                receive(["type": "message_start", "message": ["role": "assistant"]])
+                receive(["type": "message_end", "message": ["role": "assistant", "stopReason": stopReason,
+                                                            "content": content, "errorMessage": error]])
+            }
+
+            receive(["type": "agent_start"])
+            endAssistant(stopReason: "error", error: "terminated: other side closed (UND_ERR_SOCKET)")
+            XCTAssertNil(store.failure, "\(outcome)")
+            XCTAssertTrue(store.transcript.contains { $0.kind == .notice && $0.text.contains("UND_ERR_SOCKET") })
+            if outcome == .recoveredWithoutRetryEvent {
+                endAssistant(stopReason: "stop", content: "Recovered")
+            } else if outcome != .notRetried {
+                receive(["type": "auto_retry_start"])
+                XCTAssertEqual(store.phase, .retrying)
+                XCTAssertNil(store.failure)
+                if outcome != .cancelled {
+                    receive(["type": "agent_start"])
+                    if outcome == .recovered { endAssistant(stopReason: "stop", content: "Recovered") }
+                    else { endAssistant(stopReason: "error", error: "429 rate limit") }
+                }
+                receive(["type": "auto_retry_end", "success": outcome == .recovered])
+                XCTAssertNil(store.failure)
+            }
+            receive(["type": "agent_settled", "aborted": outcome == .cancelled])
+
+            let statuses = TranscriptDisplayRow.project(store.transcript, turnStarts: store.transcriptTurnStarts).compactMap { row in
+                if case .turnHeader(let turn) = row { return turn.status }
+                return nil as TurnStatus?
+            }
+            switch outcome {
+            case .recovered, .recoveredWithoutRetryEvent:
+                XCTAssertEqual(statuses, [.completed])
+                XCTAssertNil(store.failure)
+            case .exhausted, .notRetried:
+                XCTAssertEqual(statuses, [.failed])
+                XCTAssertEqual(store.failure?.kind, .model)
+                if outcome == .exhausted { XCTAssertEqual(store.failure, PiEventMapper.failure("429 rate limit")) }
+            case .cancelled:
+                XCTAssertEqual(statuses, [.stopped])
+                XCTAssertNil(store.failure)
+            }
+            _ = await store.disconnect()
+        }
+    }
+
     func testMapperPartialToolResultReplacesPreviousSnapshot() {
         var mapper = PiEventMapper()
         _ = mapper.map(["type":"tool_execution_start","toolCallId":"id","toolName":"bash","args":["command":"echo hi"]])
@@ -288,6 +345,23 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
         let events = mapper.map(["type":"tool_execution_update","toolCallId":"id","partialResult":["content":[["type":"text","text":"ab"]]]])
         if case .tool(let tool) = events[0] { XCTAssertEqual(tool.output,"ab") } else { XCTFail() }
     }
+    func testCompletedReadKeepsImageAlongsideTextOutput() throws {
+        var mapper = PiEventMapper()
+        let bytes = Data([1, 2, 3])
+        let text = "Read image file [image/png]"
+        let content = [["type": "text", "text": text],
+                       ["type": "image", "mimeType": "image/png", "data": bytes.base64EncodedString()]]
+        let events = mapper.map(["type": "tool_execution_end", "toolCallId": "read-image", "toolName": "pikachu_read",
+                                 "result": ["content": content]])
+        guard case .tool(let tool) = try XCTUnwrap(events.first) else { return XCTFail("Missing tool event") }
+        XCTAssertEqual(tool.state, .completed)
+        XCTAssertEqual(tool.output, text)
+        XCTAssertEqual(tool.outputImage, bytes)
+        XCTAssertNil(PiEventMapper.readOutputImage(content, name: "read", failed: true))
+        XCTAssertNil(PiEventMapper.readOutputImage(content, name: "bash", failed: false))
+        XCTAssertNil(PiEventMapper.readOutputImage(text, name: "read", failed: false))
+    }
+
     func testLargeToolOutputHasBoundedPresentationAndNotice() {
         var mapper = PiEventMapper()
         let output = String(repeating: "x", count: 10 * 1_024 * 1_024)

@@ -193,6 +193,8 @@ public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
     public var arguments: String
     public var argumentsTruncated: Bool?
     public var editArguments: EditArguments?
+    public var writePath: String?
+    public var outputImage: Data?
     public var output: String
     public var state: ToolState
     public var truncated: Bool
@@ -215,6 +217,7 @@ public enum AgentEvent: Sendable {
     case assistantTimestamp(UUID, Int64)
     case textDelta(UUID, Int, String)
     case assistantCompleted(UUID, String)
+    case assistantAttemptFailed(UUID, RuntimeFailure)
     case tool(RuntimeTool)
     case turnFileChanges(TurnFileChanges)
     case queue(RuntimeQueue)

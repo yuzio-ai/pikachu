@@ -35,6 +35,7 @@ struct TranscriptView: View {
                             follow = false
                             jump = .init(messageID: message.id)
                         }
+                        .id(diagnosticSession)
                         .padding(.bottom, composerClearance)
                     }
                     .overlay(alignment: .bottom) {
@@ -99,25 +100,48 @@ struct TranscriptQueueFooter: Equatable {
 
     static func project(_ rows: [TranscriptDisplayRow]) -> [String: Self] {
         var replies: [ObjectIdentifier: [TranscriptItem]] = [:]
+        var changeRows: [ObjectIdentifier: String] = [:]
         for row in rows {
-            guard case .item(let item) = row, item.kind == .assistant, let turn = item.turn,
-                  turn.status != .running else { continue }
-            replies[ObjectIdentifier(turn), default: []].append(item)
+            switch row {
+            case .item(let item) where item.kind == .assistant:
+                guard let turn = item.turn, turn.status != .running else { continue }
+                replies[ObjectIdentifier(turn), default: []].append(item)
+            case .turnChanges(let turn):
+                changeRows[ObjectIdentifier(turn)] = row.id
+            default:
+                break
+            }
         }
         var footers: [String: Self] = [:]
-        for items in replies.values {
+        for (turnID, items) in replies {
             guard let last = items.last else { continue }
-            footers[last.id] = Self(items: items, endedAt: last.turn?.endedAt)
+            footers[changeRows[turnID] ?? last.id] = Self(items: items, endedAt: last.turn?.endedAt)
         }
         return footers
     }
 }
 
-private struct AssistantReplyActions: View {
+// The final reply and its file changes live in separate hosting cells.
+@MainActor @Observable final class TranscriptReplyHover {
+    private(set) var rowID: String?
+
+    func setHovered(_ hovering: Bool, rowID: String) {
+        if hovering { self.rowID = rowID }
+        else if self.rowID == rowID { self.rowID = nil }
+    }
+}
+
+struct AssistantReplyActions: View {
     let reply: TranscriptReplyFooter
-    let isHovering: Bool
+    let rowID: String
+    let hover: TranscriptReplyHover
     @State private var copied = false
     @FocusState private var isFocused: Bool
+
+    private var isHovering: Bool {
+        guard let hoveredRow = hover.rowID else { return false }
+        return hoveredRow == rowID || hoveredRow == reply.items.last?.id
+    }
 
     private var timeDisplay: String {
         reply.endedAt.map { TranscriptTimestampFormatter.shortTime($0) } ?? String(localized: "时间未知")
@@ -151,7 +175,7 @@ private struct AssistantReplyActions: View {
                 .help(timeTooltip)
                 .accessibilityHidden(true)
         }
-        .opacity(isHovering || isFocused || copied ? 1 : 0)
+        .revealedAction(isHovering || isFocused || copied)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: copied) {
             guard copied else { return }
@@ -164,17 +188,69 @@ private struct AssistantReplyActions: View {
     }
 }
 
+struct TranscriptMarkerHover {
+    struct Request: Equatable {
+        let markerID: String
+        // Re-entering the same marker must start a new delay, not complete its old request.
+        private let interactionID = UUID()
+    }
+
+    private(set) var hoveredID: String?
+    private(set) var request: Request?
+    private(set) var isPresented = false
+    private var isScrolling = false
+
+    mutating func movePointer(to markerID: String?) {
+        guard hoveredID != markerID else { return }
+        hoveredID = markerID
+        restartPreview()
+    }
+
+    mutating func setScrolling(_ scrolling: Bool) {
+        guard isScrolling != scrolling else { return }
+        isScrolling = scrolling
+        restartPreview()
+    }
+
+    mutating func updateScrollPosition(markerID: String?) {
+        hoveredID = markerID
+        // A mouse wheel may change the offset without a scroll phase transition.
+        restartPreview()
+    }
+
+    mutating func dismissPreview() {
+        request = nil
+        isPresented = false
+    }
+
+    private mutating func restartPreview() {
+        dismissPreview()
+        if !isScrolling, let hoveredID { request = Request(markerID: hoveredID) }
+    }
+
+    mutating func present(_ completed: Request) {
+        guard request == completed else { return }
+        isPresented = true
+    }
+}
+
 private struct TranscriptMessageRail: View {
     let messages: [TranscriptItem]
     let selectedID: String?
     let onJump: (TranscriptItem) -> Void
-    @State private var hoveredMessage: TranscriptItem?
+    @Environment(\.appearsActive) private var appearsActive
+    @State private var hover = TranscriptMarkerHover()
+    @State private var pointerY: CGFloat?
+    @State private var scrollOffset: CGFloat = 0
 
     private let markerHeight: CGFloat = 15
 
     var body: some View {
+        let request = hover.request
+        let pointedMarker = markerID(at: pointerY, offset: scrollOffset)
         if !messages.isEmpty {
             GeometryReader { geometry in
+                let railHeight = min(CGFloat(messages.count) * markerHeight, 225, geometry.size.height)
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(messages) { message in
@@ -184,28 +260,70 @@ private struct TranscriptMessageRail: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.hidden)
-                .frame(width: 24, height: min(CGFloat(messages.count) * markerHeight, 225, geometry.size.height))
+                .onScrollPhaseChange { _, phase in
+                    hover.setScrolling(phase.isScrolling)
+                }
+                .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in
+                    scrollOffset = offset
+                    hover.updateScrollPosition(markerID: markerID(at: pointerY, offset: offset))
+                }
+                .frame(width: 24, height: railHeight)
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let point):
+                        pointerY = (0..<24).contains(point.x) && (0..<railHeight).contains(point.y) ? point.y : nil
+                    case .ended:
+                        pointerY = nil
+                    }
+                }
+                .onChange(of: railHeight) { _, height in
+                    if let pointerY, pointerY >= height { self.pointerY = nil }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .overlayPreferenceValue(TranscriptMarkerAnchor.self, alignment: .topLeading) { anchor in
-                    if let anchor, let hoveredMessage {
+                    if let anchor, hover.isPresented, let request, request.markerID == pointedMarker,
+                       let hoveredMessage = messages.first(where: { $0.id == request.markerID }) {
                         let previewWidth = min(290, max(0, geometry.size.width - 44))
                         let anchorY = geometry[anchor].midY
                         preview(for: hoveredMessage)
                             .frame(width: previewWidth, alignment: .leading)
                             .offset(x: 28, y: max(4, min(anchorY - 28, geometry.size.height - 106)))
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
                     }
                 }
+            }
+            .onChange(of: pointedMarker, initial: true) { _, markerID in
+                hover.movePointer(to: markerID)
+            }
+            .onDisappear {
+                pointerY = nil
+                scrollOffset = 0
+                hover = TranscriptMarkerHover()
+            }
+            .task(id: request) {
+                guard let request else { return }
+                do {
+                    try await Task.sleep(for: AnchoredCardStyle.hoverDelay)
+                    guard !Task.isCancelled else { return }
+                    hover.present(request)
+                } catch { }
             }
         }
     }
 
+    private func markerID(at y: CGFloat?, offset: CGFloat) -> String? {
+        guard appearsActive, let y else { return nil }
+        // The rail has no row spacing; view coordinates plus the scroll offset identify the row.
+        let contentY = y + offset
+        guard contentY >= 0, contentY < CGFloat(messages.count) * markerHeight else { return nil }
+        return messages[Int(contentY / markerHeight)].id
+    }
+
     private func marker(for message: TranscriptItem) -> some View {
-        let hovered = hoveredMessage?.id == message.id
+        let hovered = hover.hoveredID == message.id
         let isSelected = selectedID == message.id
         let snippet = previewText(for: message)
         return Button {
+            hover.dismissPreview()
             onJump(message)
         } label: {
             Capsule()
@@ -222,27 +340,22 @@ private struct TranscriptMessageRail: View {
         .accessibilityHint("跳到这条消息")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("transcript-marker-\(message.id)")
-        .onHover { inside in
-            if inside { hoveredMessage = message }
-            else if hoveredMessage?.id == message.id { hoveredMessage = nil }
-        }
         .anchorPreference(key: TranscriptMarkerAnchor.self, value: .bounds) { hovered ? $0 : nil }
     }
 
     private func preview(for message: TranscriptItem) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
             Text(verbatim: previewText(for: message))
-                .pikachuFont(.callout)
+                .anchoredCardTitle()
                 .lineLimit(3)
             if let sentAt = message.sentAt {
                 Text(TranscriptTimestampFormatter.shortTime(sentAt))
                     .pikachuFont(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(PikachuTheme.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .flatSurface(radius: 9)
+        .anchoredPreviewCard()
     }
 
     private func previewText(for message: TranscriptItem) -> String {
@@ -312,15 +425,23 @@ private struct TranscriptMarkerAnchor: PreferenceKey {
 
 struct TurnHeaderView: View {
     let turn: TurnRecord
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        if turn.status == .running, let start = turn.startedAt {
-            TimelineView(.periodic(from: start, by: 1)) { context in
-                header(relativeTo: context.date)
+        VStack(alignment: .leading, spacing: 5) {
+            if turn.status == .running, let start = turn.startedAt {
+                TimelineView(.periodic(from: start, by: 1)) { context in
+                    header(relativeTo: context.date)
+                }
+            } else {
+                header(relativeTo: .now)
             }
-        } else {
-            header(relativeTo: .now)
+            Rectangle()
+                .fill(PikachuTheme.border)
+                .frame(height: 1 / displayScale)
+                .accessibilityHidden(true)
         }
+        .padding(.top, 8)
     }
 
     private func header(relativeTo now: Date) -> some View {
@@ -353,9 +474,7 @@ struct TranscriptRow: View {
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
     var onPreviewImage: ((URL) -> Void)? = nil
     var queueFooter: String? = nil
-    var replyFooter: TranscriptReplyFooter? = nil
     let contentChanged: () -> Void
-    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -369,13 +488,8 @@ struct TranscriptRow: View {
                 MarkdownContent(text: item.text, streaming: item.streaming, width: width)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
-                if let replyFooter {
-                    AssistantReplyActions(reply: replyFooter, isHovering: isHovering)
-                }
             }
         }
-        .contentShape(.rect)
-        .onHover { isHovering = $0 }
         .onChange(of: item.text) { _, _ in contentChanged() }
         .onChange(of: item.streaming) { _, _ in contentChanged() }
         .accessibilityElement(children: .contain)
@@ -508,7 +622,7 @@ private struct UserMessageRow: View {
                 .accessibilityIdentifier("copy-\(item.id)")
             }
             .frame(height: 20)
-            .opacity(showsFooter ? 1 : 0)
+            .revealedAction(showsFooter)
             .accessibilityElement(children: .contain)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -573,7 +687,7 @@ private struct UserMessageRow: View {
                             Button { onPreviewImage(file) } label: {
                                 ImageAttachmentThumbnail(file: file, size: size)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: ImageAttachmentThumbnail.cornerRadius)))
                             .accessibilityLabel("预览 \(file.lastPathComponent)")
                             .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
                         } else {
@@ -631,10 +745,14 @@ private struct UserMessageRow: View {
 @MainActor struct ToolCallsSummary {
     let total: Int
     let statuses: [Status]
+    let runningToolName: String?
     let commands: Int
     let edits: Int
     let reads: Int
     let searches: Int
+    let listings: Int
+    let finds: Int
+    let writes: Int
 
     struct Status: Identifiable {
         let state: ToolState
@@ -657,14 +775,22 @@ private struct UserMessageRow: View {
         var edits = 0
         var reads = 0
         var searches = 0
+        var listings = 0
+        var finds = 0
+        var writes = 0
+        var runningToolName: String?
         for item in items {
             guard let summary = item.toolSummary else { continue }
             counts[summary.state, default: 0] += 1
+            if summary.state == .running { runningToolName = summary.name }
             switch ToolCallKind(name: summary.name) {
             case .command: commands += 1
             case .edit: edits += 1
             case .read: reads += 1
             case .search: searches += 1
+            case .list: listings += 1
+            case .find: finds += 1
+            case .write: writes += 1
             case .other: break
             }
         }
@@ -672,6 +798,10 @@ private struct UserMessageRow: View {
         self.edits = edits
         self.reads = reads
         self.searches = searches
+        self.listings = listings
+        self.finds = finds
+        self.writes = writes
+        self.runningToolName = runningToolName
         statuses = [ToolState.failed, .interrupted, .running].compactMap { state in
             counts[state].map { Status(state: state, count: $0) }
         }
@@ -680,7 +810,7 @@ private struct UserMessageRow: View {
     var countLabel: LocalizedStringResource { "\(total) 项工具调用" }
 
     var composition: [LocalizedStringResource] {
-        let classified = commands + edits + reads + searches
+        let classified = commands + edits + reads + searches + listings + finds + writes
         guard classified > 0 else { return [] }
         let other = total - classified
         var parts: [LocalizedStringResource] = []
@@ -688,6 +818,9 @@ private struct UserMessageRow: View {
         if commands > 0 { parts.append("\(commands) 条命令") }
         if reads > 0 { parts.append("\(reads) 次读取") }
         if searches > 0 { parts.append("\(searches) 次搜索") }
+        if listings > 0 { parts.append("\(listings) 次列目录") }
+        if finds > 0 { parts.append("\(finds) 次文件查找") }
+        if writes > 0 { parts.append("\(writes) 次写入") }
         if other > 0 { parts.append("其他 \(other) 项") }
         return parts
     }
@@ -711,44 +844,41 @@ struct ToolCallsRow: View {
         } else {
             let expanded = expansion.groupBinding(for: items)
             let summary = ToolCallsSummary(items: items)
-            DisclosureGroup(isExpanded: expanded) {
-                if expanded.wrappedValue {
-                    VStack(spacing: 2) {
-                        ForEach(items) { item in
-                            ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: false),
-                                    onShowOutput: onShowOutput, contentChanged: contentChanged)
-                        }
+            ToolCallDisclosure(isExpanded: expanded, isRunning: summary.runningToolName != nil && !expanded.wrappedValue) {
+                VStack(spacing: 2) {
+                    ForEach(items) { item in
+                        ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: false),
+                                onShowOutput: onShowOutput, contentChanged: contentChanged)
                     }
-                    .padding(.leading, 19)
-                    .padding(.top, 2)
                 }
-            } label: {
+                .padding(.leading, 19)
+                .padding(.top, 2)
+            } label: { emphasized in
                 HStack(spacing: 8) {
                     Label { Text(summary.countLabel) } icon: {
-                        ToolCallIcon()
+                        ToolCallIcon(tool: summary.runningToolName)
                     }
                     .pikachuFont(.callout)
-                    .foregroundStyle(.secondary)
                     .fixedSize()
                     let parts = summary.composition
                     if !parts.isEmpty {
                         ViewThatFits(in: .horizontal) {
                             Text(verbatim: "· " + parts.map { String(localized: $0) }.joined(separator: String(localized: "、")))
-                                .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                                .pikachuFont(.caption)
+                                .foregroundStyle(emphasized ? PikachuTheme.secondaryText : PikachuTheme.tertiaryText)
                             Color.clear.frame(width: 0, height: 0)
                         }
                     }
                     ForEach(summary.statuses) { status in
                         Text(status.label).pikachuFont(.caption).foregroundStyle(status.state.statusColor).fixedSize()
                     }
-                    FlatDisclosureChevron(expanded: expanded.wrappedValue)
+                    FlatDisclosureChevron(expanded: expanded.wrappedValue).opacity(emphasized ? 1 : 0)
                 }
                 .lineLimit(1)
                 .padding(.vertical, 2)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(summary.description)
             }
-            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: nil))
             .accessibilityIdentifier("tool-group-\(items[0].id)")
             .onChange(of: expanded.wrappedValue) { _, _ in contentChanged() }
         }

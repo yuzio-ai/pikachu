@@ -448,6 +448,16 @@
         }
       }
     },
+    "模型服务连接中断（UND_ERR_SOCKET）。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection to the model service was interrupted (UND_ERR_SOCKET)."
+          }
+        }
+      }
+    },
     "模型服务限流，请稍后手动重试。" : {
       "localizations" : {
         "en" : {

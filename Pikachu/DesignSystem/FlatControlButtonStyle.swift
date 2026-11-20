@@ -18,10 +18,12 @@ struct FlatControlButtonStyle: ButtonStyle {
         let shape = RoundedRectangle(cornerRadius: cornerRadius)
         let fill: Color = if isEnabled && configuration.isPressed {
             PikachuTheme.pressed
-        } else if isOpen || treatment == .prominent {
+        } else if isOpen {
             PikachuTheme.selected
         } else if isEnabled && isHovered {
-            PikachuTheme.hover
+            treatment == .prominent ? PikachuTheme.prominentControlHover : PikachuTheme.controlHover
+        } else if treatment == .prominent {
+            PikachuTheme.selected
         } else if treatment == .outlined {
             PikachuTheme.surface
         } else {

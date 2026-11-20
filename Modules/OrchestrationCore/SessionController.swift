@@ -52,12 +52,14 @@ public struct TranscriptToolSummary: Equatable {
     public let name: String
     public let arguments: String
     public let editArguments: RuntimeTool.EditArguments?
+    public let writePath: String?
     public let state: ToolState
 
     fileprivate init(tool: RuntimeTool) {
         name = tool.name
         arguments = tool.arguments
         editArguments = tool.editArguments
+        writePath = tool.writePath
         state = tool.state
     }
 }
@@ -381,9 +383,13 @@ public struct TranscriptToolSummary: Equatable {
             }
             let match = recordByTool ?? recordByAssistant ?? recordByUser
             let record = match.flatMap { usedRecords.insert($0.id).inserted ? $0 : nil }
+            // Older live records marked a recovered attempt as a failed turn. Only
+            // override that badge when history confirms the exact same reply ended normally.
+            let recovered = record?.status == .failed && info.status == .completed && info.hadAssistantFailure
+                && info.lastAssistantTimestampMs != nil && record?.endAssistantTimestampMs == info.lastAssistantTimestampMs
             let turn = TurnRecord(
                 id: record?.id ?? UUID(),
-                status: record?.status ?? info.status,
+                status: recovered ? .completed : (record?.status ?? info.status),
                 startedAt: record?.startedAt,
                 endedAt: record?.endedAt ?? info.endedAt,
                 durationSeconds: record?.durationSeconds ?? info.durationSeconds,
@@ -780,6 +786,13 @@ public struct TranscriptToolSummary: Equatable {
             else {
                 startRound()
                 append(.init(id: key, kind: .assistant, text: text, turn: activeTurn))
+                activeTurnHasVisibleOutput = true
+            }
+        case .assistantAttemptFailed(let id, let failure):
+            startRound()
+            let key = "assistant-attempt-failed:\(id)"
+            if rowsByID[key] == nil {
+                append(.init(id: key, kind: .notice, text: failure.detail, turn: activeTurn))
                 activeTurnHasVisibleOutput = true
             }
         case .tool(let tool):
