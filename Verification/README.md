@@ -2,13 +2,13 @@
 
 所有验证工具均由 `Pikachu.xcodeproj` 管理，提供对应的共享 scheme，产物输出到构建目录（如 `build/Build/Products/<Debug|Release>/`），每次运行结果写入忽略目录 `.verification-runs/<工具名>/<runID>/`。
 
-要求 macOS 27+、Xcode 27 / Swift 6、Python 3，以及 Pi **1.5.2** 和 Node。所有工具都会通过依赖自动构建同目录的独立监督进程 `pikachu-supervisor`。
+要求 macOS 27+、Xcode 27 / Swift 6、Python 3，以及 Pi **1.x** 和 Node。所有工具都会通过依赖自动构建同目录的独立监督进程 `pikachu-supervisor`。
 
 ## 工具与用法
 
 ### 1. `pi-compat-probe`（Pi 协议与进程监督兼容探针）
 
-独立测试 Pi 1.5.2 RPC 协议行为、历史分支读取和 `pikachu-supervisor` 进程树监督策略。
+独立测试所选 Pi 的 RPC 协议行为、历史分支读取和 `pikachu-supervisor` 进程树监督策略。报告记录实测的 Pi 版本。
 
 ```sh
 xcodebuild -project Pikachu.xcodeproj -scheme pi-compat-probe -derivedDataPath build build
@@ -26,7 +26,7 @@ build/Build/Products/Debug/pi-compat-probe --suite agent-crash --proxy http://12
 |---|---|---|
 | `local` | 启动环境、真实 RPC、模型查询、扩展交互、直接 Bash 停止、空闲崩溃 | 无 |
 | `extended` | 构造分支/压缩历史、EOF、直接 Bash 崩溃、10 MiB 输出 | 无 |
-| `supervision` | 脱离后代、宿主 SIGKILL、实例隔离、监督失效与 SIGTERM 升级 | 无 |
+| `supervision` | 脱离后代、无标记后代的谱系保留、宿主 SIGKILL、实例隔离、监督失效与 SIGTERM 升级 | 无 |
 | `real` | 三轮真实缺陷修复、三轮 Agent 队列清空及停止 | 有 |
 | `continuation` | 补充和 follow-up 的实际交付 | 有 |
 | `agent-crash` | 三轮真实 Agent Bash 运行期间终止 Pi | 有 |
