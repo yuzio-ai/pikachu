@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import AgentRuntimeCore
 import ProcessSupervision
 
@@ -108,6 +109,7 @@ private final class PiConnection: @unchecked Sendable {
     let sink: RuntimeEventChannel
     let broker: PiInteractionBroker
     private let verificationTraceURL: URL?
+    private let turnChangesScratch: URL?
     private let lock = NSLock()
     private var closing = false
     private var disposed = false
@@ -134,6 +136,7 @@ private final class PiConnection: @unchecked Sendable {
         let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         guard version.terminationStatus == 0 && text == "1.5.2" else { throw RuntimeFailure(.unsupportedVersion, String(localized: "此构建仅验证过 Pi 1.5.2，请选择该版本。", bundle: #bundle)) }
         var arguments = ["--mode", "rpc", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes"]
+        var scratch: URL?
         if modelProbe {
             arguments += ["--no-session", "--no-tools", "--no-mcp", "--no-context-files"]
         } else {
@@ -161,7 +164,18 @@ private final class PiConnection: @unchecked Sendable {
             arguments += ["-e", policy.path]
             environment["PIKACHU_EXECUTION_MODE"] = execution.mode.rawValue
             environment["PIKACHU_TOOL_APPROVAL"] = execution.approval.rawValue
+            if let tracker = Bundle.piRuntimeAdapter.url(forResource: "turn-file-changes", withExtension: "ts") {
+                let temporaryRoot = ProcessInfo.processInfo.environment["TMPDIR"]
+                    .flatMap { $0.hasPrefix("/") ? URL(fileURLWithPath: $0, isDirectory: true) : nil } ?? fm.temporaryDirectory
+                let directory = temporaryRoot.appendingPathComponent("pikachu-turn-changes-\(instanceID)", isDirectory: true)
+                if (try? fm.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])) != nil {
+                    scratch = directory
+                    environment["PIKACHU_TURN_CHANGES_DIRECTORY"] = directory.path
+                    arguments += ["-e", tracker.path]
+                }
+            }
         }
+        turnChangesScratch = scratch
         do {
             let transport = try RPCProcess(executable: config.executable.path, arguments: arguments, cwd: config.workspace,
                                            environment: environment, supervised: true, streaming: true)
@@ -169,7 +183,10 @@ private final class PiConnection: @unchecked Sendable {
             broker = PiInteractionBroker(instanceID: instanceID, native: config.nativeDialogs,
                                          toolApprovals: !modelProbe && config.executionPolicy.approval != .never,
                                          write: { try transport.send($0) }, emit: { sink.send(.init(instanceID: instanceID, event: $0)) })
-        } catch { throw PiEventMapper.failure(String(describing: error)) }
+        } catch {
+            if let scratch { try? fm.removeItem(at: scratch) }
+            throw PiEventMapper.failure(String(describing: error))
+        }
         Thread.detachNewThread { [self] in pump() }
     }
     func emit(_ event: AgentEvent) { sink.send(.init(instanceID: instanceID, event: event)) }
@@ -188,7 +205,9 @@ private final class PiConnection: @unchecked Sendable {
             let provider = model?["provider"] as? String, modelID = model?["id"] as? String
             let configured = provider?.isEmpty == false && provider != "unknown" && modelID?.isEmpty == false && modelID != "unknown"
             return .init(id: id, model: model?["name"] as? String ?? model?["id"] as? String ?? String(localized: "未配置模型", bundle: #bundle),
-                         thinking: state["thinkingLevel"] as? String ?? "—", capabilities: [.streaming, .tools, .interruption, .queuedPrompts],
+                         thinking: state["thinkingLevel"] as? String ?? "—",
+                         capabilities: turnChangesScratch == nil ? [.streaming, .tools, .interruption, .queuedPrompts]
+                             : [.streaming, .tools, .interruption, .queuedPrompts, .turnFileChanges],
                          file: (state["sessionFile"] as? String).map { URL(fileURLWithPath: $0) }, provider: configured ? provider : nil, modelID: configured ? modelID : nil)
         } catch let failure as RuntimeFailure { verificationTrace("session-failed"); throw failure }
         catch { verificationTrace("session-failed"); throw PiEventMapper.failure(String(describing: error)) }
@@ -314,6 +333,8 @@ private final class PiConnection: @unchecked Sendable {
             try client.close()
             guard client.supervisionStatus["state"] as? String == "clean" else { throw RuntimeFailure(.supervision, String(localized: "工具进程清理未确认。", bundle: #bundle)) }
             lock.withLock { disposed = true }
+            // An active checkpoint is cleaned by the pump after its last read.
+            if let turnChangesScratch { _ = rmdir(turnChangesScratch.path) }
             emit(.disconnected(cleanupConfirmed: true))
         } catch {
             lock.withLock { closing = false }
@@ -322,11 +343,15 @@ private final class PiConnection: @unchecked Sendable {
     }
     private func pump() {
         var cursor = 0, mapper = PiEventMapper()
+        var changes = PiTurnFileChanges(scratch: turnChangesScratch)
+        defer {
+            if let turnChangesScratch { try? FileManager.default.removeItem(at: turnChangesScratch) }
+        }
         while !lock.withLock({ disposed }) {
             do { try broker.expire() } catch { emit(.failure(PiEventMapper.failure(String(describing: error)))) }
             let observation = client.observation(after: cursor); cursor = observation.nextCursor
             for record in observation.records {
-                for event in mapper.map(record) {
+                for event in changes.map(record, events: mapper.map(record)) {
                     switch event {
                     case .phase(.running): lock.withLock { runActive = true }
                     case .settled: lock.withLock { runActive = false }
@@ -344,7 +369,9 @@ private final class PiConnection: @unchecked Sendable {
                         if let text = record["text"] as? String, !text.isEmpty { emit(.suggestedDraft(PiEventMapper.clipped(text))) }
                     } else if method == "setStatus", let key = record["statusKey"] as? String, key.utf8.count <= 1_024 {
                         if key == "pikachu-policy" { lock.withLock { policyStatus = record["statusText"] as? String } }
-                        else { emit(.extensionStatus("status:" + key, (record["statusText"] as? String).map { PiEventMapper.clipped($0, limit: 2_000) })) }
+                        else if key != PiTurnFileChanges.statusKey {
+                            emit(.extensionStatus("status:" + key, (record["statusText"] as? String).map { PiEventMapper.clipped($0, limit: 2_000) }))
+                        }
                     } else if method == "setWidget", let key = record["widgetKey"] as? String, key.utf8.count <= 1_024 {
                         emit(.extensionStatus("widget:" + key, (record["widgetLines"] as? [String]).map { PiEventMapper.clipped($0.joined(separator: "\n"), limit: 4_000) }))
                     } else if method == "setTitle" {

@@ -36,10 +36,11 @@ public struct RecordedTurnRecord: Codable, Sendable, Equatable, Identifiable {
     public var endedAt: Date?
     public var durationSeconds: TimeInterval?
     public var status: TurnStatus
+    public var fileChanges: TurnFileChanges?
     public init(id: UUID = UUID(), anchorAssistantTimestampMs: Int64? = nil, endAssistantTimestampMs: Int64? = nil,
                 anchorToolCallID: String? = nil, anchorUserTimestampMs: Int64? = nil,
                 startedAt: Date? = nil, endedAt: Date? = nil,
-                durationSeconds: TimeInterval? = nil, status: TurnStatus) {
+                durationSeconds: TimeInterval? = nil, status: TurnStatus, fileChanges: TurnFileChanges? = nil) {
         self.id = id
         self.anchorAssistantTimestampMs = anchorAssistantTimestampMs
         self.endAssistantTimestampMs = endAssistantTimestampMs
@@ -49,6 +50,7 @@ public struct RecordedTurnRecord: Codable, Sendable, Equatable, Identifiable {
         self.endedAt = endedAt
         self.durationSeconds = durationSeconds
         self.status = status
+        self.fileChanges = fileChanges
     }
 }
 public struct RecordedMessageRecord: Codable, Sendable, Equatable, Identifiable {

@@ -294,6 +294,25 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
             XCTAssertEqual(tool.output.count, 65_536); XCTAssertTrue(tool.truncated)
         } else { XCTFail("Missing tool event") }
     }
+
+    func testToolOutputKeepsPiTruncationMetadataAndTerminalErrorMarker() throws {
+        var mapper = PiEventMapper()
+        let short = "retained lines"
+        let tail = short + "\n\n[Showing lines 1001-3000 of 3000. Full output: /tmp/pi-fixture.log]\n\nCommand timed out after 2 seconds"
+        let filtered = mapper.map(["type": "tool_execution_end", "toolCallId": "metadata", "toolName": "bash",
+                                   "result": ["content": short, "details": ["truncation": ["truncated": true]]]])
+        guard case .tool(let truncated) = try XCTUnwrap(filtered.first) else { return XCTFail("Missing tool event") }
+        XCTAssertTrue(truncated.truncated)
+        XCTAssertEqual(truncated.output, short)
+
+        let failed = mapper.map(["type": "tool_execution_end", "toolCallId": "timeout", "toolName": "pikachu_bash",
+                                 "isError": true, "result": ["content": tail]])
+        guard case .tool(let timedOut) = try XCTUnwrap(failed.first) else { return XCTFail("Missing tool event") }
+        XCTAssertTrue(timedOut.truncated)
+        XCTAssertEqual(timedOut.output, tail)
+        XCTAssertFalse(PiEventMapper.toolOutput(tail, details: nil, name: "bash", failed: false).truncated)
+        XCTAssertFalse(PiEventMapper.toolOutput(tail, details: nil, name: "read", failed: true).truncated)
+    }
     func testProviderErrorsDoNotExposeCredentials() {
         let error = PiEventMapper.failure("401 Authorization Bearer sk-test-secret-key")
         XCTAssertEqual(error.kind,.authentication); XCTAssertFalse(error.detail.contains("secret"))

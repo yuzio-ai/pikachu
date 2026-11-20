@@ -11,8 +11,9 @@ struct NativeTranscript: NSViewRepresentable {
     var composerClearance: CGFloat = 0
     var jump: Jump?
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
-    var copyableConversation: [TranscriptItem]? = nil
     var onPreviewImage: ((URL) -> Void)? = nil
+    var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
+    var replyFooters: [String: TranscriptReplyFooter] = [:]
     var queueFooter: TranscriptQueueFooter? = nil
     static let topClearance: CGFloat = 20
     private static let rowVerticalInset: CGFloat = 3
@@ -62,8 +63,9 @@ struct NativeTranscript: NSViewRepresentable {
     func updateNSView(_ scroll: TranscriptScroll, context: Context) {
         context.coordinator.onEditUserMessage = onEditUserMessage
         context.coordinator.onPreviewImage = onPreviewImage
+        context.coordinator.onShowToolOutput = onShowToolOutput
         context.coordinator.update(rows, follow: $follow, fontSize: typography.size,
-                                   copyableConversation: copyableConversation, queueFooter: queueFooter)
+                                   replyFooters: replyFooters, queueFooter: queueFooter)
         context.coordinator.updateViewport(composerClearance: composerClearance, jump: jump)
     }
     static func dismantleNSView(_ scroll: TranscriptScroll, coordinator: Coordinator) {
@@ -253,7 +255,9 @@ struct NativeTranscript: NSViewRepresentable {
         private var fontSize: InterfaceFontSize = .standard
         var onEditUserMessage: ((TranscriptItem) -> Void)?
         var onPreviewImage: ((URL) -> Void)?
+        var onShowToolOutput: ((ToolOutputSelection) -> Void)?
         private let toolExpansion = ToolCallExpansion()
+        private let turnChangesExpansion = TurnChangesExpansion()
         private var follow = true
         private var followBinding: Binding<Bool>?
         private var lastJump: Jump?
@@ -283,9 +287,10 @@ struct NativeTranscript: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { false }
         private func estimate(_ row: Int) -> CGFloat {
             guard rows.indices.contains(row) else { return 120 }
-            switch rows[row] {
-            case .copyConversation, .content(.turnHeader), .content(.runningTool), .content(.toolCalls): return 24
-            case .content(.item): return 120
+            switch rows[row].content {
+            case .turnHeader, .runningTool, .toolCalls: return 24
+            case .turnChanges: return 38
+            case .item: return 120
             }
         }
         func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
@@ -297,22 +302,18 @@ struct NativeTranscript: NSViewRepresentable {
                 let cell = (tableView.makeView(withIdentifier:.init("summary-cell"),owner:nil) as? SummaryCell) ?? SummaryCell()
                 cell.viewportWidth = viewportWidth
                 cell.label.font = PikachuTypography(size: fontSize).nsFont(.body)
-                switch rows[row] {
-                case .copyConversation:
-                    cell.label.stringValue = String(localized: "复制整个会话")
-                case .content(.item(let item)):
+                switch rows[row].content {
+                case .item(let item):
                     cell.label.stringValue = item.text
-                case .content(.turnHeader(let turn)):
+                case .turnHeader(let turn):
                     cell.label.stringValue = TurnHeaderSummary(turn: turn).accessibilityText
-                case .content(.runningTool(let item)):
-                    if let tool = item.toolSummary {
-                        cell.label.stringValue = tool.name + " · " + String(localized: tool.state.statusLabel)
-                    } else {
-                        cell.label.stringValue = item.text
-                    }
-                case .content(.toolCalls(let tools)):
+                case .turnChanges(let turn):
+                    cell.label.stringValue = String(localized: "本轮 \(turn.fileChanges?.files.count ?? 0) 个文件变更")
+                case .runningTool(let item):
+                    cell.label.stringValue = item.toolSummary.map { ToolCallPresentation($0).accessibilityDescription } ?? item.text
+                case .toolCalls(let tools):
                     if tools.count == 1, let tool = tools.first?.toolSummary {
-                        cell.label.stringValue = tool.name + " · " + String(localized: tool.state.statusLabel)
+                        cell.label.stringValue = ToolCallPresentation(tool).accessibilityDescription
                     } else {
                         cell.label.stringValue = ToolCallsSummary(items: tools).description
                     }
@@ -340,6 +341,8 @@ struct NativeTranscript: NSViewRepresentable {
                 toolExpansion: toolExpansion,
                 onEditUserMessage: onEditUserMessage,
                 onPreviewImage: { [weak self] in self?.onPreviewImage?($0) },
+                onShowToolOutput: { [weak self] in self?.onShowToolOutput?($0) },
+                turnChangesExpansion: turnChangesExpansion,
                 queueFooter: queueFooter?.itemID == id ? queueFooter?.text : nil
             ) { [weak self, weak cell] in
                 self?.scheduleMeasure(for: cell, expectedID: id)
@@ -444,9 +447,8 @@ struct NativeTranscript: NSViewRepresentable {
         }
 
         func update(_ content: [TranscriptDisplayRow], follow binding: Binding<Bool>, fontSize: InterfaceFontSize = .standard,
-                    copyableConversation: [TranscriptItem]? = nil, queueFooter: TranscriptQueueFooter? = nil) {
-            var values = content.map(NativeTranscriptRow.content)
-            if let copyableConversation { values.append(.copyConversation(copyableConversation)) }
+                    replyFooters: [String: TranscriptReplyFooter] = [:], queueFooter: TranscriptQueueFooter? = nil) {
+            let values = content.map { NativeTranscriptRow(content: $0, replyFooter: replyFooters[$0.id]) }
             followBinding = binding
             let shouldFollow = binding.wrappedValue && !follow
             follow = binding.wrappedValue
@@ -474,7 +476,7 @@ struct NativeTranscript: NSViewRepresentable {
                 let retained = Set(values.compactMap { row -> String? in
                     guard let old = previous[row.id] else { return nil }
                     // Keep an expanded row's last measurement until its updated view is laid out.
-                    if case .content(.toolCalls) = row, case .content(.toolCalls) = old { return row.id }
+                    if case .toolCalls = row.content, case .toolCalls = old.content { return row.id }
                     return old.hasSameItems(as: row) ? row.id : nil
                 })
                 heights = heights.filter { retained.contains($0.key) }
@@ -509,12 +511,11 @@ struct NativeTranscript: NSViewRepresentable {
             let replacement = rows[index]
             let rect = table.rect(ofRow: index)
             let offset: CGFloat
-            switch (anchor.row, replacement) {
-            case (.content(.item), .content(.item)), (.content(.turnHeader), .content(.turnHeader)),
-                 (.content(.toolCalls), .content(.toolCalls)), (.content(.runningTool), .content(.runningTool)),
-                 (.copyConversation, .copyConversation):
+            switch (anchor.row.content, replacement.content) {
+            case (.item, .item), (.turnHeader, .turnHeader), (.turnChanges, .turnChanges),
+                 (.toolCalls, .toolCalls), (.runningTool, .runningTool):
                 offset = anchor.row.id == replacement.id ? min(anchor.offset, max(0, rect.height - 1)) : 0
-            case (.content(.runningTool), .content(.toolCalls(let items))) where items.count == 1 && anchor.row.id == replacement.id:
+            case (.runningTool, .toolCalls(let items)) where items.count == 1 && anchor.row.id == replacement.id:
                 offset = min(anchor.offset, max(0, rect.height - 1))
             default:
                 // A folded group has no corresponding point inside the old tool detail.
@@ -603,30 +604,22 @@ struct NativeTranscript: NSViewRepresentable {
         required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
     }
 }
-@MainActor private enum NativeTranscriptRow {
-    case content(TranscriptDisplayRow)
-    case copyConversation([TranscriptItem])
+@MainActor private struct NativeTranscriptRow {
+    let content: TranscriptDisplayRow
+    let replyFooter: TranscriptReplyFooter?
 
-    var id: String {
-        switch self {
-        case .content(let row): row.id
-        case .copyConversation: "transcript:copy-conversation"
-        }
-    }
+    var id: String { content.id }
 
     func hasSameItems(as other: Self) -> Bool {
-        switch (self, other) {
-        case (.content(let row), .content(let otherRow)): row.hasSameItems(as: otherRow)
-        // The footer reads the same live message objects as the content rows.
-        case (.copyConversation, .copyConversation): true
-        default: false
+        guard content.hasSameItems(as: other.content) else { return false }
+        switch (replyFooter, other.replyFooter) {
+        case (nil, nil): return true
+        case (let footer?, let otherFooter?): return footer.hasSameItems(as: otherFooter)
+        default: return false
         }
     }
 
-    func contains(_ itemID: String) -> Bool {
-        if case .content(let row) = self { return row.contains(itemID) }
-        return id == itemID
-    }
+    func contains(_ itemID: String) -> Bool { content.contains(itemID) }
 }
 
 private struct TranscriptHost: View {
@@ -636,24 +629,30 @@ private struct TranscriptHost: View {
     let toolExpansion: ToolCallExpansion
     let onEditUserMessage: ((TranscriptItem) -> Void)?
     var onPreviewImage: ((URL) -> Void)? = nil
+    var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
+    var turnChangesExpansion = TurnChangesExpansion()
     var queueFooter: String? = nil
     let changed: () -> Void
     var body: some View {
         if let row {
             Group {
-                switch row {
-                case .content(.item(let item)):
+                switch row.content {
+                case .item(let item):
                     TranscriptRow(item: item, width: width, onEditUserMessage: onEditUserMessage,
-                                  onPreviewImage: onPreviewImage, queueFooter: queueFooter, contentChanged: changed)
-                case .content(.turnHeader(let turn)):
+                                  onPreviewImage: onPreviewImage, queueFooter: queueFooter, replyFooter: row.replyFooter,
+                                  contentChanged: changed)
+                case .turnHeader(let turn):
                     TurnHeaderView(turn: turn)
                         .accessibilityIdentifier(row.id)
-                case .content(.runningTool(let item)):
-                    ToolRow(item: item, expanded: toolExpansion.detailBinding(for: item, isSingle: true), contentChanged: changed)
-                case .content(.toolCalls(let tools)):
-                    ToolCallsRow(items: tools, expansion: toolExpansion, contentChanged: changed)
-                case .copyConversation(let items):
-                    CopyConversationButton(items: items)
+                case .turnChanges(let turn):
+                    if let changes = turn.fileChanges {
+                        TurnChangesRow(changes: changes, id: row.id, expansion: turnChangesExpansion, contentChanged: changed)
+                    }
+                case .runningTool(let item):
+                    ToolRow(item: item, expanded: toolExpansion.detailBinding(for: item, isSingle: true),
+                            onShowOutput: onShowToolOutput, contentChanged: changed)
+                case .toolCalls(let tools):
+                    ToolCallsRow(items: tools, expansion: toolExpansion, onShowOutput: onShowToolOutput, contentChanged: changed)
                 }
             }
             .id(row.id)

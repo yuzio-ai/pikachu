@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
 		161218A18D21C4ED432947FB /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		1CE7E1C2AA6A4BDA9F67E71E /* turn-file-changes.ts in Resources */ = {isa = PBXBuildFile; fileRef = 29CF61DC07E341C9A331DD15 /* turn-file-changes.ts */; };
 		1E5849C654BEBB376D43FC6C /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
 		2533C2E4831BEEFC3C9C5A8B /* PiRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9CE5861D22F0933D6C546820 /* PiRuntimeAdapter.framework */; };
 		2D7F31168E78909C1ECD3BEB /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
@@ -344,6 +345,7 @@
 		0DC918BA123BF83B727241DD /* Verification/Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Verification/Fixtures; sourceTree = SOURCE_ROOT; };
 		0E1F05E6B17BD3F58C55A867 /* Scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Scripts; sourceTree = SOURCE_ROOT; };
 		0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = OrchestrationCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		29CF61DC07E341C9A331DD15 /* turn-file-changes.ts */ = {isa = PBXFileReference; explicitFileType = text; name = "turn-file-changes.ts"; path = "Modules/PiRuntimeAdapter/Resources/turn-file-changes.ts"; sourceTree = SOURCE_ROOT; };
 		3CE9C2281ADACB4E4044FB30 /* pikachu-supervisor */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "pikachu-supervisor"; sourceTree = BUILT_PRODUCTS_DIR; };
 		64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProcessSupervisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		65DE53EE5A851DEFDA75DDC9 /* Verification/README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Verification/README.md; sourceTree = SOURCE_ROOT; };
@@ -653,6 +655,7 @@
 				C5D453216966ABC84DE6F9D8 /* ProcessSupervision */,
 				5B2223EACA3A195E95476530 /* CProcessInspection */,
 				693F7DD176ACB63B89AB60F6 /* execution-policy.ts */,
+				29CF61DC07E341C9A331DD15 /* turn-file-changes.ts */,
 			);
 			path = Modules;
 			sourceTree = "<group>";
@@ -1049,6 +1052,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				73237B9A33F33668279B485C /* execution-policy.ts in Resources */,
+				1CE7E1C2AA6A4BDA9F67E71E /* turn-file-changes.ts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

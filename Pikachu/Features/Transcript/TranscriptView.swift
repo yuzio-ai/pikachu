@@ -9,7 +9,6 @@ struct TranscriptView: View {
     var turnStarts: [TranscriptTurnStart] = []
     var diagnosticSession = ""
     var historyLoading = false
-    var isExecuting = false
     var queue = RuntimeQueue()
     var queueIsKnown = true
     var showsEmptyState = true
@@ -18,14 +17,17 @@ struct TranscriptView: View {
     @State private var follow = true
     @State private var jump: NativeTranscript.Jump?
     @State private var previewImage: AttachmentImagePreview.Selection?
+    @State private var toolOutput: ToolOutputSelection?
 
     var body: some View {
         Group {
             if !items.isEmpty || !turnStarts.isEmpty {
-                NativeTranscript(rows: TranscriptDisplayRow.project(items, turnStarts: turnStarts), follow: $follow,
+                let rows = TranscriptDisplayRow.project(items, turnStarts: turnStarts)
+                NativeTranscript(rows: rows, follow: $follow,
                                  composerClearance: composerClearance, jump: jump, onEditUserMessage: onEditUserMessage,
-                                 copyableConversation: copyableConversation,
                                  onPreviewImage: { previewImage = .init(file: $0) },
+                                 onShowToolOutput: { toolOutput = $0 },
+                                 replyFooters: TranscriptReplyFooter.project(rows),
                                  queueFooter: TranscriptQueueFooter.project(items, queue: queue, isKnown: queueIsKnown))
                     .overlay {
                         TranscriptMessageRail(messages: items.filter { $0.kind == .user },
@@ -37,7 +39,13 @@ struct TranscriptView: View {
                     }
                     .overlay(alignment: .bottom) {
                         if !follow {
-                            Button("回到最新", systemImage: "arrow.down") { follow = true }
+                            Button {
+                                follow = true
+                            } label: {
+                                Label { Text("回到最新") } icon: {
+                                    Image(systemName: "arrow.down").pikachuFont(.callout)
+                                }
+                            }
                                 .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                                 .pikachuFont(.caption)
                                 .padding(.bottom, composerClearance + 8)
@@ -45,7 +53,7 @@ struct TranscriptView: View {
                         }
                     }
             } else if showsEmptyState && !historyLoading {
-                FlatEmptyState("新会话", systemImage: "bolt.bubble", description: Text("在下方输入编码任务。"))
+                FlatEmptyState("新会话", systemImage: "bubble.left", description: Text("在下方输入编码任务。"))
                     .padding(.bottom, composerClearance)
             } else {
                 Spacer(minLength: 0)
@@ -55,12 +63,11 @@ struct TranscriptView: View {
         .sheet(item: $previewImage) { selection in
             AttachmentImagePreview(file: selection.file)
         }
+        .sheet(item: $toolOutput) { selection in
+            ToolOutputPanel(selection: selection)
+        }
+        .onChange(of: diagnosticSession) { _, _ in toolOutput = nil }
         .diagnosticDraw("history:\(diagnosticSession):\(historyLoading):\(items.count)")
-    }
-
-    private var copyableConversation: [TranscriptItem]? {
-        guard !historyLoading, !isExecuting, items.contains(where: CopyConversationButton.isCopyable) else { return nil }
-        return items
     }
 }
 
@@ -79,28 +86,73 @@ struct TranscriptQueueFooter: Equatable {
     }
 }
 
-struct CopyConversationButton: View {
+@MainActor struct TranscriptReplyFooter {
     let items: [TranscriptItem]
+    let endedAt: Date?
+
+    var markdown: String { items.map(\.text).joined(separator: "\n\n") }
+
+    func hasSameItems(as other: Self) -> Bool {
+        endedAt == other.endedAt && items.count == other.items.count &&
+            zip(items, other.items).allSatisfy { $0 === $1 }
+    }
+
+    static func project(_ rows: [TranscriptDisplayRow]) -> [String: Self] {
+        var replies: [ObjectIdentifier: [TranscriptItem]] = [:]
+        for row in rows {
+            guard case .item(let item) = row, item.kind == .assistant, let turn = item.turn,
+                  turn.status != .running else { continue }
+            replies[ObjectIdentifier(turn), default: []].append(item)
+        }
+        var footers: [String: Self] = [:]
+        for items in replies.values {
+            guard let last = items.last else { continue }
+            footers[last.id] = Self(items: items, endedAt: last.turn?.endedAt)
+        }
+        return footers
+    }
+}
+
+private struct AssistantReplyActions: View {
+    let reply: TranscriptReplyFooter
+    let isHovering: Bool
     @State private var copied = false
-    @State private var isHovering = false
+    @FocusState private var isFocused: Bool
+
+    private var timeDisplay: String {
+        reply.endedAt.map { TranscriptTimestampFormatter.shortTime($0) } ?? String(localized: "时间未知")
+    }
+
+    private var timeTooltip: String {
+        reply.endedAt.map { TranscriptTimestampFormatter.fullTimeWithZone($0) } ?? String(localized: "结束时间未知")
+    }
 
     var body: some View {
-        Button {
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            copied = pasteboard.setString(Self.markdown(for: items), forType: .string)
-        } label: {
-            Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .pikachuFont(.caption)
-                .opacity(isHovering ? 1 : 0)
+        HStack(spacing: 4) {
+            Button {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                copied = pasteboard.setString(reply.markdown, forType: .string)
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .pikachuFont(.caption)
+            }
+            .buttonStyle(FlatControlButtonStyle())
+            .focused($isFocused)
+            .help("复制助手回复")
+            .accessibilityLabel(copied ? "已复制" : "复制助手回复")
+            .accessibilityValue(timeTooltip)
+            .accessibilityIdentifier("copy-assistant-reply")
+
+            Text(timeDisplay)
+                .pikachuFont(.caption2)
+                .monospacedDigit()
+                .foregroundStyle(PikachuTheme.secondaryText)
+                .help(timeTooltip)
+                .accessibilityHidden(true)
         }
-        .buttonStyle(FlatControlButtonStyle())
-        .help("复制整个会话")
-        .accessibilityLabel(copied ? "已复制" : "复制整个会话")
-        .accessibilityIdentifier("copy-conversation")
+        .opacity(isHovering || isFocused || copied ? 1 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
-        .onHover { isHovering = $0 }
         .task(id: copied) {
             guard copied else { return }
             do {
@@ -108,30 +160,7 @@ struct CopyConversationButton: View {
                 copied = false
             } catch { }
         }
-        .onDisappear {
-            isHovering = false
-            copied = false
-        }
-    }
-
-    static func markdown(for items: [TranscriptItem]) -> String {
-        items.filter(isCopyable).map { item in
-            let role = item.kind == .user ? String(localized: "你") : String(localized: "助手")
-            var sections = ["## \(role)", item.kind == .user ? item.editableText : item.text]
-            if item.kind == .user, !item.editableFiles.isEmpty {
-                let names = item.editableFiles.map(\.lastPathComponent).joined(separator: ", ")
-                sections.append(String(localized: "附件：\(names)"))
-            }
-            return sections.joined(separator: "\n\n")
-        }.joined(separator: "\n\n")
-    }
-
-    static func isCopyable(_ item: TranscriptItem) -> Bool {
-        switch item.kind {
-        case .user: true
-        case .assistant: item.hasVisibleText
-        case .tool, .notice: false
-        }
+        .onDisappear { copied = false }
     }
 }
 
@@ -239,8 +268,6 @@ private struct TranscriptMarkerAnchor: PreferenceKey {
 
     init(turn: TurnRecord, relativeTo now: Date = .now, monotonicNow: ContinuousClock.Instant = .now) {
         let duration = turn.durationSeconds.map { String(localized: "执行 \(TranscriptTimestampFormatter.durationText($0))") }
-        let endShort = turn.endedAt.map { String(localized: "结束于 \(TranscriptTimestampFormatter.shortTime($0, relativeTo: now))") }
-        let endFull = turn.endedAt.map { TranscriptTimestampFormatter.fullTimeWithZone($0) }
         let separator = String(localized: "，", comment: "Separator between transcript status phrases read by VoiceOver")
 
         switch turn.status {
@@ -257,30 +284,27 @@ private struct TranscriptMarkerAnchor: PreferenceKey {
             self.tooltipText = turn.startedAt.map { String(localized: "开始于 \(TranscriptTimestampFormatter.fullTimeWithZone($0))") } ?? String(localized: "正在执行")
         case .completed:
             self.title = "⚡️Pika-CHUUU!"
-            let parts = [duration, endShort].compactMap { $0 }
-            self.displayText = parts.isEmpty ? String(localized: "时间未知") : parts.joined(separator: " · ")
-            self.tooltipText = endFull.map { String(localized: "结束于 \($0)") } ?? String(localized: "执行完成时间未知")
-            let a11yParts = [duration, endFull.map { String(localized: "结束于 \($0)") }].compactMap { $0 }
-            self.accessibilityText = String(localized: "Pika-CHUUU! 执行完成，\(a11yParts.isEmpty ? String(localized: "时间未知") : a11yParts.joined(separator: separator))")
+            self.displayText = duration ?? String(localized: "执行完成")
+            self.tooltipText = self.displayText
+            self.accessibilityText = duration.map { String(localized: "Pika-CHUUU! 执行完成，\($0)") }
+                ?? "\(self.title) \(self.displayText)"
         case .stopped:
             self.title = "Pika"
-            let parts = [String(localized: "已停止")] + [duration, endShort].compactMap { $0 }
-            self.displayText = parts.count == 1 ? String(localized: "已停止 · 时间未知") : parts.joined(separator: " · ")
-            self.tooltipText = endFull.map { String(localized: "已停止 · 结束于 \($0)") } ?? String(localized: "已停止，结束时间未知")
-            let a11yParts = [String(localized: "已停止")] + [duration, endFull.map { String(localized: "结束于 \($0)") }].compactMap { $0 }
-            self.accessibilityText = String(localized: "Pika，\(a11yParts.joined(separator: separator))")
+            let parts = [String(localized: "已停止"), duration].compactMap { $0 }
+            self.displayText = parts.joined(separator: " · ")
+            self.tooltipText = self.displayText
+            self.accessibilityText = String(localized: "Pika，\(parts.joined(separator: separator))")
         case .failed:
             self.title = "Pika"
-            let parts = [String(localized: "执行失败")] + [duration, endShort].compactMap { $0 }
-            self.displayText = parts.count == 1 ? String(localized: "执行失败 · 时间未知") : parts.joined(separator: " · ")
-            self.tooltipText = endFull.map { String(localized: "执行失败 · 结束于 \($0)") } ?? String(localized: "执行失败，结束时间未知")
-            let a11yParts = [String(localized: "执行失败")] + [duration, endFull.map { String(localized: "结束于 \($0)") }].compactMap { $0 }
-            self.accessibilityText = String(localized: "Pika，\(a11yParts.joined(separator: separator))")
+            let parts = [String(localized: "执行失败"), duration].compactMap { $0 }
+            self.displayText = parts.joined(separator: " · ")
+            self.tooltipText = self.displayText
+            self.accessibilityText = String(localized: "Pika，\(parts.joined(separator: separator))")
         case .uncertain:
             self.title = "Pika"
-            let parts = [String(localized: "待核实")] + [duration, endShort].compactMap { $0 }
-            self.displayText = parts.count == 1 ? String(localized: "待核实 · 时间未知") : parts.joined(separator: " · ")
-            self.tooltipText = endFull.map { String(localized: "执行状态待核实 · 结束于 \($0)") } ?? String(localized: "执行状态待核实，时间未知")
+            let parts = [String(localized: "待核实"), duration].compactMap { $0 }
+            self.displayText = parts.joined(separator: " · ")
+            self.tooltipText = self.displayText
             self.accessibilityText = String(localized: "Pika，\(self.displayText)")
         }
     }
@@ -304,6 +328,7 @@ struct TurnHeaderView: View {
         return HStack(spacing: 6) {
             if turn.status != .running && turn.status != .completed {
                 Image(systemName: "bolt.fill")
+                    .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.lightningYellow)
                     .accessibilityHidden(true)
             }
@@ -328,7 +353,9 @@ struct TranscriptRow: View {
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
     var onPreviewImage: ((URL) -> Void)? = nil
     var queueFooter: String? = nil
+    var replyFooter: TranscriptReplyFooter? = nil
     let contentChanged: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -342,8 +369,13 @@ struct TranscriptRow: View {
                 MarkdownContent(text: item.text, streaming: item.streaming, width: width)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
+                if let replyFooter {
+                    AssistantReplyActions(reply: replyFooter, isHovering: isHovering)
+                }
             }
         }
+        .contentShape(.rect)
+        .onHover { isHovering = $0 }
         .onChange(of: item.text) { _, _ in contentChanged() }
         .onChange(of: item.streaming) { _, _ in contentChanged() }
         .accessibilityElement(children: .contain)
@@ -362,8 +394,11 @@ private struct ExpiredInteractionRow: View {
                 .padding(.top, 8)
         } label: {
             VStack(alignment: .leading, spacing: 3) {
-                Label("请求已过期，未提交回复", systemImage: "clock.badge.exclamationmark")
-                    .pikachuFont(.callout, weight: .semibold)
+                Label {
+                    Text("请求已过期，未提交回复").pikachuFont(.callout, weight: .semibold)
+                } icon: {
+                    Image(systemName: "clock.badge.exclamationmark").pikachuFont(.caption)
+                }
                 Text(verbatim: request.title)
                     .pikachuFont(.caption)
                     .lineLimit(2)
@@ -412,36 +447,18 @@ private struct UserMessageRow: View {
     var body: some View {
         let images = item.attachedFiles.filter(ImageAttachmentThumbnail.isImage)
         let otherFiles = item.attachedFiles.filter { !ImageAttachmentThumbnail.isImage($0) }
+        let showsText = item.attachedFiles.isEmpty || !item.editableText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return VStack(alignment: .trailing, spacing: 4) {
-            VStack(alignment: .trailing, spacing: 5) {
-                if needsAttentionDelivery {
-                    DeliveryLabel(state: item.delivery)
-                        .padding(.bottom, item.delivery == .queued ? 2 : 0)
-                }
+            VStack(alignment: .trailing, spacing: 8) {
                 if !images.isEmpty {
                     imageGrid(images)
                 }
-                if !item.editableText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || item.attachedFiles.isEmpty {
-                    Text(item.attachedFiles.isEmpty ? item.text : item.editableText)
-                        .textSelection(.enabled)
-                }
-                if !otherFiles.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(otherFiles, id: \.self) { file in
-                            Label(file.lastPathComponent, systemImage: "paperclip")
-                                .pikachuFont(.caption2)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(PikachuTheme.surface, in: .capsule)
-                                .help(file.path)
-                        }
-                    }
+                if showsText || !otherFiles.isEmpty {
+                    messageBubble(showsText: showsText, files: otherFiles, hasImages: !images.isEmpty)
+                } else if needsAttentionDelivery {
+                    deliveryLabel
                 }
             }
-            .padding(.horizontal, bubbleInset)
-            .padding(.vertical, 9)
-            .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: 12))
 
             if let queueFooter {
                 Text(queueFooter)
@@ -506,29 +523,66 @@ private struct UserMessageRow: View {
         }
     }
 
-    private func imageGrid(_ images: [URL]) -> some View {
-        let spacing: CGFloat = 6
-        let available = max(1, width - 2 * bubbleInset)
-        let size = min(ImageAttachmentThumbnail.defaultSize, available)
-        let columns = min(images.count, Int((available + spacing) / (size + spacing)))
-        let gridWidth = CGFloat(columns) * (size + spacing) - spacing
-        return LazyVGrid(columns: Array(repeating: GridItem(.fixed(size), spacing: spacing), count: columns),
-                         alignment: .trailing, spacing: spacing) {
-            ForEach(images.indices, id: \.self) { index in
-                let file = images[index]
-                if let onPreviewImage {
-                    Button { onPreviewImage(file) } label: {
-                        ImageAttachmentThumbnail(file: file, size: size)
+    private var deliveryLabel: some View {
+        DeliveryLabel(state: item.delivery)
+            .padding(.bottom, item.delivery == .queued ? 2 : 0)
+    }
+
+    private func messageBubble(showsText: Bool, files: [URL], hasImages: Bool) -> some View {
+        VStack(alignment: hasImages ? .leading : .trailing, spacing: 5) {
+            if needsAttentionDelivery { deliveryLabel }
+            if showsText {
+                Text(item.attachedFiles.isEmpty ? item.text : item.editableText)
+                    .textSelection(.enabled)
+            }
+            if !files.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(files, id: \.self) { file in
+                        Label {
+                            Text(file.lastPathComponent)
+                        } icon: {
+                            Image(systemName: "paperclip").pikachuFont(.caption)
+                        }
+                            .pikachuFont(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(PikachuTheme.surface, in: .capsule)
+                            .help(file.path)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("预览 \(file.lastPathComponent)")
-                    .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
-                } else {
-                    ImageAttachmentThumbnail(file: file, size: size)
                 }
             }
         }
-        .frame(width: gridWidth)
+        .padding(.horizontal, bubbleInset)
+        .padding(.vertical, 9)
+        .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: hasImages ? 18 : 12))
+    }
+
+    private func imageGrid(_ images: [URL]) -> some View {
+        let spacing: CGFloat = 8
+        let available = max(1, width)
+        let size = min(80, available)
+        let columns = max(1, Int((available + spacing) / (size + spacing)))
+        let rowStarts = Array(stride(from: 0, to: images.count, by: columns))
+        return VStack(alignment: .trailing, spacing: spacing) {
+            ForEach(rowStarts, id: \.self) { start in
+                HStack(spacing: spacing) {
+                    ForEach(start..<min(start + columns, images.count), id: \.self) { index in
+                        let file = images[index]
+                        if let onPreviewImage {
+                            Button { onPreviewImage(file) } label: {
+                                ImageAttachmentThumbnail(file: file, size: size)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("预览 \(file.lastPathComponent)")
+                            .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
+                        } else {
+                            ImageAttachmentThumbnail(file: file, size: size)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func copyMessage() {
@@ -577,6 +631,10 @@ private struct UserMessageRow: View {
 @MainActor struct ToolCallsSummary {
     let total: Int
     let statuses: [Status]
+    let commands: Int
+    let edits: Int
+    let reads: Int
+    let searches: Int
 
     struct Status: Identifiable {
         let state: ToolState
@@ -585,7 +643,7 @@ private struct UserMessageRow: View {
         var label: LocalizedStringResource {
             switch state {
             case .running: "\(count) 项执行中"
-            case .failed: "\(count) 项失败"
+            case .failed: "失败 \(count) 项"
             case .interrupted: "\(count) 项已中断"
             case .completed: "已完成"
             }
@@ -595,9 +653,25 @@ private struct UserMessageRow: View {
     init(items: [TranscriptItem]) {
         total = items.count
         var counts: [ToolState: Int] = [:]
+        var commands = 0
+        var edits = 0
+        var reads = 0
+        var searches = 0
         for item in items {
-            if let state = item.toolSummary?.state { counts[state, default: 0] += 1 }
+            guard let summary = item.toolSummary else { continue }
+            counts[summary.state, default: 0] += 1
+            switch ToolCallKind(name: summary.name) {
+            case .command: commands += 1
+            case .edit: edits += 1
+            case .read: reads += 1
+            case .search: searches += 1
+            case .other: break
+            }
         }
+        self.commands = commands
+        self.edits = edits
+        self.reads = reads
+        self.searches = searches
         statuses = [ToolState.failed, .interrupted, .running].compactMap { state in
             counts[state].map { Status(state: state, count: $0) }
         }
@@ -605,19 +679,35 @@ private struct UserMessageRow: View {
 
     var countLabel: LocalizedStringResource { "\(total) 项工具调用" }
 
+    var composition: [LocalizedStringResource] {
+        let classified = commands + edits + reads + searches
+        guard classified > 0 else { return [] }
+        let other = total - classified
+        var parts: [LocalizedStringResource] = []
+        if edits > 0 { parts.append("\(edits) 次编辑") }
+        if commands > 0 { parts.append("\(commands) 条命令") }
+        if reads > 0 { parts.append("\(reads) 次读取") }
+        if searches > 0 { parts.append("\(searches) 次搜索") }
+        if other > 0 { parts.append("其他 \(other) 项") }
+        return parts
+    }
+
     var description: String {
-        ([String(localized: countLabel)] + statuses.map { String(localized: $0.label) }).joined(separator: " · ")
+        let parts = [countLabel] + composition + statuses.map(\.label)
+        return parts.map { String(localized: $0) }.joined(separator: String(localized: "，"))
     }
 }
 
 struct ToolCallsRow: View {
     let items: [TranscriptItem]
     let expansion: ToolCallExpansion
+    var onShowOutput: ((ToolOutputSelection) -> Void)? = nil
     let contentChanged: () -> Void
 
     var body: some View {
         if items.count == 1, let item = items.first {
-            ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: true), contentChanged: contentChanged)
+            ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: true),
+                    onShowOutput: onShowOutput, contentChanged: contentChanged)
         } else {
             let expanded = expansion.groupBinding(for: items)
             let summary = ToolCallsSummary(items: items)
@@ -626,7 +716,7 @@ struct ToolCallsRow: View {
                     VStack(spacing: 2) {
                         ForEach(items) { item in
                             ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: false),
-                                    contentChanged: contentChanged)
+                                    onShowOutput: onShowOutput, contentChanged: contentChanged)
                         }
                     }
                     .padding(.leading, 19)
@@ -639,17 +729,26 @@ struct ToolCallsRow: View {
                     }
                     .pikachuFont(.callout)
                     .foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
-                    ForEach(summary.statuses) { status in
-                        Text(status.label).pikachuFont(.caption).foregroundStyle(status.state.statusColor)
+                    .fixedSize()
+                    let parts = summary.composition
+                    if !parts.isEmpty {
+                        ViewThatFits(in: .horizontal) {
+                            Text(verbatim: "· " + parts.map { String(localized: $0) }.joined(separator: String(localized: "、")))
+                                .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                            Color.clear.frame(width: 0, height: 0)
+                        }
                     }
+                    ForEach(summary.statuses) { status in
+                        Text(status.label).pikachuFont(.caption).foregroundStyle(status.state.statusColor).fixedSize()
+                    }
+                    FlatDisclosureChevron(expanded: expanded.wrappedValue)
                 }
                 .lineLimit(1)
                 .padding(.vertical, 2)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(summary.description)
             }
-            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: .trailing))
+            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: nil))
             .accessibilityIdentifier("tool-group-\(items[0].id)")
             .onChange(of: expanded.wrappedValue) { _, _ in contentChanged() }
         }
@@ -673,40 +772,12 @@ struct DeliveryLabel: View {
         HStack(spacing: 5) {
             Text(label).pikachuFont(.caption2, weight: state == .queued ? .semibold : .regular)
             if state == .queued {
-                DeliveryLoadingDots()
+                InfinityLoadingIcon(size: 14)
                     .accessibilityHidden(true)
             }
         }
         .foregroundStyle(state == .unknown || state == .rejected ? PikachuTheme.warningText : Color.secondary)
         .accessibilityIdentifier("message-delivery-status")
-    }
-}
-
-private struct DeliveryLoadingDots: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        if reduceMotion {
-            dots(at: nil)
-        } else {
-            TimelineView(.animation(minimumInterval: 1.0 / 12)) { context in
-                dots(at: context.date.timeIntervalSinceReferenceDate)
-            }
-        }
-    }
-
-    private func dots(at time: TimeInterval?) -> some View {
-        HStack(spacing: 2) {
-            ForEach(0..<3) { index in
-                Circle().frame(width: 3, height: 3).opacity(dotOpacity(at: time, index: index))
-            }
-        }
-    }
-
-    private func dotOpacity(at time: TimeInterval?, index: Int) -> Double {
-        guard let time else { return 1 }
-        let angle = 2 * Double.pi * (time.truncatingRemainder(dividingBy: 1) - Double(index) / 3)
-        return 0.62 + 0.38 * cos(angle)
     }
 }
 
@@ -719,68 +790,12 @@ extension ToolState {
         case .interrupted: "已中断"
         }
     }
-    var statusIcon: String {
-        switch self {
-        case .running: "gearshape.2"
-        case .completed: "checkmark.circle"
-        case .failed: "exclamationmark.circle"
-        case .interrupted: "pause.circle"
-        }
-    }
     var statusColor: Color {
         switch self {
         case .running: PikachuTheme.runningText
         case .failed: PikachuTheme.errorText
         case .interrupted: PikachuTheme.warningText
         default: .secondary
-        }
-    }
-}
-
-struct ToolRow: View {
-    let item: TranscriptItem
-    @Binding var expanded: Bool
-    var contentChanged: () -> Void = {}
-
-    private func argumentPreview(_ tool: TranscriptToolSummary) -> String {
-        var preview = tool.arguments
-        if tool.name == "bash" || tool.name == "pikachu_bash",
-           let arguments = try? JSONSerialization.jsonObject(with: Data(tool.arguments.utf8)) as? [String: Any],
-           let command = arguments["command"] as? String {
-            preview = command
-        }
-        return String(preview.prefix(256)).split(whereSeparator: \.isNewline).joined(separator: " ")
-    }
-
-    var body: some View {
-        if let tool = item.toolSummary {
-            DisclosureGroup(isExpanded: $expanded) {
-                if expanded {
-                    ToolDetails(item: item, contentChanged: contentChanged)
-                }
-            } label: {
-                let summary = argumentPreview(tool)
-                HStack(spacing: 7) {
-                    ToolCallIcon(tool: tool.name)
-                    Text(tool.name).pikachuFont(.callout, weight: .medium, design: .monospaced)
-                        .lineLimit(1).layoutPriority(1)
-                    if !summary.isEmpty {
-                        Text(summary).pikachuFont(.caption, design: .monospaced)
-                            .foregroundStyle(.secondary).lineLimit(1).accessibilityHidden(true)
-                    }
-                    Spacer(minLength: 0)
-                    Label {
-                        Text(tool.state.statusLabel)
-                    } icon: {
-                        Image(systemName: tool.state.statusIcon).accessibilityHidden(true)
-                    }
-                    .pikachuFont(.caption).foregroundStyle(tool.state.statusColor).fixedSize()
-                }
-                .padding(.vertical, 2)
-            }
-            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: .trailing))
-            .accessibilityIdentifier(item.id)
-            .onChange(of: expanded) { _, _ in contentChanged() }
         }
     }
 }

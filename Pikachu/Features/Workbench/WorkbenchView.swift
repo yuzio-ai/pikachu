@@ -438,7 +438,6 @@ struct SessionDetail: View {
                         turnStarts: presentation.controller.transcriptTurnStarts,
                         diagnosticSession: presentation.id.uuidString,
                         historyLoading: presentation.loading,
-                        isExecuting: presentation.controller.phase.isActive || !presentation.controller.queue.isEmpty,
                         queue: presentation.controller.queue,
                         queueIsKnown: presentation.controller.queueIsKnown,
                         showsEmptyState: presentation.loadError == nil && presentation.executionIssue == nil,

@@ -210,7 +210,9 @@ public actor PiHistoryReader: RuntimeHistoryReader {
                         openTurnItems.append(toolItemID)
                         openTurnToolIndices.append(itemIndex)
                         // A protocol call ID can repeat in imported history. The display ID identifies the block.
-                        items.append(.init(id: toolItemID, kind: .tool, tool: .init(id: call, name: block["name"] as? String ?? "tool", arguments: PiEventMapper.json(block["arguments"]), state: .interrupted)))
+                        var tool = RuntimeTool(id: call, name: block["name"] as? String ?? "tool", state: .interrupted)
+                        PiEventMapper.setToolArguments(block["arguments"], on: &tool)
+                        items.append(.init(id: toolItemID, kind: .tool, tool: tool))
                     }
                     if let provider = message["provider"] as? String, let model = message["model"] as? String {
                         let model = RuntimeSelection(provider: provider, modelID: model, thinking: thinking)
@@ -231,9 +233,15 @@ public actor PiHistoryReader: RuntimeHistoryReader {
                     ensureOpenTurn(entryID: entryID)
                     let call = message["toolCallId"] as? String ?? id
                     if openTurnToolID == nil { openTurnToolID = call }
-                    var tool = RuntimeTool(id: call, name: message["toolName"] as? String ?? "tool", output: PiEventMapper.clipped(text), state: message["isError"] as? Bool == true ? .failed : .completed, truncated: text.count > 65_536)
-                    if let index = toolIndices[call] {
-                        tool.arguments = items[index].tool?.arguments ?? ""
+                    let index = toolIndices[call]
+                    var tool = index.flatMap { items[$0].tool } ?? RuntimeTool(id: call, name: "tool")
+                    tool.name = message["toolName"] as? String ?? tool.name
+                    let failed = message["isError"] as? Bool == true
+                    let retained = PiEventMapper.toolOutput(text, details: message["details"], name: tool.name, failed: failed)
+                    tool.state = failed ? .failed : .completed
+                    tool.output = retained.text
+                    tool.truncated = retained.truncated
+                    if let index {
                         items[index].tool = tool
                     } else {
                         items.append(.init(id: id, kind: .tool, tool: tool))

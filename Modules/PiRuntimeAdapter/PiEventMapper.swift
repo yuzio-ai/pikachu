@@ -11,9 +11,38 @@ struct PiEventMapper {
         return (raw as? [Record] ?? []).compactMap { $0["text"] as? String }.joined(separator: "\n")
     }
     static func clipped(_ text: String, limit: Int = 65_536) -> String { String(text.prefix(limit)) }
-    static func json(_ raw: Any?) -> String {
-        guard let raw, JSONSerialization.isValidJSONObject(raw), let data = try? JSONSerialization.data(withJSONObject: raw, options: [.prettyPrinted, .sortedKeys]) else { return "" }
-        return clipped(String(decoding: data, as: UTF8.self), limit: 16_384)
+    static func toolOutput(_ text: String, details: Any?, name: String, failed: Bool) -> (text: String, truncated: Bool) {
+        let retained = text.prefix(65_536)
+        let truncation = (details as? Record)?["truncation"] as? Record
+        let reported = truncation?["truncated"] as? Bool
+        let upstream = reported ?? (failed && (name == "bash" || name == "pikachu_bash") && hasBashTruncationMarker(text))
+        return (String(retained), upstream || retained.endIndex < text.endIndex)
+    }
+
+    private static func hasBashTruncationMarker(_ text: String) -> Bool {
+        // Pi puts the truncation marker before the terminal error if it throws and omits details.
+        let lines = text.suffix(4096).split(whereSeparator: \.isNewline)
+        guard lines.count >= 2, let status = lines.last,
+              status == "Command aborted" || status == "Command terminated without an exit code" ||
+              status.hasPrefix("Command timed out after ") || status.hasPrefix("Command exited with code ") else { return false }
+        let marker = lines[lines.count - 2]
+        return (marker.hasPrefix("[Showing lines ") || marker.hasPrefix("[Showing last ")) &&
+            marker.contains(". Full output: ") && marker.hasSuffix("]")
+    }
+
+    static func setToolArguments(_ raw: Any?, on tool: inout RuntimeTool) {
+        let data = raw.flatMap { value -> Data? in
+            guard JSONSerialization.isValidJSONObject(value) else { return nil }
+            return try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys])
+        }
+        let text = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
+        let preview = text.prefix(16_384)
+        tool.arguments = String(preview)
+        tool.argumentsTruncated = preview.endIndex < text.endIndex ? true : nil
+        tool.editArguments = nil
+        if tool.name == "edit" || tool.name == "pikachu_edit", let data {
+            tool.editArguments = try? RuntimeTool.EditArguments.decodeToolArguments(from: data)
+        }
     }
     static func failure(_ error: String) -> RuntimeFailure {
         let lower = error.lowercased()
@@ -66,14 +95,16 @@ struct PiEventMapper {
         case "tool_execution_start", "tool_execution_update", "tool_execution_end":
             guard let id = record["toolCallId"] as? String else { return [] }
             var tool = tools[id] ?? RuntimeTool(id: id, name: record["toolName"] as? String ?? "tool")
-            if record["args"] != nil { tool.arguments = Self.json(record["args"]) }
+            if record["args"] != nil { Self.setToolArguments(record["args"], on: &tool) }
             let end = record["type"] as? String == "tool_execution_end"
             let result = record[end ? "result" : "partialResult"] as? Record
+            let failed = end && record["isError"] as? Bool == true
             if let result {
-                let full = Self.text(result["content"])
-                tool.output = Self.clipped(full); tool.truncated = full.count > 65_536
+                let retained = Self.toolOutput(Self.text(result["content"]), details: result["details"], name: tool.name, failed: failed)
+                tool.output = retained.text
+                tool.truncated = retained.truncated
             }
-            if end { tool.state = record["isError"] as? Bool == true ? .failed : .completed }
+            if end { tool.state = failed ? .failed : .completed }
             if end { tools.removeValue(forKey: id) } else { tools[id] = tool }
             return [.tool(tool)]
         case "queue_update": return [.queue(.init(steering: record["steering"] as? [String] ?? [], followUp: record["followUp"] as? [String] ?? []))]

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum RuntimeCapability: String, Sendable, Hashable { case streaming, tools, interruption, queuedPrompts }
+public enum RuntimeCapability: String, Sendable, Hashable { case streaming, tools, interruption, queuedPrompts, turnFileChanges }
 public enum SendMode: String, Sendable, Codable, CaseIterable, Identifiable {
     case steer, followUp
     public var id: Self { self }
@@ -93,9 +93,106 @@ public enum ExecutionPhase: String, Sendable {
 }
 public enum ToolState: String, Sendable, Codable { case running, completed, failed, interrupted }
 public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
+    public struct EditArguments: Codable, Sendable, Equatable {
+        public static let maximumPreviewBytes = 65_536
+        public static let maximumPreviewLinesPerSide = 256
+
+        public let path: String
+        public let edits: [RuntimeToolApproval.Replacement]
+        public let replacementCount: Int
+        public var omittedPreviewCount: Int { replacementCount - edits.count }
+
+        private enum CodingKeys: String, CodingKey { case path, edits, replacementCount }
+
+        public static func decodeToolArguments(from data: Data) throws -> Self {
+            Self(raw: try JSONDecoder().decode(RawArguments.self, from: data))
+        }
+
+        public init(from decoder: Decoder) throws {
+            let arguments = try decoder.container(keyedBy: CodingKeys.self)
+            let recordedCount = try? arguments.decode(Int.self, forKey: .replacementCount)
+            self.init(raw: try RawArguments(from: decoder), recordedCount: recordedCount)
+        }
+
+        private init(raw: RawArguments, recordedCount: Int? = nil) {
+            path = raw.path
+            replacementCount = max(raw.replacements.count, recordedCount ?? 0)
+            edits = Self.previewableReplacements(raw.replacements)
+        }
+
+        private struct RawArguments: Decodable {
+            let path: String
+            let replacements: [RuntimeToolApproval.Replacement]
+
+            init(from decoder: Decoder) throws {
+                let arguments = try decoder.container(keyedBy: CodingKeys.self)
+                path = try arguments.decode(String.self, forKey: .path)
+                var replacements = try arguments.decodeIfPresent(EditList.self, forKey: .edits)?.replacements ?? []
+                if let legacy = try? RuntimeToolApproval.Replacement(from: decoder) {
+                    replacements.append(legacy)
+                }
+                self.replacements = replacements
+            }
+        }
+
+        private static func previewableReplacements(_ replacements: [RuntimeToolApproval.Replacement]) -> [RuntimeToolApproval.Replacement] {
+            var remainingBytes = maximumPreviewBytes
+            var remainingLines = maximumPreviewLinesPerSide * 2
+            var preview: [RuntimeToolApproval.Replacement] = []
+            for replacement in replacements {
+                if remainingLines == 0 { break }
+                let bytes = replacement.oldText.utf8.count + replacement.newText.utf8.count
+                guard bytes <= remainingBytes else { continue }
+
+                let oldLines = lineCount(in: replacement.oldText)
+                let newLines = lineCount(in: replacement.newText)
+                let lines = max(1, oldLines + newLines)
+                guard oldLines <= maximumPreviewLinesPerSide, newLines <= maximumPreviewLinesPerSide,
+                      lines <= remainingLines else { continue }
+
+                preview.append(replacement)
+                remainingBytes -= bytes
+                remainingLines -= lines
+            }
+            return preview
+        }
+
+        private static func lineCount(in text: String) -> Int {
+            var terminatedLines = 0
+            for character in text where character.isNewline {
+                terminatedLines += 1
+                if terminatedLines > maximumPreviewLinesPerSide { return terminatedLines }
+            }
+            return terminatedLines + (text.last?.isNewline == false ? 1 : 0)
+        }
+
+        private struct EditList: Decodable {
+            let replacements: [RuntimeToolApproval.Replacement]
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                if let array = try? container.decode([RuntimeToolApproval.Replacement].self) {
+                    replacements = array
+                } else if let replacement = try? container.decode(RuntimeToolApproval.Replacement.self) {
+                    replacements = [replacement]
+                } else {
+                    let input = Data(try container.decode(String.self).utf8)
+                    let decoder = JSONDecoder()
+                    if let array = try? decoder.decode([RuntimeToolApproval.Replacement].self, from: input) {
+                        replacements = array
+                    } else {
+                        replacements = [try decoder.decode(RuntimeToolApproval.Replacement.self, from: input)]
+                    }
+                }
+            }
+        }
+    }
+
     public let id: String
     public var name: String
     public var arguments: String
+    public var argumentsTruncated: Bool?
+    public var editArguments: EditArguments?
     public var output: String
     public var state: ToolState
     public var truncated: Bool
@@ -119,6 +216,7 @@ public enum AgentEvent: Sendable {
     case textDelta(UUID, Int, String)
     case assistantCompleted(UUID, String)
     case tool(RuntimeTool)
+    case turnFileChanges(TurnFileChanges)
     case queue(RuntimeQueue)
     case settled(aborted: Bool)
     case recoveredDrafts(UUID, [PendingPrompt])

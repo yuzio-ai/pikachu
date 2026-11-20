@@ -1,0 +1,407 @@
+import AppKit
+import SwiftUI
+import AgentRuntimeCore
+import OrchestrationCore
+
+struct ToolRow: View {
+    let item: TranscriptItem
+    @Binding var expanded: Bool
+    var onShowOutput: ((ToolOutputSelection) -> Void)? = nil
+    var contentChanged: () -> Void = {}
+
+    var body: some View {
+        if let tool = item.toolSummary {
+            let presentation = ToolCallPresentation(tool)
+            DisclosureGroup(isExpanded: $expanded) {
+                if expanded {
+                    TranscriptToolDetails(item: item, presentation: presentation, onShowOutput: onShowOutput,
+                                          contentChanged: contentChanged)
+                }
+            } label: {
+                ToolRowLabel(presentation: presentation, expanded: expanded)
+            }
+            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: nil))
+            .accessibilityIdentifier(item.id)
+            .onChange(of: expanded) { _, _ in contentChanged() }
+        }
+    }
+}
+
+private struct ToolRowLabel: View {
+    let presentation: ToolCallPresentation
+    let expanded: Bool
+
+    var body: some View {
+        let tool = presentation.summary
+        let object = presentation.object
+        let qualifiers = presentation.qualifiers
+        HStack(spacing: 7) {
+            ToolCallIcon(tool: tool.name)
+            if let operation = presentation.operationLabel {
+                Text(operation).pikachuFont(.callout).fixedSize()
+            } else {
+                Text(verbatim: tool.name).pikachuFont(.callout, weight: .medium, design: .monospaced)
+                    .lineLimit(1).layoutPriority(1)
+            }
+            if !object.isEmpty {
+                Text(verbatim: object)
+                    .pikachuFont(.caption, design: .monospaced)
+                    .foregroundStyle(presentation.isFileOperation ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
+                    .lineLimit(1).truncationMode(presentation.isFileOperation ? .middle : .tail)
+                    .layoutPriority(1)
+            }
+            if !qualifiers.isEmpty {
+                ViewThatFits(in: .horizontal) {
+                    Text(verbatim: qualifiers.map { String(localized: $0) }.joined(separator: " · "))
+                        .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                    Color.clear.frame(width: 0, height: 0)
+                }
+            }
+            if tool.state != .completed {
+                Text(tool.state.statusLabel).pikachuFont(.caption).foregroundStyle(tool.state.statusColor).fixedSize()
+            }
+            FlatDisclosureChevron(expanded: expanded)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityDescription)
+    }
+}
+
+private struct TranscriptToolDetails: View {
+    let item: TranscriptItem
+    let presentation: ToolCallPresentation
+    let onShowOutput: ((ToolOutputSelection) -> Void)?
+    let contentChanged: () -> Void
+    @State private var rawExpanded = false
+
+    var body: some View {
+        if let tool = item.tool {
+            let output = ToolOutputPresentation(output: tool.output, failed: tool.state == .failed)
+            VStack(alignment: .leading, spacing: 8) {
+                if tool.state == .failed {
+                    if let diagnostic = output.diagnostic {
+                        ToolMonospaceText(text: diagnostic).foregroundStyle(PikachuTheme.errorText)
+                            .accessibilityIdentifier("tool-diagnostic")
+                    } else {
+                        Text(tool.state.statusLabel).pikachuFont(.callout, weight: .semibold)
+                            .foregroundStyle(PikachuTheme.errorText)
+                    }
+                }
+
+                switch presentation.parameters {
+                case .command(let command):
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            ToolDetailLabel(title: "命令")
+                            Spacer(minLength: 0)
+                            ToolTextCopyButton(text: command, kind: .command).labelStyle(.iconOnly)
+                        }
+                        ToolMonospaceText(text: command)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                case .edit(let edit):
+                    ToolEditDetails(edit: edit, completed: tool.state == .completed).equatable()
+                case .read(let read):
+                    ToolDetailLabel(title: "文件")
+                    ToolMonospaceText(text: read.path)
+                    if !read.rangeLabels.isEmpty {
+                        Text(verbatim: read.rangeLabels.map { String(localized: $0) }.joined(separator: " · "))
+                            .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                    }
+                case .search(let search):
+                    ToolDetailLabel(title: "搜索模式")
+                    ToolMonospaceText(text: search.pattern)
+                    if let path = search.path, !path.isEmpty {
+                        ToolDetailLabel(title: "搜索范围")
+                        ToolMonospaceText(text: path)
+                    }
+                    if let glob = search.glob, !glob.isEmpty {
+                        ToolDetailLabel(title: "文件筛选")
+                        ToolMonospaceText(text: glob)
+                    }
+                    if let limit = search.limit, limit >= 0 {
+                        Text("最多 \(limit) 条匹配").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                    }
+                case .raw:
+                    EmptyView()
+                }
+
+                if tool.state == .completed {
+                    Text(tool.state.statusLabel).pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                }
+                if !tool.output.isEmpty || tool.truncated {
+                    PikachuDivider()
+                    ToolOutputSection(tool: tool, presentation: output, onShowOutput: onShowOutput)
+                } else if tool.state != .running {
+                    Text("无输出").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+                }
+
+                if !tool.arguments.isEmpty {
+                    DisclosureGroup(isExpanded: $rawExpanded) {
+                        if rawExpanded {
+                            if tool.argumentsTruncated == true {
+                                Text("原始参数过长，仅显示开头。").pikachuFont(.caption)
+                                    .foregroundStyle(PikachuTheme.warningText)
+                                    .padding(.top, 4)
+                            }
+                            ToolMonospaceText(text: tool.arguments).padding(.top, 4)
+                        }
+                    } label: {
+                        HStack(spacing: 7) {
+                            Text("原始参数")
+                            FlatDisclosureChevron(expanded: rawExpanded)
+                        }
+                    }
+                    .pikachuFont(.caption)
+                    .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: nil))
+                    .accessibilityIdentifier("tool-raw-parameters")
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .flatSurface(PikachuTheme.mutedSurface)
+            .padding(.vertical, 4)
+            .accessibilityIdentifier("tool-details-\(item.id)")
+            .onChange(of: tool) { _, _ in contentChanged() }
+            .onChange(of: rawExpanded) { _, _ in contentChanged() }
+        }
+    }
+}
+
+private struct ToolEditDetails: View, Equatable {
+    let edit: RuntimeTool.EditArguments
+    let completed: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ToolDetailLabel(title: "文件")
+            ToolMonospaceText(text: edit.path)
+            ToolDetailLabel(title: completed ? "修改前后" : "请求的修改")
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(edit.edits.enumerated()), id: \.offset) { index, replacement in
+                    if index > 0 { PikachuDivider() }
+                    if let lines = ToolEditDiff.lines(for: replacement), !lines.isEmpty {
+                        ToolDiffBlock(lines: lines)
+                    } else {
+                        Text("这处修改没有可显示的差异。").pikachuFont(.caption)
+                            .foregroundStyle(PikachuTheme.secondaryText)
+                            .padding(8)
+                    }
+                }
+                if edit.omittedPreviewCount > 0 {
+                    if !edit.edits.isEmpty { PikachuDivider() }
+                    Text("有 \(edit.omittedPreviewCount) 处修改超出差异预览上限。")
+                        .pikachuFont(.caption)
+                        .foregroundStyle(PikachuTheme.secondaryText)
+                        .padding(8)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipShape(.rect(cornerRadius: 6))
+            .flatSurface(PikachuTheme.surface, radius: 6)
+        }
+    }
+}
+
+private struct ToolDiffBlock: View {
+    let lines: [ToolEditDiff.Line]
+    @State private var viewportWidth: CGFloat = 0
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            VStack(alignment: .leading, spacing: 0) {
+                // A diff snapshot is immutable. Offsets distinguish duplicate context lines.
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    let tint = color(for: line.kind)
+                    let ending = line.ending.map { " [\($0.label)]" } ?? ""
+                    Text(verbatim: marker(for: line.kind) + " " + line.text + ending)
+                        .pikachuFont(.caption, design: .monospaced)
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 8)
+                        .frame(minWidth: viewportWidth, maxWidth: .infinity, alignment: .leading)
+                        .background {
+                            Rectangle().fill(line.kind == .context ? Color.clear : tint.opacity(0.10))
+                        }
+                }
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .textSelection(.enabled)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.width
+        } action: { _, width in
+            viewportWidth = width
+        }
+        .defaultScrollAnchor(.leading, for: .initialOffset)
+        .defaultScrollAnchor(.leading, for: .alignment)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+
+    private func color(for kind: ToolEditDiff.Line.Kind) -> Color {
+        switch kind {
+        case .context: PikachuTheme.secondaryText
+        case .removal: PikachuTheme.errorText
+        case .insertion: PikachuTheme.runningText
+        }
+    }
+
+    private func marker(for kind: ToolEditDiff.Line.Kind) -> String {
+        switch kind {
+        case .context: " "
+        case .removal: "−"
+        case .insertion: "+"
+        }
+    }
+}
+
+private struct ToolDetailLabel: View {
+    let title: LocalizedStringResource
+
+    var body: some View {
+        Text(title).pikachuFont(.caption, weight: .semibold).foregroundStyle(PikachuTheme.secondaryText)
+    }
+}
+
+private struct ToolMonospaceText: View {
+    let text: String
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Text(verbatim: text).pikachuFont(.caption, design: .monospaced)
+                .fixedSize(horizontal: true, vertical: false).textSelection(.enabled)
+        }
+        .defaultScrollAnchor(.leading)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+}
+
+private struct ToolOutputSection: View {
+    let tool: RuntimeTool
+    let presentation: ToolOutputPresentation
+    let onShowOutput: ((ToolOutputSelection) -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                ToolDetailLabel(title: "输出")
+                Spacer(minLength: 0)
+                if !tool.output.isEmpty {
+                    ToolTextCopyButton(text: tool.output, kind: .output).labelStyle(.iconOnly)
+                }
+            }
+            if !presentation.preview.isEmpty {
+                ToolMonospaceText(text: presentation.preview)
+                    .accessibilityIdentifier("tool-output-preview")
+            }
+            if tool.truncated { ToolOutputTruncationNotice() }
+            if (presentation.hasMore || tool.truncated), let onShowOutput, !tool.output.isEmpty {
+                Button {
+                    onShowOutput(.init(output: tool.output, truncated: tool.truncated))
+                } label: {
+                    HStack(spacing: 7) {
+                        Text(tool.truncated ? "已保留输出" : "完整输出")
+                        Image(systemName: "chevron.forward")
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 5)
+                }
+                .buttonStyle(FlatControlButtonStyle(inset: false))
+                .pikachuFont(.caption)
+                .accessibilityIdentifier("tool-show-output")
+            }
+        }
+    }
+}
+
+struct ToolOutputSelection: Identifiable {
+    let id = UUID()
+    let output: String
+    let truncated: Bool
+}
+
+struct ToolOutputPanel: View {
+    let selection: ToolOutputSelection
+    @Environment(\.dismiss) private var dismiss
+    @State private var wrapsLines = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text(selection.truncated ? "已保留的工具输出" : "工具输出")
+                    .pikachuFont(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: 0)
+                Button("自动换行") { wrapsLines.toggle() }
+                    .pikachuFont(.caption)
+                    .buttonStyle(FlatControlButtonStyle(isOpen: wrapsLines))
+                    .accessibilityValue(wrapsLines ? Text("已开启") : Text("已关闭"))
+                    .accessibilityAddTraits(wrapsLines ? .isSelected : [])
+                    .accessibilityIdentifier("tool-output-wrap-lines")
+                ToolTextCopyButton(text: selection.output, kind: .output).labelStyle(.iconOnly)
+                Button { dismiss() } label: {
+                    IconButtonLabel(systemName: "xmark", weight: .medium)
+                }
+                    .buttonStyle(FlatControlButtonStyle(inset: false))
+                    .keyboardShortcut(.cancelAction)
+                    .help("关闭输出")
+                    .accessibilityLabel("关闭输出")
+                    .accessibilityIdentifier("tool-close-output")
+            }
+            if selection.truncated { ToolOutputTruncationNotice() }
+            ToolOutputTextView(text: selection.output, wrapsLines: wrapsLines)
+                .clipShape(.rect(cornerRadius: 8))
+                .flatSurface(PikachuTheme.mutedSurface)
+        }
+        .padding(16)
+        .frame(minWidth: 360, idealWidth: 680, minHeight: 260, idealHeight: 440)
+        .background(PikachuTheme.surface)
+    }
+}
+
+private struct ToolOutputTruncationNotice: View {
+    var body: some View {
+        Text("输出过长，仅显示部分内容。").pikachuFont(.caption)
+            .foregroundStyle(PikachuTheme.warningText)
+            .accessibilityIdentifier("tool-output-truncated")
+    }
+}
+
+struct ToolTextCopyButton: View {
+    enum Kind {
+        case command, output
+
+        var label: LocalizedStringResource {
+            switch self {
+            case .command: "复制命令"
+            case .output: "复制输出"
+            }
+        }
+
+        var identifier: String {
+            switch self {
+            case .command: "tool-copy-command"
+            case .output: "tool-copy-output"
+            }
+        }
+    }
+
+    let text: String
+    let kind: Kind
+
+    var body: some View {
+        Button { copy(to: .general) } label: {
+            Label { Text(kind.label) } icon: { Image(systemName: "doc.on.doc") }
+                .pikachuFont(.caption)
+        }
+        .buttonStyle(FlatControlButtonStyle())
+        .help(Text(kind.label))
+        .accessibilityLabel(Text(kind.label))
+        .accessibilityIdentifier(kind.identifier)
+    }
+
+    func copy(to pasteboard: NSPasteboard) {
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+}

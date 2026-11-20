@@ -1019,7 +1019,8 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 startedAt: turn.startedAt,
                 endedAt: turn.endedAt,
                 durationSeconds: turn.durationSeconds,
-                status: turn.status
+                status: turn.status,
+                fileChanges: turn.fileChanges
             )
             var turns = self.state.sessions[i].recordedTurns ?? []
             let existing = turns.firstIndex(where: { $0.id == record.id })

@@ -30,7 +30,7 @@ public struct RuntimeUsage: Sendable, Equatable {
 }
 public enum InteractionKind: String, Sendable { case select, confirm, input, editor }
 public struct RuntimeToolApproval: Sendable, Equatable {
-    public struct Replacement: Decodable, Sendable, Equatable {
+    public struct Replacement: Codable, Sendable, Equatable {
         public let oldText: String
         public let newText: String
     }

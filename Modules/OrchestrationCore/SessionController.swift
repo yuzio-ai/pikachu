@@ -17,13 +17,14 @@ public enum DeliveryState: String, Sendable, Codable { case pending, accepted, q
     public var endAssistantTimestampMs: Int64?
     public var anchorToolCallID: String?
     public var anchorUserTimestampMs: Int64?
+    public var fileChanges: TurnFileChanges?
     @ObservationIgnored var monotonicStart: ContinuousClock.Instant?
 
     public init(id: UUID = UUID(), status: TurnStatus = .running, startedAt: Date? = nil, endedAt: Date? = nil,
                 durationSeconds: TimeInterval? = nil, anchorAssistantTimestampMs: Int64? = nil,
                 endAssistantTimestampMs: Int64? = nil, anchorToolCallID: String? = nil,
                 anchorUserTimestampMs: Int64? = nil, monotonicStart: ContinuousClock.Instant? = nil,
-                displayID: String? = nil) {
+                displayID: String? = nil, fileChanges: TurnFileChanges? = nil) {
         self.id = id
         self.displayID = displayID ?? id.uuidString
         self.status = status
@@ -34,6 +35,7 @@ public enum DeliveryState: String, Sendable, Codable { case pending, accepted, q
         self.endAssistantTimestampMs = endAssistantTimestampMs
         self.anchorToolCallID = anchorToolCallID
         self.anchorUserTimestampMs = anchorUserTimestampMs
+        self.fileChanges = fileChanges
         self.monotonicStart = monotonicStart
     }
 
@@ -49,11 +51,13 @@ public enum DeliveryState: String, Sendable, Codable { case pending, accepted, q
 public struct TranscriptToolSummary: Equatable {
     public let name: String
     public let arguments: String
+    public let editArguments: RuntimeTool.EditArguments?
     public let state: ToolState
 
     fileprivate init(tool: RuntimeTool) {
         name = tool.name
         arguments = tool.arguments
+        editArguments = tool.editArguments
         state = tool.state
     }
 }
@@ -264,7 +268,11 @@ public struct TranscriptToolSummary: Equatable {
         do {
             try await runtime.stop()
             let until = Date().addingTimeInterval(2)
-            while regularPending && Date() < until { try? await Task.sleep(for: .milliseconds(10)) }
+            let receivesFileChanges = session?.capabilities.contains(.turnFileChanges) == true
+            // Pi may acknowledge abort before its final checkpoint reaches the controller.
+            while (regularPending || (receivesFileChanges && activeTurn != nil)) && Date() < until {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
             guard !regularPending else { throw RuntimeFailure(.outcomeUnknown, String(localized: "仍有未完成的控制请求，不能确认停止。", bundle: #bundle)) }
             awaitingUserStarts.removeAll()
             phase = .idle
@@ -383,7 +391,8 @@ public struct TranscriptToolSummary: Equatable {
                 endAssistantTimestampMs: record?.endAssistantTimestampMs,
                 anchorToolCallID: record?.anchorToolCallID ?? info.firstToolCallID,
                 anchorUserTimestampMs: record?.anchorUserTimestampMs ?? info.firstUserTimestampMs,
-                displayID: info.id
+                displayID: info.id,
+                fileChanges: record?.fileChanges
             )
             for id in info.itemIDs { turnByItemID[id] = turn }
             if let userID = info.firstUserItemID ?? userByTime?.id, turnByUserID[userID] == nil {
@@ -782,6 +791,8 @@ public struct TranscriptToolSummary: Equatable {
             else { append(.init(id: key, kind: .tool, tool: tool, turn: activeTurn)) }
         case .queue(let queue):
             updateQueue(queue)
+        case .turnFileChanges(let changes):
+            activeTurn?.fileChanges = changes
         case .settled(let aborted):
             awaitingUserStarts.removeAll()
             settledCounter += 1; phaseBeforeWaiting = .idle; phase = interactions.isEmpty ? .idle : .waitingInput

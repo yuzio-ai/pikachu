@@ -970,7 +970,8 @@ final class SessionDetailUITests: XCTestCase {
         turn.endedAt = start.addingTimeInterval(3.85)
         let completed = TurnHeaderSummary(turn: turn, relativeTo: start.addingTimeInterval(61),
                                           monotonicNow: monotonicStart.advanced(by: .seconds(61)))
-        XCTAssertTrue(completed.displayText.hasPrefix(String(localized: "执行 \(TranscriptTimestampFormatter.durationText(3.85))")))
+        XCTAssertEqual(completed.displayText, String(localized: "执行 \(TranscriptTimestampFormatter.durationText(3.85))"))
+        XCTAssertEqual(completed.tooltipText, completed.displayText)
         XCTAssertEqual(completed.title, "⚡️Pika-CHUUU!")
         XCTAssertTrue(completed.accessibilityText.hasPrefix("Pika-CHUUU!"))
     }
@@ -1131,9 +1132,8 @@ final class SessionDetailUITests: XCTestCase {
 
         let summary = TurnHeaderSummary(turn: TurnRecord(status: .completed, endedAt: history.turns.first?.endedAt, durationSeconds: nil),
                                         relativeTo: try Date.ISO8601FormatStyle().parse("2026-11-18T00:02:00Z"))
-        let end = try XCTUnwrap(history.turns.first?.endedAt)
-        let endTime = TranscriptTimestampFormatter.shortTime(end, relativeTo: end)
-        XCTAssertEqual(summary.displayText, String(localized: "结束于 \(endTime)"))
+        XCTAssertEqual(summary.displayText, String(localized: "执行完成"))
+        XCTAssertEqual(summary.tooltipText, summary.displayText)
     }
 
     @MainActor private func projectedTurns(_ rows: [TranscriptDisplayRow]) -> [TurnRecord] {

@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 import AgentRuntimeCore
 @testable import PiRuntimeAdapter
 @testable import OrchestrationCore
@@ -23,6 +24,100 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(table.rows[1].cells[1].runs.first?.inlinePresentationIntent, .code)
         XCTAssertEqual(table.rows[1].cells[2].runs.first?.inlinePresentationIntent, .stronglyEmphasized)
         XCTAssertEqual(table.rows[2].cells[1].runs.first?.link?.absoluteString, "https://example.com")
+    }
+
+    @MainActor func testMarkdownTableMeasuresVisibleGlyphsAndScalesWithTypography() throws {
+        let blocks = MarkdownBlocks.parse("""
+        | | | | | |
+        | --- | --- | --- | --- | --- |
+        | iii | WWW | 界界界 | `iii` | |
+        """)
+        guard case .table(let table) = try XCTUnwrap(blocks.first).kind else {
+            return XCTFail("Expected a table")
+        }
+
+        let standard = MarkdownTableLayout.naturalWidths(of: table, typography: .init(size: .standard))
+        let large = MarkdownTableLayout.naturalWidths(of: table, typography: .init(size: .extraLarge))
+        XCTAssertGreaterThan(standard[1], standard[0])
+        XCTAssertGreaterThan(standard[2], standard[0])
+        XCTAssertGreaterThan(standard[3], standard[0])
+        XCTAssertEqual(standard[4], 0)
+        for column in 0..<4 {
+            XCTAssertGreaterThan(large[column], standard[column])
+        }
+    }
+
+    @MainActor func testMarkdownContentCacheUpdatesNestedTableWidthsForSourceAndTypography() throws {
+        let cache = MarkdownContentCache()
+        let quote = "> | H |\n> | --- |\n> | `x` |"
+        let initial = cache.layout(for: quote, typography: .init())
+        XCTAssertEqual(initial.tableWidths.count, 1)
+        XCTAssertEqual(cache.layout(for: quote, typography: .init()).tableWidths, initial.tableWidths)
+
+        let longer = quote.replacingOccurrences(of: "`x`", with: "`long_identifier`")
+        let updated = cache.layout(for: longer, typography: .init())
+        let enlarged = cache.layout(for: longer, typography: .init(size: .extraLarge))
+        let initialWidth = try XCTUnwrap(initial.tableWidths.values.first?.first)
+        let updatedWidth = try XCTUnwrap(updated.tableWidths.values.first?.first)
+        let enlargedWidth = try XCTUnwrap(enlarged.tableWidths.values.first?.first)
+        XCTAssertGreaterThan(updatedWidth, initialWidth)
+        XCTAssertGreaterThan(enlargedWidth, updatedWidth)
+    }
+
+    @MainActor func testMarkdownContentCacheKeepsTheExactSourceBytes() throws {
+        let cache = MarkdownContentCache()
+        let composed = "`\u{00E9}`"
+        let decomposed = "`e\u{0301}`"
+        XCTAssertEqual(composed, decomposed)
+        XCTAssertNotEqual(Array(composed.utf8), Array(decomposed.utf8))
+
+        _ = cache.layout(for: composed, typography: .init())
+        let updated = try XCTUnwrap(cache.layout(for: decomposed, typography: .init()).blocks.first)
+        XCTAssertEqual(Array(updated.text.utf8), Array("e\u{0301}".utf8))
+    }
+
+    func testMarkdownTableFitsShortColumnsAndScrollsOnlyBelowTheMinimum() {
+        let short = MarkdownTableLayout(naturalWidths: [22, 41, 0], bodySize: 14, availableWidth: 800)
+        XCTAssertEqual(short.columnWidths, [22, 41, 0])
+        XCTAssertFalse(short.needsHorizontalScroll)
+
+        for available: CGFloat in [237, 238] {
+            let layout = MarkdownTableLayout(naturalWidths: [16, 333, 0, 333], bodySize: 14, availableWidth: available)
+            XCTAssertEqual(layout.columnWidths, [16, 84, 0, 84])
+            XCTAssertEqual(layout.needsHorizontalScroll, available < 238)
+        }
+    }
+
+    func testMarkdownTableCapsTheInfluenceOfLongTokensAndRedistributesSurplus() {
+        let widths: [CGFloat] = [140, 9_900, 224]
+        let narrow = MarkdownTableLayout(naturalWidths: widths, bodySize: 14, availableWidth: 480)
+        let capped = MarkdownTableLayout(naturalWidths: [140, 392, 224], bodySize: 14, availableWidth: 480)
+        XCTAssertFalse(narrow.needsHorizontalScroll)
+        XCTAssertEqual(narrow.columnWidths, capped.columnWidths)
+        XCTAssertEqual(narrow.columnWidths.reduce(0, +) + 36, 480, accuracy: 0.001)
+
+        let wide = MarkdownTableLayout(naturalWidths: widths, bodySize: 14, availableWidth: 1_040)
+        for (actual, expected) in zip(wide.columnWidths, [140.0, 640.0, 224.0]) {
+            XCTAssertEqual(actual, expected, accuracy: 0.001)
+        }
+    }
+
+    @MainActor func testMarkdownTableCodeStylingPreservesTextAndLinkAttributes() throws {
+        let blocks = MarkdownBlocks.parse("""
+        | Cell |
+        | --- |
+        | `select_this` [Open link](https://example.com/table-link) **bold** |
+        """)
+        guard case .table(let table) = try XCTUnwrap(blocks.first).kind else {
+            return XCTFail("Expected a table")
+        }
+
+        let cell = table.rows[1].cells[0]
+        let styled = MarkdownTableFonts(typography: .init(), isHeader: false).stylingCode(in: cell)
+        XCTAssertEqual(String(styled.characters), "select_this Open link bold")
+        XCTAssertEqual(styled.runs.map(\.inlinePresentationIntent), cell.runs.map(\.inlinePresentationIntent))
+        XCTAssertEqual(styled.runs.compactMap(\.link), cell.runs.compactMap(\.link))
+        XCTAssertNotNil(styled.runs.first?.swiftUI.font)
     }
 
     func testMarkdownListsKeepStartingNumberNestingAndContinuation() throws {
@@ -111,6 +206,257 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(blocks[3].text, "| | |")
     }
 
+    @MainActor func testToolSummariesDecodeCommandsEditsAndFallBackToAvailableArguments() throws {
+        for name in ["bash", "pikachu_bash"] {
+            let raw = #"{"command":"git status --short\nsecond line"}"#
+            let presentation = try toolPresentation(name, arguments: raw)
+            XCTAssertEqual(presentation.object, "git status --short")
+            guard case .command(let command) = presentation.parameters else { return XCTFail("Expected command") }
+            XCTAssertEqual(command, "git status --short\nsecond line")
+        }
+
+        for name in ["edit", "pikachu_edit"] {
+            let raw = #"{"path":"Pikachu/View.swift","edits":[{"oldText":"context\nold","newText":"context\nnew"}]}"#
+            let presentation = try toolPresentation(name, arguments: raw, state: .failed)
+            XCTAssertEqual(presentation.object, "View.swift")
+            XCTAssertTrue(presentation.accessibilityDescription.contains("View.swift"))
+            XCTAssertTrue(presentation.accessibilityDescription.contains(String(localized: ToolState.failed.statusLabel)))
+            guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected edit") }
+            XCTAssertEqual(edit.path, "Pikachu/View.swift")
+            XCTAssertEqual(edit.edits.count, 1)
+            XCTAssertEqual(ToolEditDiff.lines(for: edit.edits[0]), [
+                .init(kind: .context, text: "context"),
+                .init(kind: .removal, text: "old"),
+                .init(kind: .insertion, text: "new")
+            ])
+        }
+
+        for raw in [#"{"path":"View.swift","oldText":"old","newText":"new"}"#,
+                    #"{"path":"View.swift","edits":{"oldText":"old","newText":"new"}}"#,
+                    #"{"path":"View.swift","edits":"[{\"oldText\":\"old\",\"newText\":\"new\"}]"}"#] {
+            let presentation = try toolPresentation("edit", arguments: raw)
+            guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected a compatible edit") }
+            XCTAssertEqual(edit.edits.map(\.oldText), ["old"])
+            XCTAssertEqual(edit.edits.map(\.newText), ["new"])
+        }
+
+        for (name, raw) in [("bash", ""), ("bash", #"{"command":42}"#), ("edit", "{"),
+                            ("pikachu_edit", #"{"path":"View.swift","edits":[{}]}"#),
+                            ("read", #"{"offset":30,"limit":268}"#),
+                            ("custom", #"{"command":"unrecognized"}"#)] {
+            let presentation = try toolPresentation(name, arguments: raw)
+            guard case .raw = presentation.parameters else { return XCTFail("Expected raw arguments for \(name)") }
+            XCTAssertNil(presentation.operationLabel)
+            XCTAssertEqual(presentation.object, raw)
+            XCTAssertTrue(presentation.accessibilityDescription.hasPrefix(name))
+        }
+    }
+
+    @MainActor func testReadSummariesUseFileNameAndOptionalLineRange() throws {
+        for name in ["read", "pikachu_read"] {
+            let raw = #"{"limit":268,"offset":30,"path":"Pikachu\/Features\/Workbench\/WorkbenchView.swift"}"#
+            let presentation = try toolPresentation(name, arguments: raw)
+            guard case .read(let read) = presentation.parameters else { return XCTFail("Expected a file read") }
+            XCTAssertEqual(read.path, "Pikachu/Features/Workbench/WorkbenchView.swift")
+            XCTAssertEqual(presentation.object, "WorkbenchView.swift")
+            XCTAssertEqual(read.offset, 30)
+            XCTAssertEqual(read.limit, 268)
+            XCTAssertEqual(presentation.qualifiers.count, 2)
+            XCTAssertFalse(presentation.accessibilityDescription.contains("\"path\""))
+        }
+
+        let presentation = try toolPresentation("read", arguments: #"{"offset":"unknown","path":"README.md"}"#)
+        XCTAssertEqual(presentation.object, "README.md")
+        XCTAssertTrue(presentation.qualifiers.isEmpty)
+    }
+
+    @MainActor func testMixedToolGroupCountsAliasesAndExposesOnlyExceptionalStates() {
+        let states: [(String, ToolState)] = [
+            ("pikachu_bash", .completed), ("edit", .failed), ("read", .interrupted),
+            ("pikachu_read", .completed), ("custom", .completed), ("grep", .completed), ("pikachu_grep", .completed)
+        ]
+        let group = states.map { name, state in
+            TranscriptItem(id: name, kind: .tool, tool: .init(id: name, name: name, state: state))
+        }
+        let summary = ToolCallsSummary(items: group)
+        XCTAssertEqual(summary.total, 7)
+        XCTAssertEqual(summary.commands, 1)
+        XCTAssertEqual(summary.edits, 1)
+        XCTAssertEqual(summary.reads, 2)
+        XCTAssertEqual(summary.searches, 2)
+        XCTAssertEqual(summary.composition.count, 5)
+        XCTAssertEqual(String(localized: summary.composition[3]), String(localized: "\(2) 次搜索"))
+        XCTAssertEqual(String(localized: summary.statuses[0].label), String(localized: "失败 \(1) 项"))
+        XCTAssertEqual(summary.statuses.map(\.state), [.failed, .interrupted])
+        XCTAssertTrue(ToolCallsSummary(items: [group[4]]).composition.isEmpty)
+    }
+
+    @MainActor func testGrepSummariesUseThePatternAndOptionalScope() throws {
+        for name in ["grep", "pikachu_grep"] {
+            let raw = #"{"pattern":"first|第二","path":"Pikachu\/Features","glob":"*.swift","limit":30}"#
+            let presentation = try toolPresentation(name, arguments: raw)
+            guard case .search(let search) = presentation.parameters else { return XCTFail("Expected a search") }
+            XCTAssertEqual(presentation.operationLabel.map { String(localized: $0) }, String(localized: "搜索"))
+            XCTAssertEqual(presentation.object, "first|第二")
+            XCTAssertEqual(search.path, "Pikachu/Features")
+            XCTAssertEqual(search.glob, "*.swift")
+            XCTAssertEqual(search.limit, 30)
+            XCTAssertTrue(presentation.accessibilityDescription.contains("Pikachu/Features"))
+        }
+        let presentation = try toolPresentation("grep", arguments: #"{"pattern":"test","limit":"unknown"}"#)
+        guard case .search(let search) = presentation.parameters else { return XCTFail("Expected a search") }
+        XCTAssertEqual(presentation.object, "test")
+        XCTAssertNil(search.limit)
+        XCTAssertTrue(presentation.qualifiers.isEmpty)
+    }
+
+    func testToolOutputPreviewLimitsLinesAndFindsDiagnosticsBeyondThePreview() {
+        let firstEight = (1...8).map { "  line \($0)" }.joined(separator: "\r\n")
+        let output = firstEight + "\r\nView.swift:12:4: error: build failed\r\n"
+        let presentation = ToolOutputPresentation(output: output, failed: true)
+        XCTAssertEqual(presentation.preview, firstEight)
+        XCTAssertTrue(presentation.hasMore)
+        XCTAssertEqual(presentation.diagnostic, "View.swift:12:4: error: build failed")
+        XCTAssertNil(ToolOutputPresentation(output: output, failed: false).diagnostic)
+        XCTAssertNil(ToolOutputPresentation(output: "no diagnostic", failed: true).diagnostic)
+        let timeout = "ordinary output\n\nCommand timed out after 2 seconds"
+        XCTAssertEqual(ToolOutputPresentation(output: timeout, failed: true).diagnostic, "Command timed out after 2 seconds")
+        XCTAssertEqual(ToolOutputPresentation(output: "\n\nend\n", failed: false).preview, "\n\nend\n")
+        XCTAssertFalse(ToolOutputPresentation(output: "", failed: true).hasMore)
+        XCTAssertTrue(ToolOutputPresentation(output: String(repeating: "x", count: 5_000), failed: false).hasMore)
+    }
+
+    @MainActor func testLiveAndRestoredLongEditsUseStructuredArguments() async throws {
+        let old = String(repeating: "x", count: 9_000)
+        let new = String(repeating: "y", count: 9_000)
+        let oversized = String(repeating: "z", count: 1_048_576)
+        let overLineLimit = String(repeating: "old\n", count: 257)
+        let overRemainingBudget = String(repeating: "a", count: 50_000)
+        let arguments: [String: Any] = [
+            "path": "Example.swift",
+            "replacementCount": 99,
+            "edits": [
+                ["oldText": oversized, "newText": oversized],
+                ["oldText": overLineLimit, "newText": "new"],
+                ["oldText": old, "newText": new],
+                ["oldText": overRemainingBudget, "newText": "new"],
+                ["oldText": "tail before", "newText": "tail after"]
+            ]
+        ]
+        var mapper = PiEventMapper()
+        _ = mapper.map(["type": "tool_execution_start", "toolCallId": "edit", "toolName": "pikachu_edit", "args": arguments])
+        let events = mapper.map(["type": "tool_execution_end", "toolCallId": "edit", "result": ["content": "OK"]])
+        guard case .tool(let live) = try XCTUnwrap(events.first) else { return XCTFail("Expected a tool result") }
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let argumentData = try JSONSerialization.data(withJSONObject: arguments)
+        let argumentJSON = String(decoding: argumentData, as: UTF8.self)
+        let source = """
+        {"type":"session","version":3,"id":"long-edit","cwd":"/tmp"}
+        {"type":"message","id":"answer","parentId":null,"message":{"role":"assistant","content":[{"type":"toolCall","id":"edit","name":"pikachu_edit","arguments":\(argumentJSON)}]}}
+        {"type":"message","id":"result","parentId":"answer","message":{"role":"toolResult","toolCallId":"edit","toolName":"pikachu_edit","content":"OK","isError":false}}
+
+        """
+        try source.write(to: url, atomically: true, encoding: .utf8)
+        let history = try await PiHistoryReader(roots: []).read(url)
+        let controller = SessionController()
+        controller.showHistory(history.items, turns: history.turns)
+        let restored = try XCTUnwrap(controller.transcript.last?.tool)
+
+        for tool in [live, restored] {
+            XCTAssertEqual(tool.state, .completed)
+            XCTAssertEqual(tool.arguments.count, 16_384)
+            XCTAssertEqual(tool.argumentsTruncated, true)
+            let item = TranscriptItem(id: tool.id, kind: .tool, tool: tool)
+            let presentation = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
+            guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected structured edit") }
+            XCTAssertEqual(edit.path, "Example.swift")
+            XCTAssertEqual(edit.replacementCount, 5)
+            XCTAssertEqual(edit.omittedPreviewCount, 3)
+            XCTAssertEqual(edit.edits.map(\.oldText), [old, "tail before"])
+            let replacement = try XCTUnwrap(edit.edits.first)
+            XCTAssertEqual(ToolEditDiff.lines(for: replacement), [
+                .init(kind: .removal, text: old),
+                .init(kind: .insertion, text: new)
+            ])
+        }
+    }
+
+    @MainActor func testEditPreviewKeepsPathAndCountWhenAllReplacementsAreOmitted() throws {
+        let overLineLimit = String(repeating: "old\n", count: 257)
+        let arguments = ["path": "Example.swift", "edits": [["oldText": overLineLimit, "newText": "new"]]] as [String: Any]
+        var tool = RuntimeTool(id: "edit", name: "edit", state: .completed)
+        PiEventMapper.setToolArguments(arguments, on: &tool)
+        let encoded = try JSONEncoder().encode(tool)
+        let decoded = try JSONDecoder().decode(RuntimeTool.self, from: encoded)
+        let item = TranscriptItem(id: decoded.id, kind: .tool, tool: decoded)
+        let presentation = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
+        guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected an edit without previews") }
+        XCTAssertEqual(edit.path, "Example.swift")
+        XCTAssertEqual(edit.replacementCount, 1)
+        XCTAssertEqual(edit.omittedPreviewCount, 1)
+        XCTAssertTrue(edit.edits.isEmpty)
+    }
+
+    @MainActor func testRawEditSummaryDerivesReplacementCountFromActualArguments() throws {
+        let oneReplacement = #"{"path":"Example.swift","replacementCount":99,"edits":[{"oldText":"old","newText":"new"}]}"#
+        let one = try toolPresentation("edit", arguments: oneReplacement)
+        guard case .edit(let edit) = one.parameters else { return XCTFail("Expected an edit") }
+        XCTAssertEqual(edit.replacementCount, 1)
+        XCTAssertEqual(edit.omittedPreviewCount, 0)
+
+        let metadataOnly = #"{"path":"Example.swift","replacementCount":99}"#
+        let none = try toolPresentation("edit", arguments: metadataOnly)
+        guard case .raw = none.parameters else { return XCTFail("Expected raw arguments without replacements") }
+    }
+
+    func testToolEditDiffShowsLineEndingOnlyChanges() throws {
+        func diff(_ old: String, _ new: String) throws -> [ToolEditDiff.Line] {
+            let data = try JSONSerialization.data(withJSONObject: ["oldText": old, "newText": new])
+            let edit = try JSONDecoder().decode(RuntimeToolApproval.Replacement.self, from: data)
+            return try XCTUnwrap(ToolEditDiff.lines(for: edit))
+        }
+        let lineEndings = try diff("first\r\nsecond\r\nshared\n", "first\nsecond\nshared\n")
+        XCTAssertEqual(lineEndings, [
+            .init(kind: .removal, text: "first", ending: .crlf),
+            .init(kind: .removal, text: "second", ending: .crlf),
+            .init(kind: .insertion, text: "first", ending: .lf),
+            .init(kind: .insertion, text: "second", ending: .lf),
+            .init(kind: .context, text: "shared")
+        ])
+        let trailingNewline = try diff("line", "line\n")
+        XCTAssertEqual(trailingNewline, [
+            .init(kind: .removal, text: "line", ending: ToolEditDiff.Ending.none),
+            .init(kind: .insertion, text: "line", ending: .lf)
+        ])
+    }
+
+    @MainActor private func toolPresentation(_ name: String, arguments: String, state: ToolState = .completed) throws -> ToolCallPresentation {
+        let item = TranscriptItem(id: name, kind: .tool, tool: .init(id: name, name: name, arguments: arguments, state: state))
+        return ToolCallPresentation(try XCTUnwrap(item.toolSummary))
+    }
+
+    @MainActor func testRestoredBashOutputPreservesPiTruncationBelowTheAppLimit() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let source = """
+        {"type":"session","version":3,"id":"truncated-tool","cwd":"/tmp"}
+        {"type":"message","id":"answer","parentId":null,"message":{"role":"assistant","content":[{"type":"toolCall","id":"bash-call","name":"bash","arguments":{"command":"fixture"}}]}}
+        {"type":"message","id":"result","parentId":"answer","message":{"role":"toolResult","toolCallId":"bash-call","toolName":"bash","content":"retained output","isError":false,"details":{"truncation":{"truncated":true}}}}
+
+        """
+        try source.write(to: url, atomically: true, encoding: .utf8)
+
+        let reader = PiHistoryReader(roots: [])
+        let controller = SessionController()
+        let history = try await reader.read(url)
+        controller.showHistory(history.items, turns: history.turns)
+        let tool = try XCTUnwrap(controller.transcript.last?.tool)
+        XCTAssertEqual(tool.output, "retained output")
+        XCTAssertTrue(tool.truncated)
+    }
+
     @MainActor func testDuplicateProtocolToolIDsHaveDistinctStableDisplayIDsOnRefresh() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -133,6 +479,11 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(controller.transcript.compactMap { $0.tool?.state }, [.interrupted, .completed])
         XCTAssertEqual(Set(controller.transcript.map(\.id)).count, 2)
         XCTAssertEqual(controller.transcript.last?.tool?.output, "local fixture")
+        let legacySummary = try XCTUnwrap(controller.transcript.last?.toolSummary)
+        let legacy = ToolCallPresentation(legacySummary)
+        guard case .read(let read) = legacy.parameters else { return XCTFail("Expected a restored read summary") }
+        XCTAssertEqual(read.path, "second")
+        XCTAssertEqual(legacy.object, "second")
 
         let refreshed = try await reader.read(url)
         controller.showHistory(refreshed.items, turns: refreshed.turns)
