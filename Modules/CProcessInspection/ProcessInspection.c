@@ -1,3 +1,4 @@
+#define __STDC_WANT_LIB_EXT1__ 1 // memset_s: clearing must survive optimization.
 #include "CProcessInspection.h"
 #include <libproc.h>
 #include <sys/sysctl.h>
@@ -27,28 +28,50 @@ int pk_list_pids(int *buffer, int capacity) {
     return size;
 }
 // Inspect only to match a per-instance marker. Never expose arguments or environment.
-int pk_process_has_marker(int pid, const char *token) {
+struct pk_marker_scan {
+    size_t capacity, expected_length;
+    char expected[160];
+    char bytes[];
+};
+
+pk_marker_scan *pk_marker_scan_create(const char *token) {
     int max = 0, mib[] = {CTL_KERN, KERN_ARGMAX}; size_t n = sizeof(max);
-    if (sysctl(mib, 2, &max, &n, NULL, 0) || max <= 0) return -1;
-    char *bytes = calloc(1, (size_t)max);
-    if (!bytes) return -1;
-    int args[] = {CTL_KERN, KERN_PROCARGS2, pid}; n = max;
-    if (sysctl(args, 3, bytes, &n, NULL, 0)) { free(bytes); return -1; }
-    if (n < sizeof(int)) { free(bytes); return -1; }
+    if (sysctl(mib, 2, &max, &n, NULL, 0) || max <= 0) return NULL;
+    pk_marker_scan *scan = calloc(1, sizeof(*scan) + (size_t)max);
+    if (!scan) return NULL;
+    int length = snprintf(scan->expected, sizeof(scan->expected), "PIKACHU_EXECUTION_TOKEN=%s", token);
+    if (length < 0 || (size_t)length >= sizeof(scan->expected)) { pk_marker_scan_destroy(scan); return NULL; }
+    scan->capacity = (size_t)max;
+    scan->expected_length = (size_t)length;
+    return scan;
+}
+
+void pk_marker_scan_destroy(pk_marker_scan *scan) {
+    memset_s(scan->expected, sizeof(scan->expected), 0, sizeof(scan->expected));
+    free(scan);
+}
+
+int pk_marker_scan_matches(pk_marker_scan *scan, int pid) {
+    char *bytes = scan->bytes;
+    int args[] = {CTL_KERN, KERN_PROCARGS2, pid}; size_t n = scan->capacity;
+    if (sysctl(args, 3, bytes, &n, NULL, 0) || n > scan->capacity) {
+        // A failed call may have written data without reporting a reliable size.
+        memset_s(bytes, scan->capacity, 0, scan->capacity);
+        return -1;
+    }
+    if (n < sizeof(int)) { memset_s(bytes, scan->capacity, 0, n); return -1; }
     int argc; memcpy(&argc, bytes, sizeof(int));
     char *p = bytes + sizeof(int), *end = bytes + n;
     p += strnlen(p, end-p); if (p < end) p++;
     while (p < end && !*p) p++;
     for (int i = 0; i < argc && p < end; i++) { p += strnlen(p, end-p); if (p < end) p++; }
-    char expected[160]; snprintf(expected, sizeof(expected), "PIKACHU_EXECUTION_TOKEN=%s", token);
     int found = 0;
     while (p < end && *p) {
         size_t length = strnlen(p, end-p);
-        if (length == strlen(expected) && !memcmp(p, expected, length)) { found = 1; break; }
-        p += length; if (p < end) p++;
+        if (length == (size_t)(end - p)) break; // No terminator in the returned data.
+        if (length == scan->expected_length && !memcmp(p, scan->expected, length)) { found = 1; break; }
+        p += length + 1;
     }
-    volatile unsigned char *clear = (volatile unsigned char *)bytes;
-    for (size_t i = 0; i < n; i++) clear[i] = 0;
-    free(bytes);
+    memset_s(bytes, scan->capacity, 0, n);
     return found;
 }

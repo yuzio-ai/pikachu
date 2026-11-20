@@ -50,15 +50,16 @@ var signalsSent = 0, sweepCount = 0
 @MainActor func sweep() throws -> [ProcessIdentity] {
     if environment["PIKACHU_SUPERVISION_FAIL_SCAN"] == "1" { throw ProbeError.failure("Injected enumeration failure") }
     var snapshot = try ProcessIdentity.snapshot()
+    let snapshotPIDs = Set(snapshot.map(\.pid))
     var unresolved: [ProcessIdentity] = []
-    for known in owned.values where !snapshot.contains(where: { $0.pid == known.pid }) {
+    for known in owned.values where !snapshotPIDs.contains(known.pid) {
         // Enumeration and per-PID reads are not atomic. Re-read identities rather
         // than treating a normal exit/reap between the two operations as failure.
         if let current = ProcessIdentity.read(known.pid) { snapshot.append(current) }
         else if known.pid == root.processIdentifier && !root.isRunning { continue }
         else if kill(known.pid, 0) == 0 || errno != ESRCH { unresolved.append(known) }
     }
-    for entry in ProcessIdentity.marked(snapshot, token: token) { owned[entry.pid] = entry }
+    for entry in try ProcessIdentity.marked(snapshot, token: token) { owned[entry.pid] = entry }
     // Also retain observed lineage if a child later clears its environment.
     var changed = true
     while changed {

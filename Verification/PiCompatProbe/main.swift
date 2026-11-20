@@ -312,6 +312,23 @@ if suite == "supervision" || suite == "all" {
             return ["hostSIGKILL": true, "supervision": status]
         }
     }
+    test("pi-compat/supervision/retains-lineage-after-reparenting") {
+        let cwd = work.appendingPathComponent("lineage only")
+        try fm.createDirectory(at: cwd, withIntermediateDirectories: true)
+        let p = try RPCProcess(executable: "/usr/bin/python3", arguments: ["-u", fixture], cwd: cwd, environment: env, supervised: true)
+        clients.append(p)
+        defer { try? p.close() }
+        _ = try p.ok("spawn_lineage_only")
+        let pidText = try String(contentsOf: cwd.appendingPathComponent("leaf.pid"), encoding: .utf8)
+        guard let pid = Int32(pidText), pid > 0, let leaf = ProcessIdentity.read(pid), leaf.live else {
+            throw ProbeError.failure("Lineage-only leaf did not survive reparenting")
+        }
+        defer { _ = leaf.signal(SIGKILL) } // Rescue only, after the independent assertion.
+        p.crash(); try p.close()
+        let surviving = ProcessIdentity.read(pid).map { $0.sameProcess(as: leaf) && $0.live } ?? false
+        try require(!surviving && p.supervisionStatus["state"] as? String == "clean", "Unmarked reparented leaf escaped cleanup")
+        return ["lineageOnlyLeafStopped": true, "supervision": p.supervisionStatus]
+    }
     test("pi-compat/supervision/unrelated-and-second-instance-survive") {
         let a = try fixtureRuntime("instance A"), b = try fixtureRuntime("instance B")
         let identitiesA = try fixturePIDs(a.process.currentDirectoryURL!), identitiesB = try fixturePIDs(b.process.currentDirectoryURL!)

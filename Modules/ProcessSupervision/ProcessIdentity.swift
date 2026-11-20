@@ -28,7 +28,11 @@ public struct ProcessIdentity: Hashable, Sendable {
         guard count > 0, count < pids.count else { throw ProbeError.failure("Process enumeration unavailable or overflowed") }
         return pids.prefix(Int(count)).filter { $0 > 0 }.compactMap(Self.read)
     }
-    public static func marked(_ identities: [ProcessIdentity], token: String) -> [ProcessIdentity] {
-        identities.filter { entry in token.withCString { pk_process_has_marker(entry.pid, $0) == 1 } }
+    public static func marked(_ identities: [ProcessIdentity], token: String) throws -> [ProcessIdentity] {
+        guard let scan = token.withCString({ pk_marker_scan_create($0) }) else {
+            throw ProbeError.failure("Cannot initialize process marker scan")
+        }
+        defer { pk_marker_scan_destroy(scan) }
+        return identities.filter { pk_marker_scan_matches(scan, $0.pid) == 1 }
     }
 }
