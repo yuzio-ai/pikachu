@@ -686,9 +686,7 @@ struct SessionHeader: View {
                         .pikachuFont(.headline, weight: .semibold)
                         .accessibilityAddTraits(.isHeader)
                 }
-                if status.kind == .running {
-                    statusBadge(status)
-                }
+                statusBadge(status)
             }
         }
     }
@@ -715,7 +713,7 @@ struct SessionHeader: View {
         }
         .frame(height: 24)
         .fixedSize(horizontal: true, vertical: false)
-        .layoutPriority(isRunning ? 1 : 0)
+        .layoutPriority(1)
         .help(status.description)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("runtime-status")
@@ -760,14 +758,12 @@ struct SessionHeader: View {
             HStack(spacing: 10) {
                 identitySection(status: status).frame(minWidth: 150, alignment: .leading)
                 Spacer(minLength: 6)
-                if status.kind != .running { statusBadge(status) }
                 if let project { GitSummaryBar(project: project, gitStore: gitStore).fixedSize() }
                 executionActionsSection(compact: false).fixedSize()
             }
             HStack(spacing: 8) {
                 identitySection(status: status)
                 Spacer(minLength: 4)
-                if status.kind != .running { statusBadge(status) }
                 executionActionsSection(compact: true).fixedSize()
             }
         }
