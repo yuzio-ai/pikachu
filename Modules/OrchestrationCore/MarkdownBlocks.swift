@@ -35,6 +35,10 @@ public struct MarkdownTable: Sendable {
 }
 
 public enum MarkdownBlocks {
+    public static func parse(_ text: String, workspaceDirectory: URL?) -> [MarkdownBlock] {
+        TranscriptFileLinks.enrich(parse(text), workspaceDirectory: workspaceDirectory)
+    }
+
     public static func parse(_ text: String) -> [MarkdownBlock] {
         // Source positions also make Foundation emit literal HTML blocks as runs.
         let options = AttributedString.MarkdownParsingOptions(appliesSourcePositionAttributes: true)

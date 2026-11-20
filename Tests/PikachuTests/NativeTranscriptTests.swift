@@ -796,7 +796,79 @@ import XCTest
     }
 
 
-    func testTranscriptRegroupsWhenRunningToolsFinishWithoutReplacingItems() async throws {
+    func testRunningToolHeaderRendersColoredLightning() async throws {
+        try XCTSkipIf(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        let tool = TranscriptItem(id: "command", kind: .tool, tool: .init(
+            id: "command", name: "bash", arguments: #"{"command":"sleep 3"}"#, state: .running))
+        let host = NSHostingView(rootView: TranscriptView(items: [tool])
+            .background(PikachuTheme.workspace))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.appearance = NSAppearance(named: .aqua)
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        await settleLayout(host)
+
+        let table = try XCTUnwrap(findTable(in: host))
+        func hasLightning() throws -> Bool {
+            let rect = table.convert(table.rect(ofRow: 0), to: host)
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: rect))
+            host.cacheDisplay(in: rect, to: bitmap)
+            for y in 0..<bitmap.pixelsHigh {
+                for x in 0..<bitmap.pixelsWide {
+                    guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                    let (r, g, b) = (color.redComponent, color.greenComponent, color.blueComponent)
+                    if (r - g > 0.12 && g - b > 0.12) || (b - g > 0.10 && g - r > 0.19) { return true }
+                }
+            }
+            return false
+        }
+        var visible = false
+        for _ in 0..<15 {
+            if try hasLightning() { visible = true; break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(visible, "The native transcript should paint the first arc without waiting for a later cycle")
+        tool.tool?.state = .completed
+        await settleLayout(host)
+        XCTAssertFalse(try hasLightning())
+    }
+
+    func testSingleToolKeepsItsDetailsExpandedWhenItFinishes() async throws {
+        let tool = TranscriptItem(id: "command", kind: .tool, tool: .init(
+            id: "command", name: "bash", arguments: #"{"command":"sleep 3"}"#,
+            output: "Retained command output", state: .running))
+        let host = NSHostingView(rootView: TranscriptView(items: [tool]))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        await settleLayout(host)
+
+        let table = try XCTUnwrap(findTable(in: host))
+        let collapsed = table.rect(ofRow: 0)
+        try clickToolFixture(in: table, x: 115, y: collapsed.midY)
+        await settleLayout(host)
+        XCTAssertGreaterThan(table.rect(ofRow: 0).height, collapsed.height + 25)
+
+        tool.tool?.state = .completed
+        await settleLayout(host)
+        XCTAssertEqual(table.numberOfRows, 1)
+        XCTAssertGreaterThan(table.rect(ofRow: 0).height, collapsed.height + 25)
+        try clickToolFixture(in: table, x: 115, y: table.rect(ofRow: 0).minY + collapsed.height / 2)
+        await settleLayout(host)
+        XCTAssertEqual(table.rect(ofRow: 0).height, collapsed.height, accuracy: 2)
+    }
+
+    func testTranscriptKeepsToolGroupStableWhileToolsFinish() async throws {
         let turn = TurnRecord(startedAt: .now)
         let first = TranscriptItem(id: "first", kind: .tool, tool: .init(id: "first", name: "read", state: .completed), turn: turn)
         let running = TranscriptItem(id: "running", kind: .tool, tool: .init(id: "running", name: "bash"), turn: turn)
@@ -811,7 +883,7 @@ import XCTest
         await settleLayout(host)
 
         let table = try XCTUnwrap(findTable(in: host))
-        XCTAssertEqual(table.numberOfRows, 4, "No placeholder row before the streaming reply has text")
+        XCTAssertEqual(table.numberOfRows, 2, "Turn header and tool group only, before the streaming reply has text")
         XCTAssertEqual(table.intercellSpacing.height, 4)
         // The turn header reserves space for its divider and top inset;
         // tool rows must remain compact independently of the header.
@@ -822,17 +894,17 @@ import XCTest
 
         running.tool?.output = String(repeating: "partial output ", count: 40)
         await settleLayout(host)
-        XCTAssertEqual(table.numberOfRows, 4)
+        XCTAssertEqual(table.numberOfRows, 2)
         XCTAssertNil(horizontalScroll(in: table))
 
         running.tool?.state = .completed
         await settleLayout(host)
-        XCTAssertEqual(table.numberOfRows, 3)
+        XCTAssertEqual(table.numberOfRows, 2)
         parallel.tool?.state = .interrupted
         await settleLayout(host)
         XCTAssertEqual(table.numberOfRows, 2)
         XCTAssertLessThanOrEqual(table.rect(ofRow: 1).height, 34, "Collapsed group stays compact")
-        XCTAssertNil(horizontalScroll(in: table), "The merged group's details are collapsed by default")
+        XCTAssertNil(horizontalScroll(in: table), "The group's details are collapsed by default")
 
         generating.append(index: 0, delta: "\n ")
         await settleLayout(host)
@@ -1005,7 +1077,7 @@ import XCTest
         XCTAssertEqual(table.visibleRect.minY, readingStart, accuracy: 1)
     }
 
-    func testGroupingKeepsFormerToolAtGroupHeader() async throws {
+    func testFinishingToolKeepsViewportInsideItsGroup() async throws {
         let coordinator = NativeTranscript.Coordinator()
         let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
         let table = try XCTUnwrap(scroll.documentView as? NSTableView)
@@ -1019,13 +1091,14 @@ import XCTest
         let items = [rest[0], first, running] + Array(rest.dropFirst())
         coordinator.update(TranscriptDisplayRow.project(items), follow: .constant(false))
         await settleLayout(scroll)
-        scroll.contentView.scroll(to: .init(x: 0, y: table.rect(ofRow: 2).minY + 230))
+        let readingPosition = table.rect(ofRow: 1).minY + 230
+        scroll.contentView.scroll(to: .init(x: 0, y: readingPosition))
+        XCTAssertEqual(table.visibleRect.minY, readingPosition, accuracy: 1)
 
         running.tool?.state = .completed
-        heights.grouped = true
         coordinator.update(TranscriptDisplayRow.project(items), follow: .constant(false))
         await settleLayout(scroll)
-        XCTAssertEqual(table.visibleRect.minY, table.rect(ofRow: 1).minY, accuracy: 1)
+        XCTAssertEqual(table.visibleRect.minY, readingPosition, accuracy: 1)
     }
 
     func testMessageJumpKeepsTopClearanceAndLatestClearsComposer() async throws {
@@ -1171,10 +1244,7 @@ private final class FlippedDocument: NSView {
 }
 
 private final class ToolDetailHeights: NSObject, NSTableViewDelegate {
-    var grouped = false
-
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        if !grouped && row == 2 { return 350 }
-        return 64
+        row == 1 ? 350 : 64
     }
 }

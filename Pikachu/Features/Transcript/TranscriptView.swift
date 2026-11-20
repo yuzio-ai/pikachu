@@ -9,10 +9,13 @@ struct TranscriptView: View {
     var turnStarts: [TranscriptTurnStart] = []
     var diagnosticSession = ""
     var historyLoading = false
+    var showsThinking = false
     var queue = RuntimeQueue()
     var queueIsKnown = true
     var showsEmptyState = true
     var composerClearance: CGFloat = 0
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
     @State private var follow = true
     @State private var jump: NativeTranscript.Jump?
@@ -22,9 +25,12 @@ struct TranscriptView: View {
     var body: some View {
         Group {
             if !items.isEmpty || !turnStarts.isEmpty {
-                let rows = TranscriptDisplayRow.project(items, turnStarts: turnStarts)
+                let rows = TranscriptDisplayRow.project(items, turnStarts: turnStarts, showsThinking: showsThinking)
                 NativeTranscript(rows: rows, follow: $follow,
-                                 composerClearance: composerClearance, jump: jump, onEditUserMessage: onEditUserMessage,
+                                 composerClearance: composerClearance, jump: jump,
+                                 workspaceDirectory: workspaceDirectory,
+                                 onOpenFile: onOpenFile,
+                                 onEditUserMessage: onEditUserMessage,
                                  onPreviewImage: { previewImage = .init(file: $0) },
                                  onShowToolOutput: { toolOutput = $0 },
                                  replyFooters: TranscriptReplyFooter.project(rows),
@@ -376,22 +382,24 @@ private struct TranscriptMarkerAnchor: PreferenceKey {
 @MainActor struct TurnHeaderSummary {
     let title: String
     let displayText: String
+    let elapsedText: String?
     let tooltipText: String
     let accessibilityText: String
 
     init(turn: TurnRecord, relativeTo now: Date = .now, monotonicNow: ContinuousClock.Instant = .now) {
         let duration = turn.durationSeconds.map { String(localized: "执行 \(TranscriptTimestampFormatter.durationText($0))") }
         let separator = String(localized: "，", comment: "Separator between transcript status phrases read by VoiceOver")
+        elapsedText = turn.status == .running
+            ? turn.elapsedTime(at: now, monotonicNow: monotonicNow).map { TranscriptTimestampFormatter.durationText($0) }
+            : nil
 
         switch turn.status {
         case .running:
             self.title = "⚡️Pika Pika！"
-            if let elapsed = turn.elapsedTime(at: now, monotonicNow: monotonicNow) {
-                let elapsedText = TranscriptTimestampFormatter.durationText(elapsed)
-                self.displayText = String(localized: "执行中 ... \(elapsedText)")
+            self.displayText = String(localized: "执行中")
+            if let elapsedText {
                 self.accessibilityText = String(localized: "Pika Pika，执行中，已用时 \(elapsedText)")
             } else {
-                self.displayText = String(localized: "执行中")
                 self.accessibilityText = String(localized: "Pika Pika，执行中")
             }
             self.tooltipText = turn.startedAt.map { String(localized: "开始于 \(TranscriptTimestampFormatter.fullTimeWithZone($0))") } ?? String(localized: "正在执行")
@@ -455,11 +463,19 @@ struct TurnHeaderView: View {
             }
             Text(verbatim: summary.title)
                 .pikachuFont(.caption, weight: .semibold)
-            Text(summary.displayText)
-                .pikachuFont(.caption)
-                .monospacedDigit()
-                .foregroundStyle(turn.status == .uncertain || turn.status == .failed ? PikachuTheme.warningText : Color.secondary)
-                .lineLimit(1)
+            HStack(spacing: 3) {
+                Text(verbatim: summary.displayText)
+                if turn.status == .running {
+                    TurnLoadingDots()
+                    if let elapsed = summary.elapsedText {
+                        Text(verbatim: elapsed)
+                    }
+                }
+            }
+            .pikachuFont(.caption)
+            .monospacedDigit()
+            .foregroundStyle(turn.status == .uncertain || turn.status == .failed ? PikachuTheme.warningText : Color.secondary)
+            .lineLimit(1)
             Spacer(minLength: 0)
         }
         .help(summary.tooltipText)
@@ -468,9 +484,37 @@ struct TurnHeaderView: View {
     }
 }
 
+private struct TurnLoadingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // Jannchie Icons `loading-dots`: three dots bounce in succession.
+        TimelineView(.animation(minimumInterval: 1.0 / 24, paused: reduceMotion)) { timeline in
+            let period = 1.2
+            let phase = reduceMotion ? 0.15 : timeline.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            Canvas { context, size in
+                let scale = size.width / 24
+                for index in 0..<3 {
+                    let lift = pow(max(0, sin(2 * .pi * (phase - Double(index) / 6))), 2)
+                    let x = CGFloat(6 + index * 6) * scale
+                    let y = size.height / 2 - lift * 4 * scale
+                    let radius = 1.5 * scale
+                    let dot = CGRect(x: x - radius, y: y - radius, width: 2 * radius, height: 2 * radius)
+                    context.fill(Path(ellipseIn: dot), with: .foreground)
+                }
+            }
+        }
+        .frame(width: 18, height: 12)
+        .accessibilityHidden(true)
+    }
+}
+
 struct TranscriptRow: View {
     let item: TranscriptItem
     let width: CGFloat
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
     var onPreviewImage: ((URL) -> Void)? = nil
     var queueFooter: String? = nil
@@ -485,7 +529,8 @@ struct TranscriptRow: View {
                                onPreviewImage: onPreviewImage, queueFooter: queueFooter)
                     .padding(.top, 8)
             } else {
-                MarkdownContent(text: item.text, streaming: item.streaming, width: width)
+                MarkdownContent(text: item.text, streaming: item.streaming, width: width,
+                                workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
             }
@@ -826,7 +871,20 @@ private struct UserMessageRow: View {
     }
 
     var description: String {
-        let parts = [countLabel] + composition + statuses.map(\.label)
+        var parts = [countLabel] + composition + statuses.map(\.label)
+        if let runningToolName {
+            let name = switch ToolCallKind(name: runningToolName) {
+            case .command: String(localized: "运行命令")
+            case .edit: String(localized: "编辑")
+            case .read: String(localized: "读取")
+            case .search: String(localized: "搜索")
+            case .list: String(localized: "列出目录")
+            case .find: String(localized: "查找文件")
+            case .write: String(localized: "写入文件")
+            case .other: runningToolName
+            }
+            parts.append("正在执行：\(name)")
+        }
         return parts.map { String(localized: $0) }.joined(separator: String(localized: "，"))
     }
 }
@@ -839,12 +897,13 @@ struct ToolCallsRow: View {
 
     var body: some View {
         if items.count == 1, let item = items.first {
+            // The sole tool is also the group header; keep the same disclosure at completion.
             ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: true),
-                    onShowOutput: onShowOutput, contentChanged: contentChanged)
+                    onShowOutput: onShowOutput, showsRunningEffect: true, contentChanged: contentChanged)
         } else {
             let expanded = expansion.groupBinding(for: items)
             let summary = ToolCallsSummary(items: items)
-            ToolCallDisclosure(isExpanded: expanded, isRunning: summary.runningToolName != nil && !expanded.wrappedValue) {
+            ToolCallDisclosure(isExpanded: expanded, isRunning: summary.runningToolName != nil) {
                 VStack(spacing: 2) {
                     ForEach(items) { item in
                         ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: false),
@@ -882,6 +941,40 @@ struct ToolCallsRow: View {
             .accessibilityIdentifier("tool-group-\(items[0].id)")
             .onChange(of: expanded.wrappedValue) { _, _ in contentChanged() }
         }
+    }
+}
+
+struct TranscriptThinkingRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Label { Text("思考中") } icon: {
+            // Jannchie Icons `loading-grid`: nine dots pulse along diagonals.
+            TimelineView(.animation(minimumInterval: 1.0 / 24, paused: reduceMotion)) { timeline in
+                let period = 1.4
+                let phase = reduceMotion ? 0.25 : timeline.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: period) / period
+                Canvas { context, size in
+                    let scale = size.width / 24
+                    for row in 0..<3 {
+                        for column in 0..<3 {
+                            let progress = phase - Double(row + column) / 8
+                            let pulse = 0.5 - 0.5 * cos(2 * .pi * progress)
+                            let radius = (0.5 + 1.3 * pulse) * scale
+                            let x = (6.5 + 5.5 * CGFloat(column)) * scale
+                            let y = (6.5 + 5.5 * CGFloat(row)) * scale
+                            let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+                            context.fill(Path(ellipseIn: dot), with: .foreground)
+                        }
+                    }
+                }
+            }
+            .frame(width: 18, height: 18)
+            .accessibilityHidden(true)
+        }
+        .pikachuFont(.caption)
+        .foregroundStyle(PikachuTheme.tertiaryText)
+        .accessibilityIdentifier("transcript-thinking")
     }
 }
 

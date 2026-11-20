@@ -10,6 +10,8 @@ struct NativeTranscript: NSViewRepresentable {
     @Binding var follow: Bool
     var composerClearance: CGFloat = 0
     var jump: Jump?
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
     var onPreviewImage: ((URL) -> Void)? = nil
     var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
@@ -61,10 +63,12 @@ struct NativeTranscript: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: TranscriptScroll, context: Context) {
+        context.coordinator.onOpenFile = onOpenFile
         context.coordinator.onEditUserMessage = onEditUserMessage
         context.coordinator.onPreviewImage = onPreviewImage
         context.coordinator.onShowToolOutput = onShowToolOutput
         context.coordinator.update(rows, follow: $follow, fontSize: typography.size,
+                                   workspaceDirectory: workspaceDirectory,
                                    replyFooters: replyFooters, queueFooter: queueFooter)
         context.coordinator.updateViewport(composerClearance: composerClearance, jump: jump)
     }
@@ -253,6 +257,8 @@ struct NativeTranscript: NSViewRepresentable {
         private var rows: [NativeTranscriptRow] = []
         private var queueFooter: TranscriptQueueFooter?
         private var fontSize: InterfaceFontSize = .standard
+        private var workspaceDirectory: URL?
+        var onOpenFile: ((URL) -> Void)?
         var onEditUserMessage: ((TranscriptItem) -> Void)?
         var onPreviewImage: ((URL) -> Void)?
         var onShowToolOutput: ((ToolOutputSelection) -> Void)?
@@ -290,7 +296,7 @@ struct NativeTranscript: NSViewRepresentable {
             guard rows.indices.contains(row) else { return 120 }
             switch rows[row].content {
             case .turnHeader: return ceil(PikachuTypography(size: fontSize).pointSize(for: .caption) * 1.25) + 14
-            case .runningTool, .toolCalls: return 24
+            case .toolCalls, .thinking: return 24
             case .turnChanges: return 38
             case .item: return 120
             }
@@ -311,8 +317,8 @@ struct NativeTranscript: NSViewRepresentable {
                     cell.label.stringValue = TurnHeaderSummary(turn: turn).accessibilityText
                 case .turnChanges(let turn):
                     cell.label.stringValue = String(localized: "本轮 \(turn.fileChanges?.files.count ?? 0) 个文件变更")
-                case .runningTool(let item):
-                    cell.label.stringValue = item.toolSummary.map { ToolCallPresentation($0).accessibilityDescription } ?? item.text
+                case .thinking:
+                    cell.label.stringValue = String(localized: "思考中")
                 case .toolCalls(let tools):
                     if tools.count == 1, let tool = tools.first?.toolSummary {
                         cell.label.stringValue = ToolCallPresentation(tool).accessibilityDescription
@@ -335,12 +341,16 @@ struct NativeTranscript: NSViewRepresentable {
             cell.representedIndex = row
             let width = WorkbenchReadingColumn.width(in: viewportWidth)
             cell.columnLeading.constant = WorkbenchReadingColumn.inset(in: viewportWidth)
-            let needsMeasurement = heights[id] == nil || cell.host.rootView.width != width || cell.host.rootView.row?.id != id
+            let needsMeasurement = heights[id] == nil || cell.host.rootView.width != width || cell.host.rootView.row?.id != id || cell.host.rootView.workspaceDirectory != workspaceDirectory
             cell.host.rootView = TranscriptHost(
                 row: content,
                 width: width,
                 fontSize: fontSize,
+                workspaceDirectory: workspaceDirectory,
                 toolExpansion: toolExpansion,
+                onOpenFile: { [weak self] in
+                    TranscriptFileOpener.open($0, handler: self?.onOpenFile)
+                },
                 onEditUserMessage: onEditUserMessage,
                 onPreviewImage: { [weak self] in self?.onPreviewImage?($0) },
                 onShowToolOutput: { [weak self] in self?.onShowToolOutput?($0) },
@@ -450,6 +460,7 @@ struct NativeTranscript: NSViewRepresentable {
         }
 
         func update(_ content: [TranscriptDisplayRow], follow binding: Binding<Bool>, fontSize: InterfaceFontSize = .standard,
+                    workspaceDirectory: URL? = nil,
                     replyFooters: [String: TranscriptReplyFooter] = [:], queueFooter: TranscriptQueueFooter? = nil) {
             let values = content.map { NativeTranscriptRow(content: $0, replyFooter: replyFooters[$0.id]) }
             followBinding = binding
@@ -457,9 +468,11 @@ struct NativeTranscript: NSViewRepresentable {
             follow = binding.wrappedValue
             let fontChanged = self.fontSize != fontSize
             self.fontSize = fontSize
+            let workspaceChanged = self.workspaceDirectory != workspaceDirectory
+            self.workspaceDirectory = workspaceDirectory
             let replaced = rows.count != values.count || zip(rows, values).contains { !$0.hasSameItems(as: $1) }
             let footerChanged = self.queueFooter != queueFooter
-            guard replaced || fontChanged || footerChanged else {
+            guard replaced || fontChanged || workspaceChanged || footerChanged else {
                 if shouldFollow { schedule() }
                 return
             }
@@ -516,10 +529,8 @@ struct NativeTranscript: NSViewRepresentable {
             let offset: CGFloat
             switch (anchor.row.content, replacement.content) {
             case (.item, .item), (.turnHeader, .turnHeader), (.turnChanges, .turnChanges),
-                 (.toolCalls, .toolCalls), (.runningTool, .runningTool):
+                 (.toolCalls, .toolCalls):
                 offset = anchor.row.id == replacement.id ? min(anchor.offset, max(0, rect.height - 1)) : 0
-            case (.runningTool, .toolCalls(let items)) where items.count == 1 && anchor.row.id == replacement.id:
-                offset = min(anchor.offset, max(0, rect.height - 1))
             default:
                 // A folded group has no corresponding point inside the old tool detail.
                 offset = 0
@@ -629,7 +640,9 @@ private struct TranscriptHost: View {
     let row: NativeTranscriptRow?
     let width: CGFloat
     let fontSize: InterfaceFontSize
+    var workspaceDirectory: URL? = nil
     let toolExpansion: ToolCallExpansion
+    var onOpenFile: ((URL) -> Void)? = nil
     let onEditUserMessage: ((TranscriptItem) -> Void)?
     var onPreviewImage: ((URL) -> Void)? = nil
     var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
@@ -651,12 +664,13 @@ private struct TranscriptHost: View {
                 case .turnChanges(let turn):
                     if let changes = turn.fileChanges {
                         replyRegion(row) {
-                            TurnChangesRow(changes: changes, id: row.id, expansion: turnChangesExpansion, contentChanged: changed)
+                            TurnChangesRow(changes: changes, id: row.id, expansion: turnChangesExpansion,
+                                           workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile,
+                                           contentChanged: changed)
                         }
                     }
-                case .runningTool(let item):
-                    ToolRow(item: item, expanded: toolExpansion.detailBinding(for: item, isSingle: true),
-                            onShowOutput: onShowToolOutput, contentChanged: changed)
+                case .thinking:
+                    TranscriptThinkingRow()
                 case .toolCalls(let tools):
                     ToolCallsRow(items: tools, expansion: toolExpansion, onShowOutput: onShowToolOutput, contentChanged: changed)
                 }
@@ -664,6 +678,7 @@ private struct TranscriptHost: View {
             .id(row.id)
             .pikachuTypography(fontSize)
             .disclosureGroupStyle(FlatDisclosureStyle())
+            .environment(\.openURL, TranscriptFileOpener.openAction(workspaceDirectory: workspaceDirectory, openFile: onOpenFile))
             .frame(width: width, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             .transaction { $0.animation = nil }
@@ -671,7 +686,8 @@ private struct TranscriptHost: View {
     }
 
     private func messageRow(_ item: TranscriptItem) -> some View {
-        TranscriptRow(item: item, width: width, onEditUserMessage: onEditUserMessage,
+        TranscriptRow(item: item, width: width, workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile,
+                      onEditUserMessage: onEditUserMessage,
                       onPreviewImage: onPreviewImage, queueFooter: queueFooter, contentChanged: changed)
     }
 

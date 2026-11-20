@@ -291,6 +291,54 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(ToolCallsSummary(items: [group[4]]).composition.isEmpty)
     }
 
+    func testToolGroupLightningVariesAcrossCyclesAndFadesInPlace() {
+        let cycles = (0..<24).map { ToolCallLightningPattern.arcs(seed: 42, cycle: UInt64($0)) }
+        XCTAssertEqual(cycles[0], ToolCallLightningPattern.arcs(seed: 42, cycle: 0))
+        XCTAssertEqual(cycles[0].first?.opacity(at: 0), 1, "Short calls should show a discharge immediately")
+        XCTAssertEqual(Set(cycles.map(\.count)), [2, 3, 4])
+        XCTAssertTrue(cycles.allSatisfy { Set($0.map(\.start)).count == 2 })
+        let arcs = cycles.flatMap { $0 }
+        XCTAssertTrue(arcs.contains { abs($0.angle) < 0.17 })
+        XCTAssertTrue(arcs.contains { abs($0.angle - .pi / 2) < 0.17 })
+        XCTAssertTrue(arcs.contains { abs(abs($0.angle) - .pi / 4) < 0.17 })
+        XCTAssertGreaterThan(Set(arcs.map(\.position)).count, 3)
+        for arc in arcs {
+            XCTAssertEqual(arc.opacity(at: arc.start - 0.001), 0)
+            XCTAssertEqual(arc.opacity(at: arc.start), 1)
+            XCTAssertGreaterThan(arc.opacity(at: arc.start + 0.07), arc.opacity(at: arc.start + 0.2))
+            XCTAssertEqual(arc.opacity(at: arc.start + arc.duration + 0.01), 0)
+            XCTAssertLessThan(arc.start + arc.duration, ToolCallLightningPattern.period)
+        }
+    }
+
+    @MainActor func testThinkingFollowsLatestToolGroupOnlyWhileWaitingForModelOutput() {
+        let turn = TurnRecord(startedAt: .now)
+        let item = TranscriptItem(id: "read", kind: .tool,
+                                  tool: .init(id: "read", name: "read", state: .running), turn: turn)
+        let reply = TranscriptItem(id: "reply", kind: .assistant, streaming: true, turn: turn)
+        func showsIndicator(_ items: [TranscriptItem], live: Bool = true) -> Bool {
+            TranscriptDisplayRow.project(items, showsThinking: live).contains {
+                if case .thinking = $0 { return true }
+                return false
+            }
+        }
+        XCTAssertFalse(showsIndicator([item, reply]))
+        item.tool?.state = .completed
+        guard case .thinking(let thinkingTurn) = TranscriptDisplayRow.project([item, reply], showsThinking: true).last else {
+            return XCTFail("Expected thinking just below the last tool group")
+        }
+        XCTAssertTrue(thinkingTurn === turn)
+        XCTAssertFalse(showsIndicator([item, reply], live: false))
+
+        reply.append(index: 0, delta: "Reply")
+        XCTAssertFalse(showsIndicator([item, reply]))
+        let next = TranscriptItem(id: "grep", kind: .tool,
+                                  tool: .init(id: "grep", name: "grep", state: .completed), turn: turn)
+        XCTAssertTrue(showsIndicator([item, reply, next]))
+        item.tool?.state = .running
+        XCTAssertFalse(showsIndicator([item, reply, next]), "A parallel tool in an earlier group is still running")
+    }
+
     @MainActor func testToolGroupIconFollowsLastRunningToolInTranscriptOrder() {
         func runningToolName(readState: ToolState, searchState: ToolState) -> String? {
             let states: [(String, ToolState)] = [
@@ -552,7 +600,7 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), source)
     }
 
-    @MainActor func testRunningToolsStaySeparateUntilTheyFinishAndMergeInEventOrder() {
+    @MainActor func testRunningToolsShareAStableGroupAndUpdateItsIconAsTheyFinish() {
         let user = TranscriptItem(id: "user", kind: .user, text: "Question")
         let first = tool("first", state: .completed)
         let second = tool("second", state: .completed)
@@ -564,26 +612,27 @@ final class TranscriptRenderingTests: XCTestCase {
         let next = tool("next", state: .completed)
         let items = [user, first, second, running, parallel, failed, interrupted, response, next]
 
+        parallel.tool?.name = "grep"
+        running.tool?.name = "bash"
         let before = TranscriptDisplayRow.project(items)
-        XCTAssertEqual(before.map(\.id), ["user", "first", "running", "parallel", "failed", "response", "next"])
-        guard before.count == 7,
-              case .toolCalls(let head) = before[1], case .runningTool(let active) = before[2],
-              case .runningTool(let otherActive) = before[3], case .toolCalls(let tail) = before[4] else {
-            return XCTFail("Expected separate running tools between terminal groups")
+        XCTAssertEqual(before.map(\.id), ["user", "first", "response", "next"])
+        guard before.count == 4, case .toolCalls(let active) = before[1] else {
+            return XCTFail("Expected a single group for consecutive tools")
         }
-        XCTAssertEqual(head.map(\.id), ["first", "second"])
-        XCTAssertTrue(active === running)
-        XCTAssertTrue(otherActive === parallel)
-        XCTAssertEqual(tail.map(\.id), ["failed", "interrupted"])
+        let activeSummary = ToolCallsSummary(items: active)
+        XCTAssertEqual(activeSummary.runningToolName, "grep")
+        let search = String(localized: "搜索")
+        XCTAssertTrue(activeSummary.description.contains(String(localized: "正在执行：\(search)")))
 
         parallel.tool?.state = .completed
         let during = TranscriptDisplayRow.project(items)
-        XCTAssertEqual(during.map(\.id), ["user", "first", "running", "parallel", "response", "next"])
-        guard during.count == 6, case .toolCalls(let partial) = during[3] else { return XCTFail("Expected a terminal group") }
-        XCTAssertEqual(partial.map(\.id), ["parallel", "failed", "interrupted"])
+        XCTAssertEqual(during.map(\.id), before.map(\.id))
+        guard during.count == 4, case .toolCalls(let partial) = during[1] else { return XCTFail("Expected the same group") }
         XCTAssertTrue(during[1].hasSameItems(as: before[1]))
-        XCTAssertTrue(during[2].hasSameItems(as: before[2]))
-        XCTAssertFalse(during[3].hasSameItems(as: before[3]))
+        let partialSummary = ToolCallsSummary(items: partial)
+        XCTAssertEqual(partialSummary.runningToolName, "bash")
+        let command = String(localized: "运行命令")
+        XCTAssertTrue(partialSummary.description.contains(String(localized: "正在执行：\(command)")))
 
         running.tool?.state = .completed
         let after = TranscriptDisplayRow.project(items)
@@ -591,6 +640,7 @@ final class TranscriptRenderingTests: XCTestCase {
         guard after.count == 4, case .toolCalls(let group) = after[1] else { return XCTFail("Expected a merged group") }
         XCTAssertEqual(group.map(\.id), ["first", "second", "running", "parallel", "failed", "interrupted"])
         XCTAssertTrue(after[1].contains("running"))
+        XCTAssertNil(ToolCallsSummary(items: group).runningToolName)
         XCTAssertEqual(ToolCallsSummary(items: group).statuses.map(\.state), [.failed, .interrupted])
         XCTAssertEqual(group[0].tool?.arguments, "arguments for first")
         XCTAssertEqual(group[0].tool?.output, "output from first")
@@ -1049,6 +1099,113 @@ final class TranscriptRenderingTests: XCTestCase {
             XCTAssertEqual(controller.phase, stopFailure ? .uncertain : .idle)
             _ = await controller.disconnect(force: true)
         }
+    }
+
+    func testMarkdownFileLinksEnrichWorkspacePathsInlineCodeRelativeLinksAndPreserveCodeBlocks() throws {
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-links-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace.appendingPathComponent("Pikachu/Features/Composer"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: workspace.appendingPathComponent("dir with space"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+
+        let readme = workspace.appendingPathComponent("README.md").standardizedFileURL
+        let composer = workspace.appendingPathComponent("Pikachu/Features/Composer/ComposerView.swift").standardizedFileURL
+        let spaced = workspace.appendingPathComponent("dir with space/note.txt").standardizedFileURL
+        try Data("# README\n".utf8).write(to: readme)
+        try Data("struct ComposerView {}\n".utf8).write(to: composer)
+        try Data("hello\n".utf8).write(to: spaced)
+
+        let markdown = """
+        - Pikachu/Features/Composer/ComposerView.swift: updated mapping
+        - Check `README.md` and `dir with space/note.txt:42` and 在Pikachu/Features/Composer/ComposerView.swift中
+        - See [Composer](Pikachu/Features/Composer/ComposerView.swift#L12) and missing/file.swift and v1.0
+        - Web URL https://example.com/Pikachu/Features/Composer/ComposerView.swift
+
+        | File | Notes |
+        | --- | --- |
+        | README.md | ok |
+
+        ```
+        Pikachu/Features/Composer/ComposerView.swift
+        ```
+        """
+
+        let blocks = MarkdownBlocks.parse(markdown, workspaceDirectory: workspace)
+        XCTAssertEqual(blocks.count, 3)
+
+        guard case .list(_, let items) = blocks[0].kind else {
+            return XCTFail("Expected bullet list")
+        }
+        XCTAssertEqual(items.count, 4)
+
+        let firstRuns = items[0].blocks[0].content.runs.filter { $0.link != nil }
+        XCTAssertEqual(firstRuns.map { String(items[0].blocks[0].content[$0.range].characters) },
+                       ["Pikachu/Features/Composer/ComposerView.swift"])
+        XCTAssertEqual(firstRuns.first?.link?.path, composer.path)
+
+        let secondContent = items[1].blocks[0].content
+        let secondLinks = secondContent.runs.compactMap { run -> (String, URL)? in
+            guard let link = run.link else { return nil }
+            return (String(secondContent[run.range].characters), link)
+        }
+        XCTAssertEqual(secondLinks.map(\.0), [
+            "README.md",
+            "dir with space/note.txt:42",
+            "Pikachu/Features/Composer/ComposerView.swift"
+        ])
+        XCTAssertEqual(secondLinks[0].1.path, readme.path)
+        XCTAssertEqual(secondLinks[1].1.path, spaced.path)
+        XCTAssertEqual(secondLinks[1].1.fragment, "L42")
+        XCTAssertEqual(secondLinks[2].1.path, composer.path)
+
+        let thirdContent = items[2].blocks[0].content
+        let thirdLinks = thirdContent.runs.compactMap { run -> (String, URL)? in
+            guard let link = run.link else { return nil }
+            return (String(thirdContent[run.range].characters), link)
+        }
+        XCTAssertEqual(thirdLinks.map(\.0), ["Composer"])
+        XCTAssertEqual(thirdLinks[0].1.path, composer.path)
+        XCTAssertEqual(thirdLinks[0].1.fragment, "L12")
+
+        let fourthLinks = items[3].blocks[0].content.runs.compactMap(\.link)
+        XCTAssertEqual(fourthLinks.map(\.scheme), ["https"])
+
+        guard case .table(let table) = blocks[1].kind else {
+            return XCTFail("Expected table")
+        }
+        let tableLink = table.rows[1].cells[0].runs.compactMap(\.link).first
+        XCTAssertEqual(tableLink?.path, readme.path)
+
+        guard case .code = blocks[2].kind else {
+            return XCTFail("Expected fenced code block")
+        }
+    }
+
+    @MainActor func testTranscriptFileLinksOpenableURLAndCacheInvalidation() throws {
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace.appendingPathComponent("Pikachu"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+
+        let target = workspace.appendingPathComponent("Pikachu/App.swift").standardizedFileURL
+        try Data("struct App {}\n".utf8).write(to: target)
+
+        let withFragment = URL(string: target.absoluteString + "#L10-L20")!
+        XCTAssertEqual(TranscriptFileLinks.openableFileURL(for: withFragment, workspaceDirectory: workspace), target)
+
+        let relative = URL(string: "Pikachu/App.swift#L8")!
+        XCTAssertEqual(TranscriptFileLinks.openableFileURL(for: relative, workspaceDirectory: workspace), target)
+
+        let web = URL(string: "https://example.com/Pikachu/App.swift")!
+        XCTAssertNil(TranscriptFileLinks.openableFileURL(for: web, workspaceDirectory: workspace))
+
+        let missing = workspace.appendingPathComponent("Pikachu/Missing.swift")
+        XCTAssertNil(TranscriptFileLinks.openableFileURL(for: missing, workspaceDirectory: workspace))
+
+        let cache = MarkdownContentCache()
+        let withoutWorkspace = cache.layout(for: "See Pikachu/App.swift", typography: .init(), workspaceDirectory: nil)
+        XCTAssertTrue(withoutWorkspace.blocks[0].content.runs.compactMap(\.link).isEmpty)
+
+        let withWorkspace = cache.layout(for: "See Pikachu/App.swift", typography: .init(), workspaceDirectory: workspace)
+        XCTAssertEqual(withWorkspace.blocks[0].content.runs.compactMap(\.link).map(\.path), [target.path])
     }
 
     @MainActor private func tool(_ id: String, state: ToolState) -> TranscriptItem {

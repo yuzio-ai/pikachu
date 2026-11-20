@@ -170,4 +170,41 @@ final class TurnFileChangesTests: XCTestCase {
         // NSTableView's row rectangle already includes its intercell spacing.
         XCTAssertEqual(table.rect(ofRow: 2).minY, table.rect(ofRow: 1).maxY, accuracy: 1)
     }
+
+    @MainActor func testTurnChangedFilesResolveExistingFilesForClickToOpen() throws {
+        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-turn-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace.appendingPathComponent("src"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+
+        let existing = workspace.appendingPathComponent("src/a.txt").standardizedFileURL
+        let deleted = workspace.appendingPathComponent("src/deleted.txt").standardizedFileURL
+        try Data("hello\n".utf8).write(to: existing)
+        try Data("stale\n".utf8).write(to: deleted)
+
+        let modifiedFile = TurnFileChanges.File(path: "src/a.txt", kind: .modified, added: 1, deleted: 0)
+        let deletedFile = TurnFileChanges.File(path: "src/deleted.txt", kind: .deleted, added: 0, deleted: 3)
+        let missingFile = TurnFileChanges.File(path: "src/missing.txt", kind: .added, added: 2, deleted: 0)
+
+        XCTAssertEqual(TurnChangesRow.openableURL(for: modifiedFile, workspaceDirectory: workspace), existing)
+        XCTAssertNil(TurnChangesRow.openableURL(for: deletedFile, workspaceDirectory: workspace))
+        XCTAssertNil(TurnChangesRow.openableURL(for: missingFile, workspaceDirectory: workspace))
+        XCTAssertNil(TurnChangesRow.openableURL(for: modifiedFile, workspaceDirectory: nil))
+
+        var opened: [URL] = []
+        if let url = TurnChangesRow.openableURL(for: modifiedFile, workspaceDirectory: workspace) {
+            TranscriptFileOpener.open(url) { opened.append($0) }
+        }
+        XCTAssertEqual(opened, [existing])
+
+        let changes = TurnFileChanges(files: [modifiedFile, deletedFile])
+        let expansion = TurnChangesExpansion()
+        expansion.folder("src", in: "turn-1").wrappedValue = true
+        let row = TurnChangesRow(changes: changes, id: "turn-1", expansion: expansion,
+                                 workspaceDirectory: workspace, onOpenFile: { opened.append($0) }, contentChanged: {})
+            .disclosureGroupStyle(FlatDisclosureStyle())
+        let host = NSHostingView(rootView: row)
+        host.frame = NSRect(x: 0, y: 0, width: 520, height: 220)
+        host.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(host.fittingSize.height, 40)
+    }
 }

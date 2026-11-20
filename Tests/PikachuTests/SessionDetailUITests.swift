@@ -1102,8 +1102,10 @@ final class SessionDetailUITests: XCTestCase {
         let initialElapsed = String(localized: "不足 1 秒")
         let runningElapsed = String(localized: "\(3) 秒")
         XCTAssertEqual(initial.title, "⚡️Pika Pika！")
-        XCTAssertEqual(initial.displayText, String(localized: "执行中 ... \(initialElapsed)"))
-        XCTAssertEqual(running.displayText, String(localized: "执行中 ... \(runningElapsed)"))
+        XCTAssertEqual(initial.displayText, String(localized: "执行中"))
+        XCTAssertEqual(initial.elapsedText, initialElapsed)
+        XCTAssertEqual(running.displayText, String(localized: "执行中"))
+        XCTAssertEqual(running.elapsedText, runningElapsed)
         XCTAssertEqual(running.accessibilityText, String(localized: "Pika Pika，执行中，已用时 \(runningElapsed)"))
 
         for (seconds, elapsedText) in [
@@ -1113,7 +1115,7 @@ final class SessionDetailUITests: XCTestCase {
         ] {
             let summary = TurnHeaderSummary(turn: turn, relativeTo: start,
                                             monotonicNow: monotonicStart.advanced(by: .seconds(seconds)))
-            XCTAssertEqual(summary.displayText, String(localized: "执行中 ... \(elapsedText)"))
+            XCTAssertEqual(summary.elapsedText, elapsedText)
             XCTAssertEqual(summary.accessibilityText, String(localized: "Pika Pika，执行中，已用时 \(elapsedText)"))
         }
 
@@ -1124,6 +1126,7 @@ final class SessionDetailUITests: XCTestCase {
                                           monotonicNow: monotonicStart.advanced(by: .seconds(61)))
         XCTAssertEqual(completed.displayText, String(localized: "执行 \(TranscriptTimestampFormatter.durationText(3.85))"))
         XCTAssertEqual(completed.tooltipText, completed.displayText)
+        XCTAssertNil(completed.elapsedText)
         XCTAssertEqual(completed.title, "⚡️Pika-CHUUU!")
         XCTAssertTrue(completed.accessibilityText.hasPrefix("Pika-CHUUU!"))
     }

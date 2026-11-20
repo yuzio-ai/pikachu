@@ -75,9 +75,11 @@ export default function executionPolicy(pi: ExtensionAPI) {
         interactive: "本轮交互执行。直接回答问题，与用户讨论方案，并按用户明确的执行要求推进。",
         automatic: "本轮自主执行。根据用户目标自行拆解、执行和验证。能根据现有信息继续时直接推进，遇到必须由用户决定的阻塞时再询问。",
     };
+    const fileReferenceInstruction =
+        "在回复中提及或列出工作区文件（尤其是新建、修改或需要用户查看的文件）时，请使用 Markdown 链接引用其位置（如 `[文件名或相对路径](file:///绝对路径)`，需要定位行号时可用 `#L行号`），方便用户直接点击打开。";
     pi.on("before_agent_start", (event) => {
         if (mode !== "automatic") pi.setActiveTools(tools);
-        return { systemPrompt: `${event.systemPrompt}\n\n${instructions[mode]}` };
+        return { systemPrompt: `${event.systemPrompt}\n\n${instructions[mode]}\n\n${fileReferenceInstruction}` };
     });
     if (mode === "automatic") return;
     pi.registerCommand("pikachu-verify-policy", {

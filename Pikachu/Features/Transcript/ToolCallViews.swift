@@ -7,12 +7,13 @@ struct ToolRow: View {
     let item: TranscriptItem
     @Binding var expanded: Bool
     var onShowOutput: ((ToolOutputSelection) -> Void)? = nil
+    var showsRunningEffect = false
     var contentChanged: () -> Void = {}
 
     var body: some View {
         if let tool = item.toolSummary {
             let presentation = ToolCallPresentation(tool)
-            ToolCallDisclosure(isExpanded: $expanded, isRunning: tool.state == .running) {
+            ToolCallDisclosure(isExpanded: $expanded, isRunning: showsRunningEffect && tool.state == .running) {
                 TranscriptToolDetails(item: item, presentation: presentation, onShowOutput: onShowOutput,
                                       contentChanged: contentChanged)
             } label: { emphasized in
@@ -26,7 +27,7 @@ struct ToolRow: View {
 
 struct ToolCallDisclosure<Content: View, Label: View>: View {
     @Binding var isExpanded: Bool
-    let isRunning: Bool
+    var isRunning = false
     @ViewBuilder let content: () -> Content
     @ViewBuilder let label: (Bool) -> Label
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -40,10 +41,10 @@ struct ToolCallDisclosure<Content: View, Label: View>: View {
             Button { isExpanded.toggle() } label: {
                 label(emphasized)
                     .foregroundStyle(emphasized ? PikachuTheme.primaryText : PikachuTheme.tertiaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background {
-                        if isRunning && !reduceMotion { ToolCallSweep() }
+                    .overlay {
+                        if isRunning && !reduceMotion { ToolCallLightning() }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onHover { isHovered = $0 }
             }
@@ -56,23 +57,116 @@ struct ToolCallDisclosure<Content: View, Label: View>: View {
     }
 }
 
-private struct ToolCallSweep: View {
+private struct ToolCallLightning: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var startedAt = Date.now
+    @State private var seed = UInt64.random(in: UInt64.min...UInt64.max)
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+            let elapsed = max(0, timeline.date.timeIntervalSince(startedAt))
+            let cycle = UInt64(elapsed / ToolCallLightningPattern.period)
+            let phase = elapsed.truncatingRemainder(dividingBy: ToolCallLightningPattern.period)
             Canvas { context, size in
-                let phase = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.8) / 1.8
-                let band = min(size.width * 0.4, 180)
-                guard band > 0 else { return }
-                let leading = (size.width + band) * phase - band
-                let bounds = CGRect(origin: .zero, size: size)
-                context.fill(Path(roundedRect: bounds, cornerRadius: 5), with: .linearGradient(
-                    Gradient(colors: [.clear, PikachuTheme.lightningYellow.opacity(0.18), .clear]),
-                    startPoint: CGPoint(x: leading, y: 0), endPoint: CGPoint(x: leading + band, y: 0)
-                ))
+                guard size.width >= 36, size.height >= 12 else { return }
+                for arc in ToolCallLightningPattern.arcs(seed: seed, cycle: cycle) {
+                    let opacity = arc.opacity(at: phase)
+                    guard opacity > 0 else { continue }
+                    let path = arc.path(in: size)
+                    let tint: Color = arc.isBlue
+                        ? (colorScheme == .dark ? Color(red: 0.43, green: 0.84, blue: 1) : Color(red: 0.06, green: 0.54, blue: 0.74))
+                        : (colorScheme == .dark ? PikachuTheme.lightningYellow : Color(red: 0.77, green: 0.46, blue: 0.05))
+                    let stroke = StrokeStyle(lineWidth: 1.45, lineCap: .round, lineJoin: .round)
+                    context.drawLayer { glow in
+                        glow.addFilter(.blur(radius: 2.2))
+                        glow.stroke(path, with: .color(tint.opacity(opacity * 0.8)), lineWidth: 3.5)
+                    }
+                    context.stroke(path, with: .color(tint.opacity(opacity)), style: stroke)
+                }
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+/// A cycle's geometry is seeded, so an arc stays put while its brightness changes.
+enum ToolCallLightningPattern {
+    static let period: TimeInterval = 1.65
+
+    struct Arc: Equatable {
+        let start: TimeInterval
+        let duration: TimeInterval
+        let position: Double
+        let angle: Double
+        let isBlue: Bool
+        let hasBranch: Bool
+        let offsets: [Double]
+
+        func opacity(at phase: TimeInterval) -> Double {
+            let age = phase - start
+            guard age >= 0, age < duration else { return 0 }
+            // A discharge is visible on its first frame, even for short-lived calls.
+            let hold = 0.09
+            if age < hold { return 1 }
+            return pow((duration - age) / (duration - hold), 1.5)
+        }
+
+        func path(in size: CGSize) -> Path {
+            let radians = CGFloat(angle)
+            let dx = cos(radians), dy = sin(radians)
+            // Fit near-vertical arcs into the same compact title line.
+            let jitter = min(3.5, size.height * 0.17)
+            let halfLength = min(23, size.width * 0.22, max(0, size.height / 2 - jitter - 1) / max(0.1, abs(dy)))
+            let margin = halfLength * abs(dx) + jitter + 1
+            let center = CGPoint(x: margin + (size.width - margin * 2) * CGFloat(position), y: size.height / 2)
+            let points = offsets.enumerated().map { index, offset in
+                let along = (2 * CGFloat(index) / CGFloat(offsets.count - 1) - 1) * halfLength
+                let across = CGFloat(offset) * jitter
+                return CGPoint(x: center.x + dx * along - dy * across, y: center.y + dy * along + dx * across)
+            }
+            return Path { path in
+                path.addLines(points)
+                if hasBranch {
+                    let branch = points[3]
+                    path.move(to: branch)
+                    path.addLine(to: CGPoint(x: branch.x + dx * 3 - dy * 2, y: branch.y + dy * 3 + dx * 2))
+                    path.addLine(to: CGPoint(x: branch.x + dx * 6 - dy * jitter, y: branch.y + dy * 6 + dx * jitter))
+                }
+            }
+        }
+    }
+
+    static func arcs(seed: UInt64, cycle: UInt64) -> [Arc] {
+        var random = Generator(state: seed &+ (cycle &* 0xD2B74407B1CE6E93))
+        let count = Int.random(in: 2...4, using: &random)
+        let angles = [0.0, Double.pi / 2, Double.pi / 4, -Double.pi / 4].shuffled(using: &random)
+        let starts = [cycle == 0 ? 0 : Double.random(in: 0.02...0.11, using: &random),
+                      Double.random(in: 0.75...0.90, using: &random)]
+        // Two beats per cycle, with spare arcs sharing a beat on the other half of the title.
+        return (0..<count).map { index in
+            let left = (index < 2) == (index.isMultiple(of: 2))
+            return Arc(start: starts[index % 2],
+                duration: Double.random(in: 0.43...0.56, using: &random),
+                position: Double.random(in: left ? 0.05...0.45 : 0.55...0.95, using: &random),
+                angle: angles[index] + Double.random(in: -0.16...0.16, using: &random),
+                isBlue: Int.random(in: 0..<3, using: &random) == 0,
+                hasBranch: Bool.random(using: &random),
+                offsets: [0] + (0..<5).map { _ in Double.random(in: -1...1, using: &random) } + [0])
+        }
+    }
+
+    private struct Generator: RandomNumberGenerator {
+        var state: UInt64
+
+        // SplitMix64: reproduce the same geometry on every frame of this cycle.
+        mutating func next() -> UInt64 {
+            state &+= 0x9E3779B97F4A7C15
+            var value = state
+            value = (value ^ (value >> 30)) &* 0xBF58476D1CE4E5B9
+            value = (value ^ (value >> 27)) &* 0x94D049BB133111EB
+            return value ^ (value >> 31)
+        }
     }
 }
 

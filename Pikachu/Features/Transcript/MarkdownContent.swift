@@ -3,15 +3,45 @@ import CoreText
 import SwiftUI
 import OrchestrationCore
 
+enum TranscriptFileOpener {
+    @MainActor private final class OpenBox {
+        let handler: ((URL) -> Void)?
+        init(_ handler: ((URL) -> Void)?) { self.handler = handler }
+    }
+
+    @MainActor static func open(_ fileURL: URL, handler: ((URL) -> Void)? = nil) {
+        if let handler {
+            handler(fileURL)
+        } else {
+            NSWorkspace.shared.open(fileURL)
+        }
+    }
+
+    @MainActor static func openAction(workspaceDirectory: URL?, openFile: ((URL) -> Void)? = nil) -> OpenURLAction {
+        let box = OpenBox(openFile)
+        return OpenURLAction { url in
+            guard let fileURL = TranscriptFileLinks.openableFileURL(for: url, workspaceDirectory: workspaceDirectory) else {
+                return .systemAction
+            }
+            MainActor.assumeIsolated {
+                open(fileURL, handler: box.handler)
+            }
+            return .handled
+        }
+    }
+}
+
 struct MarkdownContent: View {
     @Environment(\.pikachuTypography) private var typography
     @State private var cache = MarkdownContentCache()
     let text: String
     let streaming: Bool
     let width: CGFloat
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
 
     var body: some View {
-        let layout = streaming ? nil : cache.layout(for: text, typography: typography)
+        let layout = streaming ? nil : cache.layout(for: text, typography: typography, workspaceDirectory: workspaceDirectory)
         VStack(alignment: .leading, spacing: 15) {
             if let layout, !layout.blocks.isEmpty {
                 ForEach(layout.blocks) { block in
@@ -22,6 +52,7 @@ struct MarkdownContent: View {
             }
         }
         .lineSpacing(3)
+        .environment(\.openURL, TranscriptFileOpener.openAction(workspaceDirectory: workspaceDirectory, openFile: onOpenFile))
     }
 }
 
@@ -31,17 +62,20 @@ struct MarkdownContent: View {
         let tableWidths: [Int: [CGFloat]]
     }
 
-    private var entry: (source: String, typography: PikachuTypography, layout: Layout)?
+    private var entry: (source: String, typography: PikachuTypography, workspaceDirectory: URL?, layout: Layout)?
 
-    func layout(for text: String, typography: PikachuTypography) -> Layout {
+    func layout(for text: String, typography: PikachuTypography, workspaceDirectory: URL? = nil) -> Layout {
         let previous = entry.flatMap { $0.source.utf8.elementsEqual(text.utf8) ? $0 : nil }
-        if let previous, previous.typography == typography { return previous.layout }
+        if let previous, previous.typography == typography, previous.workspaceDirectory == workspaceDirectory {
+            return previous.layout
+        }
 
-        let blocks = previous?.layout.blocks ?? MarkdownBlocks.parse(text)
+        let blocks = (previous?.workspaceDirectory == workspaceDirectory ? previous?.layout.blocks : nil)
+            ?? MarkdownBlocks.parse(text, workspaceDirectory: workspaceDirectory)
         var tableWidths: [Int: [CGFloat]] = [:]
         measureTables(in: blocks, typography: typography, widths: &tableWidths)
         let layout = Layout(blocks: blocks, tableWidths: tableWidths)
-        entry = (source: text, typography: typography, layout: layout)
+        entry = (source: text, typography: typography, workspaceDirectory: workspaceDirectory, layout: layout)
         return layout
     }
 
@@ -295,7 +329,7 @@ private struct MarkdownTableCell: View {
         if intent.contains(.stronglyEmphasized) {
             font = isCode
                 ? .monospacedSystemFont(ofSize: code.pointSize, weight: .bold)
-                : .systemFont(ofSize: body.pointSize, weight: .bold)
+                : .monospacedDigitSystemFont(ofSize: body.pointSize, weight: .bold)
         }
         if intent.contains(.emphasized) {
             font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)

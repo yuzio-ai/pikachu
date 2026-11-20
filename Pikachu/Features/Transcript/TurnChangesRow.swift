@@ -1,5 +1,6 @@
 import SwiftUI
 import AgentRuntimeCore
+import OrchestrationCore
 
 @MainActor @Observable final class TurnChangesExpansion {
     private(set) var expandedFolders: [String: Set<String>] = [:]
@@ -25,7 +26,14 @@ struct TurnChangesRow: View {
     let changes: TurnFileChanges
     let id: String
     let expansion: TurnChangesExpansion
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
     let contentChanged: () -> Void
+
+    static func openableURL(for file: TurnFileChanges.File, workspaceDirectory: URL?) -> URL? {
+        guard file.kind != .deleted else { return nil }
+        return TranscriptFileLinks.openableFileURL(forRelativePath: file.path, workspaceDirectory: workspaceDirectory)
+    }
 
     var body: some View {
         let byFolder = Dictionary(grouping: changes.files) { file in
@@ -39,7 +47,8 @@ struct TurnChangesRow: View {
                               expandedFolderCount: names.intersection(expandedFolders).count) {
                 expansion.toggleAll(names, in: id)
             }
-            TurnChangedFileList(folders: orderedNames, filesByFolder: byFolder, turnID: id, expansion: expansion)
+            TurnChangedFileList(folders: orderedNames, filesByFolder: byFolder, turnID: id, expansion: expansion,
+                                workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -95,6 +104,8 @@ private struct TurnChangedFileList: View {
     let filesByFolder: [String: [TurnFileChanges.File]]
     let turnID: String
     let expansion: TurnChangesExpansion
+    let workspaceDirectory: URL?
+    let onOpenFile: ((URL) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,7 +113,9 @@ private struct TurnChangedFileList: View {
                 let files = filesByFolder[name, default: []]
                 DisclosureGroup(isExpanded: expansion.folder(name, in: turnID)) {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(files) { TurnChangedFileRow(file: $0, folder: name) }
+                        ForEach(files) {
+                            TurnChangedFileRow(file: $0, folder: name, workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile)
+                        }
                     }
                     .padding(.leading, 38)
                 } label: {
@@ -119,7 +132,7 @@ private struct TurnChangedFileList: View {
                 }
             }
             ForEach(filesByFolder["", default: []]) { file in
-                TurnChangedFileRow(file: file)
+                TurnChangedFileRow(file: file, workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile)
                     .padding(.leading, 19)
             }
         }
@@ -131,14 +144,24 @@ private struct TurnChangedFileList: View {
 private struct TurnChangedFileRow: View {
     let file: TurnFileChanges.File
     var folder: String?
+    var workspaceDirectory: URL? = nil
+    var onOpenFile: ((URL) -> Void)? = nil
 
     private var path: String {
         let destination = folder.map { String(file.path.dropFirst($0.count + 1)) } ?? file.path
         return file.previousPath.map { "\($0) → \(destination)" } ?? destination
     }
 
+    private var openableURL: URL? {
+        TurnChangesRow.openableURL(for: file, workspaceDirectory: workspaceDirectory)
+    }
+
+    private var tooltip: String {
+        file.previousPath.map { "\($0) → \(file.path)" } ?? file.path
+    }
+
     var body: some View {
-        HStack(spacing: 9) {
+        let rowContent = HStack(spacing: 9) {
             Image(systemName: icon)
                 .frame(width: 15)
                 .foregroundStyle(PikachuTheme.secondaryText)
@@ -146,12 +169,27 @@ private struct TurnChangedFileRow: View {
             Text(verbatim: path)
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .help(file.previousPath.map { "\($0) → \(file.path)" } ?? file.path)
             Spacer(minLength: 8)
             TurnChangeCounts(added: file.added, deleted: file.deleted)
         }
         .frame(minHeight: 27)
-        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+
+        if let openableURL {
+            Button {
+                TranscriptFileOpener.open(openableURL, handler: onOpenFile)
+            } label: {
+                rowContent
+            }
+            .buttonStyle(FlatControlButtonStyle(inset: false, cornerRadius: 6))
+            .help(tooltip)
+            .accessibilityIdentifier("turn-changed-file:\(file.path)")
+            .accessibilityHint("点击打开文件")
+        } else {
+            rowContent
+                .help(tooltip)
+                .accessibilityElement(children: .combine)
+        }
     }
 
     private var icon: String {
