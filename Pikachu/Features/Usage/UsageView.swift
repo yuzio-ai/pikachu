@@ -108,6 +108,7 @@ struct UsagePresentationSnapshot {
 }
 
 struct UsageView: View {
+    @Environment(\.pikachuTypography) private var typography
     let controller: SessionController
     @Binding var isPresented: Bool
     @State private var breakdownExpanded = true
@@ -139,25 +140,27 @@ struct UsageView: View {
     }
 
     var body: some View {
-        Button {
+        let buttonHeight = typography.composerActionButtonSize
+        return Button {
             isPresented.toggle()
         } label: {
-            ContextProgressTrack(
+            ContextProgressRing(
                 ratio: snapshot.summaryRatio,
                 isHighlighted: isPresented,
                 isOverCapacity: snapshot.isOverCapacity
             )
-            .frame(width: 44, height: 5)
+            .frame(width: buttonHeight / 2, height: buttonHeight / 2)
+            .accessibilityHidden(true)
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: isPresented))
+        .buttonStyle(FlatControlButtonStyle(isOpen: isPresented, height: buttonHeight))
         .fixedSize()
         .help(snapshot.isContextPending ? String(localized: "待更新") : String(localized: "查看上下文与会话用量（⇧⌘U）"))
         .accessibilityLabel("上下文与会话用量")
         .accessibilityValue(accessibilityValueText)
         .accessibilityIdentifier("session-usage")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            details.lineLimit(nil).padding(16).frame(width: 360)
-                .flatPanelContent()
+            details.lineLimit(nil)
+                .anchoredPopoverCard(width: 360)
         }
     }
 
@@ -166,9 +169,9 @@ struct UsageView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     HStack(spacing: 6) {
-                        Text("上下文已用").pikachuFont(.headline)
+                        Text("上下文已用").anchoredCardTitle()
                         Text(snapshot.percentText)
-                            .pikachuFont(.headline)
+                            .pikachuFont(.callout, weight: .medium)
                             .monospacedDigit()
                             .foregroundStyle(snapshot.isOverCapacity ? PikachuTheme.warningText : Color.primary)
                     }
@@ -206,6 +209,7 @@ struct UsageView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "cylinder.split.1x2")
+                            .pikachuFont(.caption)
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                         Text("累计词元")
@@ -221,15 +225,13 @@ struct UsageView: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Image(systemName: breakdownExpanded ? "chevron.up" : "chevron.down")
-                            .pikachuFont(.caption2)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
+                        FlatDisclosureChevron(breakdownExpanded ? .up : .down)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                 }
                 .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false))
+                .accessibilityValue(breakdownExpanded ? Text("已展开") : Text("已折叠"))
 
                 if breakdownExpanded {
                     VStack(alignment: .leading, spacing: 6) {
@@ -291,6 +293,27 @@ struct UsageView: View {
         }
         .textSelection(.enabled)
         .accessibilityIdentifier("session-usage-details")
+    }
+}
+
+private struct ContextProgressRing: View {
+    let ratio: Double?
+    let isHighlighted: Bool
+    let isOverCapacity: Bool
+
+    var body: some View {
+        let tint = isOverCapacity ? PikachuTheme.warningText : (isHighlighted ? PikachuTheme.accentText : Color.secondary)
+        Circle()
+            .strokeBorder(PikachuTheme.border, lineWidth: 2)
+            .overlay {
+                if let ratio, ratio > 0 {
+                    Circle()
+                        .inset(by: 1)
+                        .trim(from: 0, to: CGFloat(ratio))
+                        .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+            }
     }
 }
 

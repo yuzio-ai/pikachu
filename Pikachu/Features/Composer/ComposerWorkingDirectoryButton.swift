@@ -2,6 +2,7 @@ import SwiftUI
 import OrchestrationCore
 
 struct ComposerWorkingDirectoryButton: View {
+    @Environment(\.pikachuTypography) private var typography
     let workspace: WorkspaceController
     let reference: SessionReference
     let project: ProjectRecord
@@ -17,7 +18,7 @@ struct ComposerWorkingDirectoryButton: View {
             let name = worktrees?.first { $0.path == path }?.branch ?? URL(fileURLWithPath: path).lastPathComponent
             return "工作树 · \(name)"
         }
-        return "工作区 · \(project.name)"
+        return "工作区 · \(project.displayName)"
     }
 
     var body: some View {
@@ -28,8 +29,8 @@ struct ComposerWorkingDirectoryButton: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: isPresented))
-        .frame(maxWidth: 145)
+        .buttonStyle(FlatControlButtonStyle(isOpen: isPresented, height: typography.composerActionButtonSize))
+        .frame(minWidth: 54, maxWidth: 145)
         .help(path)
         .accessibilityLabel("工作区选择器")
         .accessibilityValue(Text(title))
@@ -81,7 +82,7 @@ private struct ComposerWorkingDirectoryPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("工作区").pikachuFont(.headline)
+            Text("工作区").anchoredCardTitle()
             if reference.hasBoundWorkingDirectory {
                 Text("更换目录将在目标位置新建会话并带上草稿。")
                     .pikachuFont(.caption).foregroundStyle(.secondary)
@@ -97,9 +98,7 @@ private struct ComposerWorkingDirectoryPanel: View {
             if applying { FlatProgressView().controlSize(.small) }
         }
         .lineLimit(nil)
-        .padding(14)
-        .frame(width: 360, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 360)
         .disabled(applying || workspace.isShuttingDown)
         .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
     }

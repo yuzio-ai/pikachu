@@ -163,14 +163,12 @@ private struct SettingsHeader: View {
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             Button(action: close) {
-                Label("关闭设置", systemImage: "xmark")
-                    .labelStyle(.iconOnly)
-                    .pikachuFont(.callout, weight: .medium)
-                    .frame(width: 28, height: 28)
+                IconButtonLabel(systemName: "xmark", weight: .medium)
             }
             .buttonStyle(FlatControlButtonStyle(inset: false))
             .keyboardShortcut(.cancelAction)
             .help("关闭设置")
+            .accessibilityLabel("关闭设置")
             .accessibilityIdentifier("close-settings")
         }
         .padding(.leading, leadingInset)
@@ -199,7 +197,10 @@ private struct SettingsNavigation: View {
             ForEach(SettingsSection.allCases) { section in
                 Button { selection = section } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: section.symbol).frame(width: 16).accessibilityHidden(true)
+                        Image(systemName: section.symbol)
+                            .pikachuFont(.callout)
+                            .frame(width: 16)
+                            .accessibilityHidden(true)
                         Text(section.title)
                         Spacer(minLength: 0)
                     }
@@ -362,6 +363,7 @@ private struct ProjectSettingsView: View {
     let settings: AppSettings
     let state: SettingsProjectState
     let worktreesForProject: @Sendable (String) async -> [GitWorktree]?
+    @State private var showsConfigDirectories = false
 
     private var project: ProjectRecord? {
         workspace.state.projects.first { $0.id == state.selectedID } ?? workspace.state.projects.first
@@ -382,7 +384,7 @@ private struct ProjectSettingsView: View {
                 }
                 SettingsCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(verbatim: project.name).pikachuFont(.headline)
+                        Text(verbatim: project.displayName).pikachuFont(.headline)
                             .accessibilityAddTraits(.isHeader)
                         PikachuDivider()
                         LabeledContent {
@@ -415,19 +417,17 @@ private struct ProjectSettingsView: View {
                             .accessibilityIdentifier("project-pi-config-trust-toggle")
 
                             if !extra.isEmpty {
+                                let title = directoryLabel(for: target, project: project, worktrees: worktrees)
+                                let expansionState = showsConfigDirectories ? Text("已展开") : Text("已折叠")
                                 HStack(spacing: 8) {
                                     Text("配置目录")
                                         .foregroundStyle(PikachuTheme.secondaryText)
                                     Spacer(minLength: 8)
-                                    FlatMenu(width: 340, triggerTreatment: .outlined) {
+                                    FlatMenu(width: 340, triggerTreatment: .outlined, presentation: $showsConfigDirectories) {
                                         HStack(spacing: 8) {
-                                            directoryLabel(for: target, project: project, worktrees: worktrees)
-                                                .lineLimit(1).truncationMode(.middle)
+                                            title.lineLimit(1).truncationMode(.middle)
                                             Spacer(minLength: 0)
-                                            Image(systemName: "chevron.down")
-                                                .pikachuFont(.caption2, weight: .semibold)
-                                                .foregroundStyle(PikachuTheme.secondaryText)
-                                                .accessibilityHidden(true)
+                                            FlatDisclosureChevron(.down)
                                         }
                                         .foregroundStyle(PikachuTheme.primaryText)
                                         .padding(.horizontal, 10)
@@ -458,7 +458,7 @@ private struct ProjectSettingsView: View {
                                         }
                                     }
                                     .accessibilityLabel("配置目录")
-                                    .accessibilityValue(directoryLabel(for: target, project: project, worktrees: worktrees))
+                                    .accessibilityValue(Text("\(title)，\(expansionState)"))
                                     .accessibilityIdentifier("project-pi-config-directory-picker")
                                 }
                             }
@@ -638,7 +638,7 @@ private struct SettingsProjectList: View {
                             Button { select(project.id) } label: {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(verbatim: project.name)
+                                        Text(verbatim: project.displayName)
                                             .pikachuFont(.body, weight: .semibold).lineLimit(1)
                                         Text(verbatim: project.path)
                                             .pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
@@ -730,6 +730,7 @@ private struct PiRuntimeSettings: View {
                                     settings.toolSearchPaths.removeAll { $0 == path }
                                 } label: {
                                     Label("移除 \(path)", systemImage: "minus.circle").labelStyle(.iconOnly)
+                                        .pikachuFont(.caption)
                                 }
                                 .buttonStyle(FlatControlButtonStyle())
                                 .help("移除 \(path)")
@@ -823,6 +824,7 @@ private struct PiEnvironmentEditor: View {
                             draft?.removeAll { $0.id == row.wrappedValue.id }
                         } label: {
                             Label("移除变量", systemImage: "minus.circle").labelStyle(.iconOnly)
+                                .pikachuFont(.caption)
                         }
                         .buttonStyle(FlatControlButtonStyle())
                         .help("移除变量")

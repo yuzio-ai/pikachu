@@ -88,7 +88,7 @@ private struct ComposerIssuePills: View {
                 isHoveringFailure = false
             } label: {
                 Image(systemName: "xmark")
-                    .pikachuFont(.caption2)
+                    .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.tertiaryText)
                     .frame(width: 18, height: 20)
             }
@@ -137,6 +137,7 @@ struct ComposerView: View {
     @State private var savingModel = false
     @State private var restoreInputFocus = false
     @State private var imagePasteFailed = false
+    @State private var previewImage: AttachmentImagePreview.Selection?
 
     private enum Panel { case mode, approval, context, model, sendMode, workingDirectory }
 
@@ -185,43 +186,30 @@ struct ComposerView: View {
         )
     }
 
-    var body: some View {
+    private var composerContent: some View {
         let images = controller.draftFiles.filter(ImageAttachmentThumbnail.isImage)
         let imageSet = Set(images)
         let files = controller.draftFiles.filter { !imageSet.contains($0) }
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             if !controller.recoveredDrafts.isEmpty {
                 RecoveredDraftsView(controller: controller).padding(.bottom, 10)
             }
-            HStack(spacing: 6) {
-                if showsStopButton { sendModeMenu.padding(.bottom, 8) }
-                ComposerIssuePills(controller: controller, panelsBlocked: panelsBlocked,
-                                   presentToolFailures: presentToolFailures)
-            }
+            ComposerIssuePills(controller: controller, panelsBlocked: panelsBlocked,
+                               presentToolFailures: presentToolFailures)
             VStack(alignment: .leading, spacing: 8) {
                 if !images.isEmpty {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 8) {
                             ForEach(images, id: \.self) { file in
-                                ImageAttachmentThumbnail(file: file) { removeAttachment(file) }
+                                ImageAttachmentThumbnail(file: file, onPreview: {
+                                    previewImage = .init(file: file)
+                                }, remove: { removeAttachment(file) })
                             }
                         }
                     }
                     .accessibilityIdentifier("draft-images")
                 }
-                TextField("⚡️Pika! 告诉我你想实现什么、修复什么，或直接提问…", text: $controller.draft, axis: .vertical)
-                    .lineLimit(2...5).textFieldStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(minHeight: isStarter ? 44 : 0, alignment: .topLeading)
-                    .focused($focused).accessibilityIdentifier("prompt-input")
-                    .diagnosticDraw("editor:\(controller.draft.utf8.count)")
-                    .accessibilityLabel("当前查看会话的任务草稿")
-                    .accessibilityHint("按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片，按 ⌘L 聚焦输入框。")
-                    .background {
-                        ComposerInputEvents(isFocused: $focused, canPasteImage: !panelsBlocked, canSend: sendEnabled,
-                                            onPaste: addPastedImage, onSend: onSend)
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
+                editorRow
                 if imagePasteFailed {
                     Text("无法添加剪贴板图片，请重新复制后再试。")
                         .pikachuFont(.caption)
@@ -246,15 +234,6 @@ struct ComposerView: View {
                         }.padding(.vertical, 3)
                     }.accessibilityIdentifier("draft-files")
                 }
-                if showsStopButton {
-                    Button("发送", action: onSend)
-                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                        .pikachuFont(.caption)
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .help("发送（⌘↩）")
-                        .disabled(!sendEnabled)
-                        .accessibilityIdentifier("send-prompt")
-                }
                 ComposerControlsLayout {
                     HStack(spacing: 4) {
                         attachmentButton
@@ -266,7 +245,11 @@ struct ComposerView: View {
                         }
                     }
                     HStack(spacing: 4) {
-                        if controller.commandPending { FlatProgressView().controlSize(.small) }
+                        if controller.commandPending {
+                            InfinityLoadingIcon()
+                                .foregroundStyle(.secondary)
+                                .accessibilityRepresentation { ProgressView() }
+                        }
                         UsageView(controller: controller, isPresented: panelBinding(.context))
                         modelButton.frame(maxWidth: 220)
                         if showsStopButton { stopButton }
@@ -275,12 +258,20 @@ struct ComposerView: View {
                 }
                 .pikachuFont(.caption)
                 .lineLimit(1)
+                .padding(.top, 5) // 13 pt after the editor or attachment row, including the stack spacing.
             }
             .padding(12)
             .padding(.vertical, isStarter ? 5 : 0)
             .flatSurface(radius: 14, border: PikachuTheme.inputBorder(focused: focused))
         }
         .padding(.top, 4).padding(.bottom, 12)
+    }
+
+    var body: some View {
+        composerContent
+        .sheet(item: $previewImage) { selection in
+            AttachmentImagePreview(file: selection.file)
+        }
         .onChange(of: controller.connection) { _, state in if state == .connected { focused = true } }
         .onChange(of: focusSignal) { _, _ in focused = true }
         .onChange(of: modeDisabled) { _, disabled in
@@ -319,15 +310,35 @@ struct ComposerView: View {
         }
     }
 
+    private var editorRow: some View {
+        HStack(alignment: .top, spacing: 8) {
+            if showsStopButton { sendModeMenu }
+            TextField("⚡️Pika! 告诉我你想实现什么、修复什么，或直接提问…", text: $controller.draft, axis: .vertical)
+                .lineLimit(2...5).textFieldStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minHeight: isStarter ? 44 : 0, alignment: .topLeading)
+                .focused($focused).accessibilityIdentifier("prompt-input")
+                .diagnosticDraw("editor:\(controller.draft.utf8.count)")
+                .accessibilityLabel("当前查看会话的任务草稿")
+                .accessibilityHint("按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片，按 ⌘L 聚焦输入框。")
+                .background {
+                    ComposerInputEvents(isFocused: $focused, canPasteImage: !panelsBlocked, canSend: sendEnabled,
+                                        onPaste: addPastedImage, onSend: onSend)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+        }
+    }
+
     private var sendModeMenu: some View {
         Button {
             panelBinding(.sendMode).wrappedValue.toggle()
         } label: {
             sendModeTitle(controller.mode, compact: true)
-                .padding(.horizontal, 10).padding(.vertical, 5)
+                .pikachuFont(.caption)
+                .padding(.horizontal, 8).padding(.vertical, 3)
         }
-        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, isOpen: panel == .sendMode, inset: false, cornerRadius: 16))
-        .pikachuFont(.callout)
+        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, isOpen: panel == .sendMode,
+                                            inset: false, cornerRadius: 16))
         .lineLimit(1)
         .fixedSize()
         .focused($sendModeFocused)
@@ -385,10 +396,10 @@ struct ComposerView: View {
 
     private var attachmentButton: some View {
         Button(action: onPickFiles) {
-            Image(systemName: "paperclip")
+            IconButtonLabel(systemName: "paperclip")
                 .foregroundStyle(.secondary)
         }
-        .buttonStyle(FlatControlButtonStyle())
+        .buttonStyle(FlatControlButtonStyle(inset: false))
         .fixedSize()
         .help("添加文件")
         .accessibilityLabel("添加文件")
@@ -401,7 +412,7 @@ struct ComposerView: View {
         } label: {
             Text(executionPolicy.mode.title)
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .mode))
+        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .mode, height: typography.composerActionButtonSize))
         .fixedSize()
         .disabled(modeDisabled || panelsBlocked)
         .help(modeDisabled ? "运行或保存期间不可切换执行模式" : "切换执行模式")
@@ -420,6 +431,7 @@ struct ComposerView: View {
                             Spacer(minLength: 0)
                             if mode == executionPolicy.mode {
                                 Image(systemName: "checkmark")
+                                    .pikachuFont(.caption, weight: .semibold)
                                     .accessibilityHidden(true)
                             }
                         }
@@ -428,10 +440,7 @@ struct ComposerView: View {
                     .accessibilityAddTraits(mode == executionPolicy.mode ? .isSelected : [])
                 }
             }
-            .pikachuFont(.callout)
-            .padding(6)
-            .frame(width: 144)
-            .flatPanelContent()
+            .anchoredPopoverCard(width: 144, inset: AnchoredCardStyle.compactInset)
         }
     }
 
@@ -443,7 +452,7 @@ struct ComposerView: View {
             Text(info.buttonText)
                 .foregroundStyle(.primary)
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .approval))
+        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .approval, height: typography.composerActionButtonSize))
         .fixedSize()
         .help(Text(info.displayed.approval.detail))
         .accessibilityLabel("工具审批")
@@ -451,10 +460,13 @@ struct ComposerView: View {
         .accessibilityIdentifier("composer-permissions")
         .disabled(panelsBlocked)
         .popover(isPresented: panelBinding(.approval), arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
                 HStack {
-                    Label("工具审批", systemImage: "shield")
-                        .pikachuFont(.headline)
+                    Label {
+                        Text("工具审批").anchoredCardTitle()
+                    } icon: {
+                        Image(systemName: "shield").pikachuFont(.caption)
+                    }
                     Spacer()
                     Text(info.status)
                         .pikachuFont(.caption)
@@ -479,7 +491,9 @@ struct ComposerView: View {
                                 }
                                 Spacer(minLength: 4)
                                 if option == info.displayed.approval {
-                                    Image(systemName: "checkmark").accessibilityHidden(true)
+                                    Image(systemName: "checkmark")
+                                        .pikachuFont(.caption, weight: .semibold)
+                                        .accessibilityHidden(true)
                                 }
                             }
                             .multilineTextAlignment(.leading)
@@ -501,9 +515,7 @@ struct ComposerView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(12)
-            .frame(width: 324, alignment: .leading)
-            .flatPanelContent()
+            .anchoredPopoverCard(width: 324)
         }
     }
 
@@ -514,9 +526,11 @@ struct ComposerView: View {
             HStack(spacing: 5) {
                 if let model {
                     ProviderLogo(provider: model.provider)
+                        .fixedSize()
                     Text(model.name)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .frame(minWidth: 32)
                     if let thinking = model.thinkingLabel {
                         Text(thinking)
                             .foregroundStyle(.secondary)
@@ -524,19 +538,18 @@ struct ComposerView: View {
                     }
                     if model.pending {
                         Image(systemName: "clock")
+                            .fixedSize()
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                     }
                 } else {
-                    Image(systemName: "cpu")
-                        .frame(width: 13, height: 13)
-                        .accessibilityHidden(true)
+                    ProviderLogo(provider: "")
                     Text("模型…")
-                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .model))
+        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .model, height: typography.composerActionButtonSize))
         .focused($modelFocused)
         .help(model?.summary ?? String(localized: "模型与推理强度（⇧⌘M）"))
         .accessibilityLabel("模型与推理强度")
@@ -554,16 +567,12 @@ struct ComposerView: View {
     }
 
     private var sendButton: some View {
-        let buttonSize = typography.composerActionButtonSize
-        return Button(action: onSend) {
-            Image(systemName: "arrow.up")
-                .pikachuFont(.body, weight: .semibold)
-                .foregroundStyle(sendEnabled ? Color.black : Color.secondary)
-                .frame(width: buttonSize, height: buttonSize)
-                .background(
-                    Circle()
-                        .fill(sendEnabled ? PikachuTheme.lightningYellow : PikachuTheme.mutedSurface)
-                )
+        Button(action: onSend) {
+            primaryActionLabel(
+                symbol: "arrow.up",
+                tint: sendEnabled ? .black : .secondary,
+                fill: sendEnabled ? PikachuTheme.lightningYellow : PikachuTheme.mutedSurface
+            )
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.return, modifiers: .command)
@@ -574,15 +583,13 @@ struct ComposerView: View {
     }
 
     private var stopButton: some View {
-        let buttonSize = typography.composerActionButtonSize
         let stopping = controller.isStopping
         let enabled = !stopping && reference.map { workspace.canStop($0.id) } == true
         return Button(action: onStop) {
-            Image(systemName: "stop.fill")
-                .pikachuFont(.callout, weight: .semibold)
-                .foregroundStyle(enabled ? Color.black : Color.secondary)
-                .frame(width: buttonSize, height: buttonSize)
-                .background(Circle().fill(enabled ? PikachuTheme.lightningYellow : PikachuTheme.mutedSurface))
+            primaryActionLabel(
+                symbol: "stop.fill", tint: enabled ? .primary : .secondary,
+                fill: PikachuTheme.mutedSurface, border: PikachuTheme.border
+            )
         }
         .buttonStyle(.plain)
         .help(stopping ? Text("正在停止") : Text("停止（⌘.）"))
@@ -590,26 +597,56 @@ struct ComposerView: View {
         .accessibilityIdentifier("stop-run")
         .disabled(!enabled)
     }
+
+    private func primaryActionLabel(symbol: String, tint: Color, fill: Color, border: Color? = nil) -> some View {
+        let targetSize = typography.composerActionButtonSize
+        let circleSize = targetSize - 4
+        return Image(systemName: symbol)
+            .pikachuFont(.callout, weight: .semibold)
+            .foregroundStyle(tint)
+            .frame(width: circleSize, height: circleSize)
+            .background(fill, in: .circle)
+            .overlay {
+                if let border { Circle().strokeBorder(border, lineWidth: 1) }
+            }
+            .frame(width: targetSize, height: targetSize)
+            .contentShape(Rectangle())
+    }
 }
 
-/// Keeps both control groups mounted so moving the model button to the next row
-/// does not replace its focus target or popover anchor.
-private struct ComposerControlsLayout: Layout {
-    private let spacing: CGFloat = 6
+/// Reflows the trailing group without replacing any focus targets or popover anchors.
+struct ComposerControlsLayout: Layout {
+    private let groupGap: CGFloat = 16
+    private let rowGap: CGFloat = 6
 
     private func measure(_ subviews: Subviews, width: CGFloat?) -> (leading: CGSize, trailing: CGSize, width: CGFloat, wraps: Bool) {
-        let leading = subviews[0].sizeThatFits(.unspecified)
+        let idealLeading = subviews[0].sizeThatFits(.unspecified)
         let idealTrailing = subviews[1].sizeThatFits(.unspecified)
-        let idealWidth = leading.width + spacing + idealTrailing.width
+        let idealWidth = idealLeading.width + groupGap + idealTrailing.width
         let available = width ?? idealWidth
-        let wraps = idealWidth > available
-        let trailing = wraps ? subviews[1].sizeThatFits(.init(width: available, height: nil)) : idealTrailing
-        return (leading, trailing, available, wraps)
+        guard available < idealWidth else { return (idealLeading, idealTrailing, available, false) }
+
+        func fit(_ group: LayoutSubview, width: CGFloat) -> CGSize {
+            group.sizeThatFits(.init(width: width, height: nil))
+        }
+        let minLeading = fit(subviews[0], width: 0).width
+        let minTrailing = fit(subviews[1], width: 0).width
+        if minLeading + groupGap + minTrailing <= available {
+            // Shorten the model label before squeezing the working-directory label.
+            let leading = fit(subviews[0], width: min(idealLeading.width, available - groupGap - minTrailing))
+            let trailing = fit(subviews[1], width: available - groupGap - leading.width)
+            if leading.width + groupGap + trailing.width <= available {
+                return (leading, trailing, available, false)
+            }
+        }
+
+        let rowWidth = max(available, minLeading, minTrailing)
+        return (fit(subviews[0], width: rowWidth), fit(subviews[1], width: rowWidth), rowWidth, true)
     }
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let sizes = measure(subviews, width: proposal.width)
-        let height = sizes.wraps ? sizes.leading.height + spacing + sizes.trailing.height
+        let height = sizes.wraps ? sizes.leading.height + rowGap + sizes.trailing.height
                                  : max(sizes.leading.height, sizes.trailing.height)
         return CGSize(width: sizes.width, height: height)
     }
@@ -618,7 +655,7 @@ private struct ComposerControlsLayout: Layout {
         let sizes = measure(subviews, width: bounds.width)
         subviews[0].place(at: CGPoint(x: bounds.minX, y: sizes.wraps ? bounds.minY : bounds.midY - sizes.leading.height / 2),
                           proposal: ProposedViewSize(sizes.leading))
-        let trailingY = sizes.wraps ? bounds.minY + sizes.leading.height + spacing : bounds.midY - sizes.trailing.height / 2
+        let trailingY = sizes.wraps ? bounds.minY + sizes.leading.height + rowGap : bounds.midY - sizes.trailing.height / 2
         subviews[1].place(at: CGPoint(x: bounds.maxX - sizes.trailing.width, y: trailingY),
                           proposal: ProposedViewSize(sizes.trailing))
     }
@@ -668,6 +705,8 @@ struct ComposerModel {
 
 struct ProviderLogo: View {
     let provider: String
+    private static let frameSide: CGFloat = 13
+    private static let markSide: CGFloat = 12
     private static let names = [
         "openai": "openai", "openai-codex": "openai",
         "anthropic": "anthropic",
@@ -687,11 +726,19 @@ struct ProviderLogo: View {
     var body: some View {
         Group {
             if let name = Self.names[provider.lowercased()], let image = Self.images[name] {
+                // Gemini uses the full frame to keep its translucent tips visible.
+                let imageSide = name == "googlegemini" ? Self.frameSide : Self.markSide
                 Image(nsImage: image).resizable().scaledToFit()
+                    .frame(width: imageSide, height: imageSide)
             } else {
                 Image(systemName: "cpu")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Self.markSide, height: Self.markSide)
             }
-        }.frame(width: 13, height: 13).accessibilityHidden(true)
+        }
+        .frame(width: Self.frameSide, height: Self.frameSide)
+        .accessibilityHidden(true)
     }
 }
 

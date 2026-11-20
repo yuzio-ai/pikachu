@@ -121,9 +121,8 @@ struct ModelSettingsView: View {
             Button {
                 save { await workspace.setFavoriteModel(model, isFavorite: !favorite) }
             } label: {
-                Image(systemName: favorite ? "star.fill" : "star")
+                IconButtonLabel(systemName: favorite ? "star.fill" : "star")
                     .foregroundStyle(favorite ? PikachuTheme.warningText : PikachuTheme.secondaryText)
-                    .frame(width: 18, height: 24)
             }
             .buttonStyle(FlatControlButtonStyle(inset: false))
             .disabled(!available && !favorite)

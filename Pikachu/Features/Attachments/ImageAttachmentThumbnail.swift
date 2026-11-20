@@ -63,6 +63,7 @@ struct AttachmentImagePreview: View {
 struct ImageAttachmentThumbnail: View {
     let file: URL
     var size: CGFloat = ImageAttachmentThumbnail.defaultSize
+    var onPreview: (() -> Void)? = nil
     var remove: (() -> Void)? = nil
     @Environment(\.displayScale) private var displayScale
     @State private var thumbnail: (file: URL, image: CGImage)?
@@ -80,7 +81,7 @@ struct ImageAttachmentThumbnail: View {
         let shape = RoundedRectangle(cornerRadius: 9)
         let request = Request(file: file, maxPixels: Int((size * displayScale).rounded(.up)))
         let showsRemove = isHovered || removeFocused
-        ZStack {
+        let content = ZStack {
             if let thumbnail, thumbnail.file == file {
                 Image(decorative: thumbnail.image, scale: displayScale)
                     .resizable()
@@ -88,6 +89,7 @@ struct ImageAttachmentThumbnail: View {
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: "photo")
+                        .pikachuFont(.caption)
                     Text(file.lastPathComponent)
                         .pikachuFont(.caption2)
                         .lineLimit(1)
@@ -101,11 +103,28 @@ struct ImageAttachmentThumbnail: View {
         .background(PikachuTheme.mutedSurface)
         .clipShape(shape)
         .overlay { shape.strokeBorder(PikachuTheme.border).allowsHitTesting(false) }
+        .contentShape(shape)
+
+        Group {
+            if let onPreview {
+                Button(action: onPreview) { content }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("预览 \(file.lastPathComponent)")
+                    .accessibilityIdentifier("preview-draft-image")
+                    .accessibilityActions {
+                        if let remove { Button("移除 \(file.lastPathComponent)", action: remove) }
+                    }
+            } else {
+                content
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(file.lastPathComponent)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if let remove {
                 Button(action: remove) {
                     Image(systemName: "xmark")
-                        .pikachuFont(.badge, weight: .semibold)
+                        .pikachuFont(.caption, weight: .semibold)
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 11))
@@ -119,11 +138,6 @@ struct ImageAttachmentThumbnail: View {
         .contentShape(shape)
         .onHover { if remove != nil { isHovered = $0 } }
         .help(file.path)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(file.lastPathComponent)
-        .accessibilityActions {
-            if let remove { Button("移除 \(file.lastPathComponent)", action: remove) }
-        }
         .task(id: request) {
             let image = await Task.detached(priority: .utility) {
                 Self.loadThumbnail(for: request.file, maxPixels: request.maxPixels)

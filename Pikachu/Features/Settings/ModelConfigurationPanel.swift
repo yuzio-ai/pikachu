@@ -65,7 +65,7 @@ struct ModelConfigurationPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("模型与推理强度").pikachuFont(.headline)
+            Text("模型与推理强度").anchoredCardTitle()
             catalogue
                 .disabled(saving)
                 .onChange(of: modelKey) { _, _ in saveError = nil }
@@ -84,12 +84,8 @@ struct ModelConfigurationPanel: View {
                     .disabled(saving || loadingModels || workspace.isOperating(on: reference.id) || selectedModel == nil || loadedLevelKey != modelKey)
             }
         }
-        .pikachuFont(.callout)
         .buttonStyle(FlatControlButtonStyle())
-        .padding(14)
-        .frame(width: 600)
-        .flatPanelContent()
-        .presentationBackground(PikachuTheme.surface)
+        .anchoredPopoverCard(width: 600)
         .interactiveDismissDisabled(saving)
         .accessibilityIdentifier("model-configuration-panel")
         .task(id: reloadModels) { await loadModels() }
@@ -180,11 +176,13 @@ struct ModelConfigurationPanel: View {
                             Text(model.provider).pikachuFont(.caption).foregroundStyle(.secondary)
                                 .lineLimit(1)
                             Image(systemName: "star.fill")
+                                .pikachuFont(.caption)
                                 .foregroundStyle(PikachuTheme.warningText)
                                 .opacity(favorites.contains(model.id) ? 1 : 0)
                                 .accessibilityLabel("收藏")
                                 .accessibilityHidden(!favorites.contains(model.id))
                             Image(systemName: "checkmark")
+                                .pikachuFont(.caption, weight: .semibold)
                                 .opacity(model.id == modelKey ? 1 : 0)
                                 .accessibilityHidden(true)
                         }
@@ -228,7 +226,11 @@ struct ModelConfigurationPanel: View {
             HStack {
                 title
                 Spacer()
-                if thinking == level { Image(systemName: "checkmark").accessibilityHidden(true) }
+                if thinking == level {
+                    Image(systemName: "checkmark")
+                        .pikachuFont(.caption, weight: .semibold)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: thinking == level))

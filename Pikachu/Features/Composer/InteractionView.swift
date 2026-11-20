@@ -24,47 +24,52 @@ struct InteractionView: View {
     let request: RuntimeInteraction
     let controller: SessionController
     let sessionTitle: String
+    let availableSize: CGSize
+    @Environment(\.pikachuTypography) private var typography
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
     @State private var selection: Int?
     @State private var completed = false
     @State private var submitting = false
+    @State private var preferredApprovalWidth: CGFloat?
+    @State private var fittedApprovalHeight: CGFloat?
     @FocusState private var focused: Bool
-    init(request: RuntimeInteraction, controller: SessionController, sessionTitle: String) {
+    init(request: RuntimeInteraction, controller: SessionController, sessionTitle: String, availableSize: CGSize = .zero) {
         self.request = request; self.controller = controller; self.sessionTitle = sessionTitle
+        self.availableSize = availableSize
         _text = State(initialValue: request.prefill)
     }
     private var expired: Bool { controller.didExpire(request) }
     private var toolApproval: RuntimeToolApproval? { request.kind == .confirm ? request.toolApproval : nil }
+    private var usesAdaptiveSheet: Bool { toolApproval?.operation.usesAdaptiveSheet == true }
 
     var body: some View {
         Group {
-            if expired {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("请求已过期，未提交回复")
-                        .pikachuFont(.title2, weight: .semibold)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("会话：\(sessionTitle)").pikachuFont(.caption).foregroundStyle(.secondary)
-                    InteractionDeadline(expiresAt: request.expiresAt)
-                    ExpiredInteractionDetails(request: request)
-                    HStack {
-                        Spacer()
-                        Button("关闭") { dismiss() }
-                            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                            .keyboardShortcut(.cancelAction)
-                    }
+            if usesAdaptiveSheet {
+                ApprovalHeightLayout(maximumHeight: availableSize.height > 0
+                                     ? max(1, availableSize.height - 2 * ApprovalSheetLayout.inset) : nil) {
+                    interactionContent
                 }
-                .padding(20)
-            } else if let approval = toolApproval {
-                ToolApprovalSheet(approval: approval, sessionTitle: sessionTitle, expiresAt: request.expiresAt,
-                                  notice: controller.notice, error: controller.failure?.detail,
-                                  submitting: submitting, reply: submit)
+                .onGeometryChange(for: CGFloat.self, of: { ceil($0.size.height) }) { height in
+                    fittedApprovalHeight = height
+                }
+                .frame(height: fittedApprovalHeight)
+                .background {
+                    ApprovalSheetWindowHeight(height: fittedApprovalHeight)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+                .presentationSizing(.fitted)
             } else {
-                extensionRequest
+                interactionContent
             }
         }
-        .frame(width: approvalSheetWidth)
         .interactiveDismissDisabled(submitting)
+        .onChange(of: request.id, initial: true) {
+            preferredApprovalWidth = toolApproval.flatMap {
+                ApprovalSheetLayout.preferredWidth(for: $0.operation, typography: typography)
+            }
+        }
         .task(id: request.id) { await Task.yield(); focused = request.kind == .input || request.kind == .editor }
         .onDisappear {
             if !completed && controller.interactions.contains(where: { $0.id == request.id }) {
@@ -73,10 +78,57 @@ struct InteractionView: View {
         }
     }
 
+    private var interactionContent: some View {
+        Group {
+            if expired {
+                VStack(alignment: .leading, spacing: 12) {
+                    if usesAdaptiveSheet {
+                        ViewThatFits(in: .vertical) {
+                            expiredDetails.fixedSize(horizontal: false, vertical: true)
+                            ScrollView { expiredDetails }
+                                .scrollBounceBehavior(.basedOnSize)
+                        }
+                    } else {
+                        expiredDetails
+                    }
+                    HStack {
+                        Spacer()
+                        Button("关闭") { dismiss() }
+                            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                            .keyboardShortcut(.cancelAction)
+                            .accessibilityIdentifier("interaction-close-expired")
+                    }
+                    .layoutPriority(1)
+                }
+                .padding(20)
+            } else if let approval = toolApproval {
+                ToolApprovalSheet(approval: approval, sessionTitle: sessionTitle, expiresAt: request.expiresAt,
+                                  notice: approval.operation.usesAdaptiveSheet ? controller.noticeExcludingExpiredInteraction : controller.notice,
+                                  error: controller.failure?.detail,
+                                  submitting: submitting, reply: submit)
+            } else {
+                extensionRequest
+            }
+        }
+        .frame(width: approvalSheetWidth)
+    }
+
+    private var expiredDetails: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("请求已过期，未提交回复")
+                .pikachuFont(.title2, weight: .semibold)
+                .accessibilityAddTraits(.isHeader)
+            Text("会话：\(sessionTitle)").pikachuFont(.caption).foregroundStyle(.secondary)
+            InteractionDeadline(expiresAt: request.expiresAt)
+            ExpiredInteractionDetails(request: request)
+        }
+    }
+
     private var approvalSheetWidth: CGFloat {
         guard let toolApproval else { return 560 }
-        if case .edit = toolApproval.operation { return 620 }
-        return 740
+        guard let preferred = preferredApprovalWidth
+            ?? ApprovalSheetLayout.preferredWidth(for: toolApproval.operation, typography: typography) else { return 740 }
+        return ApprovalSheetLayout.width(preferred: preferred, available: availableSize.width)
     }
 
     private var extensionRequest: some View {
@@ -138,6 +190,64 @@ struct InteractionView: View {
             submitting = false
             if accepted { completed = true; dismiss() }
         }
+    }
+}
+
+private extension RuntimeToolApproval.Operation {
+    var usesAdaptiveSheet: Bool {
+        switch self {
+        case .command, .edit: true
+        case .write, .inspect: false
+        }
+    }
+}
+
+@MainActor
+enum ApprovalSheetLayout {
+    static let inset: CGFloat = 24
+    static let previewInset: CGFloat = 12
+    static let previewActionSize = IconButtonLabel.side
+    static let previewActionSpacing: CGFloat = 4
+    static let previewTextSpacing: CGFloat = 8
+
+    static func preferredWidth(for operation: RuntimeToolApproval.Operation, typography: PikachuTypography) -> CGFloat? {
+        let regularWidth: CGFloat = 640
+        let wideWidth: CGFloat = 700
+        let bodyWidth = regularWidth - 2 * inset
+        let font = previewFont(typography)
+
+        switch operation {
+        case .command(let command, _):
+            let actionsWidth = 2 * previewActionSize + previewActionSpacing
+            let textWidth = bodyWidth - 2 * previewInset - actionsWidth - previewTextSpacing
+            let lineHeight = NSLayoutManager().defaultLineHeight(for: font)
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byWordWrapping
+            let attributes: [NSAttributedString.Key: Any] = [.font: font, .paragraphStyle: paragraph]
+            let size = CGSize(width: textWidth, height: .greatestFiniteMagnitude)
+            let needsWideLayout = command.split(whereSeparator: \.isNewline).contains { line in
+                let bounds = String(line).boundingRect(with: size, options: [.usesLineFragmentOrigin], attributes: attributes)
+                return bounds.height > 2 * lineHeight + 1
+            }
+            return needsWideLayout ? wideWidth : regularWidth
+        case .edit(let path, _):
+            let pathWidth = singleLineApprovalPath(path).size(withAttributes: [.font: font]).width
+            return pathWidth > bodyWidth ? wideWidth : regularWidth
+        case .write, .inspect:
+            return nil
+        }
+    }
+
+    static func width(preferred: CGFloat, available: CGFloat) -> CGFloat {
+        available > 0 ? min(preferred, max(1, available - 2 * inset)) : preferred
+    }
+
+    static func commandPreviewHeight(typography: PikachuTypography) -> CGFloat {
+        8 * ceil(NSLayoutManager().defaultLineHeight(for: previewFont(typography)))
+    }
+
+    private static func previewFont(_ typography: PikachuTypography) -> NSFont {
+        .monospacedSystemFont(ofSize: typography.pointSize(for: .body), weight: .regular)
     }
 }
 
@@ -257,15 +367,107 @@ private struct ToolApprovalSheet: View {
     let submitting: Bool
     let reply: (InteractionResponse) -> Void
 
-    private var usesCountdownHeader: Bool {
-        switch approval.operation {
-        case .command, .edit: true
-        case .write, .inspect: false
+    @State private var wrapsCommand = true
+    @State private var editExpanded = false
+
+    private var adaptive: Bool { approval.operation.usesAdaptiveSheet }
+    private var inset: CGFloat { adaptive ? ApprovalSheetLayout.inset : 20 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: adaptive ? 16 : 12) {
+                ToolApprovalHeader(operation: approval.operation, sessionTitle: sessionTitle, expiresAt: expiresAt)
+                    .layoutPriority(1)
+                if adaptive {
+                    ViewThatFits(in: .vertical) {
+                        details.fixedSize(horizontal: false, vertical: true)
+                        ScrollView { details }
+                            .scrollBounceBehavior(.basedOnSize)
+                    }
+                } else {
+                    PikachuDivider()
+                    details
+                }
+            }
+            .padding(inset)
+            ToolApprovalFooter(adaptive: adaptive, submitting: submitting, reply: reply)
+                .layoutPriority(1)
         }
     }
 
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if adaptive {
+                AdaptiveApprovalDetails(approval: approval, wrapsCommand: $wrapsCommand, editExpanded: $editExpanded)
+            } else {
+                ToolApprovalDetails(approval: approval)
+            }
+            if let notice { Text(verbatim: notice).pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText) }
+            if let error { Text(verbatim: error).pikachuFont(.caption).foregroundStyle(PikachuTheme.errorText) }
+        }
+    }
+}
+
+private struct ApprovalHeightLayout: Layout {
+    let maximumHeight: CGFloat?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        // Measure the ideal height independently of the sheet's current height so it can grow after a disclosure opens.
+        let ideal = subviews[0].sizeThatFits(ProposedViewSize(width: proposal.width, height: nil))
+        return CGSize(width: ideal.width, height: min(ideal.height, maximumHeight ?? ideal.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews[0].place(at: CGPoint(x: bounds.midX, y: bounds.minY), anchor: .top, proposal: ProposedViewSize(bounds.size))
+    }
+}
+
+private struct ApprovalSheetWindowHeight: NSViewRepresentable {
+    let height: CGFloat?
+
+    func makeNSView(context: Context) -> SheetAnchor {
+        SheetAnchor()
+    }
+
+    func updateNSView(_ view: SheetAnchor, context: Context) {
+        view.preferredHeight = height
+    }
+
+    final class SheetAnchor: NSView {
+        var preferredHeight: CGFloat? {
+            didSet {
+                if preferredHeight != oldValue { resizeSheet() }
+            }
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            resizeSheet()
+        }
+
+        private func resizeSheet() {
+            // An attached SwiftUI sheet can retain its initial height even when its content is fitted.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window, window.sheetParent != nil, let preferredHeight else { return }
+                let current = window.frame
+                let content = window.contentRect(forFrameRect: current)
+                guard abs(content.height - preferredHeight) >= 1 else { return }
+                let fitted = window.frameRect(forContentRect: CGRect(origin: content.origin,
+                                                                      size: CGSize(width: content.width, height: preferredHeight)))
+                window.setFrame(CGRect(x: current.minX, y: current.maxY - fitted.height,
+                                       width: current.width, height: fitted.height), display: true)
+            }
+        }
+    }
+}
+
+private struct ToolApprovalHeader: View {
+    let operation: RuntimeToolApproval.Operation
+    let sessionTitle: String
+    let expiresAt: Date
+
     private var title: LocalizedStringKey {
-        switch approval.operation {
+        switch operation {
         case .command: "允许运行此命令？"
         case .write: "允许写入文件？"
         case .edit: "允许编辑文件？"
@@ -274,49 +476,86 @@ private struct ToolApprovalSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 12) {
-                        Text(title)
-                            .pikachuFont(.title2, weight: .semibold)
-                            .accessibilityAddTraits(.isHeader)
-                        if usesCountdownHeader {
-                            Spacer(minLength: 0)
-                            InteractionCountdown(expiresAt: expiresAt)
-                                .fixedSize(horizontal: true, vertical: false)
-                        }
-                    }
-                    if !usesCountdownHeader {
-                        Text("会话：\(sessionTitle)")
-                            .pikachuFont(.caption)
-                            .foregroundStyle(PikachuTheme.secondaryText)
-                            .lineLimit(2)
-                            .help(sessionTitle)
-                        InteractionDeadline(expiresAt: expiresAt)
-                    }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Text(title)
+                    .pikachuFont(.title2, weight: .semibold)
+                    .accessibilityAddTraits(.isHeader)
+                if operation.usesAdaptiveSheet {
+                    Spacer(minLength: 0)
+                    InteractionCountdown(expiresAt: expiresAt)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
-                PikachuDivider()
-                ToolApprovalDetails(approval: approval)
-                if let notice { Text(verbatim: notice).pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText) }
-                if let error { Text(verbatim: error).pikachuFont(.caption).foregroundStyle(PikachuTheme.errorText) }
             }
-            .padding(20)
-            PikachuDivider()
+            if !operation.usesAdaptiveSheet {
+                Text("会话：\(sessionTitle)")
+                    .pikachuFont(.caption)
+                    .foregroundStyle(PikachuTheme.secondaryText)
+                    .lineLimit(2)
+                    .help(sessionTitle)
+                InteractionDeadline(expiresAt: expiresAt)
+            }
+        }
+    }
+}
+
+private struct ToolApprovalFooter: View {
+    let adaptive: Bool
+    let submitting: Bool
+    let reply: (InteractionResponse) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if adaptive {
+                Rectangle().fill(PikachuTheme.subtleDivider)
+                    .frame(height: 1)
+                    .padding(.horizontal, ApprovalSheetLayout.inset)
+                    .accessibilityHidden(true)
+            } else {
+                PikachuDivider()
+            }
             HStack(spacing: 8) {
                 Spacer()
                 if submitting { FlatProgressView().controlSize(.small) }
-                Button("拒绝", role: .cancel) { reply(.confirmed(false)) }
-                    .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("interaction-no")
-                Button("运行") { reply(.confirmed(true)) }
-                    .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
-                    .accessibilityIdentifier("interaction-yes")
+                Button(role: .cancel) { reply(.confirmed(false)) } label: {
+                    Text("拒绝").frame(minWidth: adaptive ? 56 : nil)
+                }
+                .buttonStyle(FlatControlButtonStyle(treatment: .outlined,
+                                                    outlineColor: adaptive ? PikachuTheme.selectionBorder.opacity(0.7) : nil))
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("interaction-no")
+                Button { reply(.confirmed(true)) } label: {
+                    if adaptive { Text("允许").frame(minWidth: 56) }
+                    else { Text("运行") }
+                }
+                .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
+                .accessibilityIdentifier("interaction-yes")
             }
             .disabled(submitting)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, adaptive ? ApprovalSheetLayout.inset : 20)
             .padding(.vertical, 12)
+        }
+    }
+}
+
+private struct AdaptiveApprovalDetails: View {
+    let approval: RuntimeToolApproval
+    @Binding var wrapsCommand: Bool
+    @Binding var editExpanded: Bool
+
+    var body: some View {
+        switch approval.operation {
+        case .command(let command, let timeout):
+            CommandApprovalPreview(command: command, wrapsLines: $wrapsCommand)
+            ToolApprovalMetadata(workingDirectory: approval.workingDirectory, timeout: timeout, compact: true)
+        case .edit(let path, let replacements):
+            ApprovalPathValue(path: path)
+                .pikachuFont(.body, design: .monospaced)
+                .accessibilityIdentifier("approval-file-path")
+            EditApprovalPreview(replacements: replacements, isExpanded: $editExpanded, showsChangeCount: true)
+            ToolApprovalMetadata(workingDirectory: approval.workingDirectory, compact: true)
+        case .write, .inspect:
+            EmptyView()
         }
     }
 }
@@ -366,17 +605,20 @@ private struct ToolApprovalMetadata: View {
     let workingDirectory: String
     var path: String? = nil
     var timeout: Double? = nil
+    var compact = false
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
             GridRow(alignment: .center) {
                 Text("工作目录").foregroundStyle(PikachuTheme.secondaryText).fixedSize()
-                pathValue(workingDirectory).accessibilityIdentifier("approval-working-directory")
+                ApprovalPathValue(path: workingDirectory)
+                    .foregroundStyle(compact ? PikachuTheme.secondaryText : PikachuTheme.primaryText)
+                    .accessibilityIdentifier("approval-working-directory")
             }
             if let path {
                 GridRow(alignment: .center) {
                     Text("文件路径").foregroundStyle(PikachuTheme.secondaryText).fixedSize()
-                    pathValue(path).accessibilityIdentifier("approval-file-path")
+                    ApprovalPathValue(path: path).accessibilityIdentifier("approval-file-path")
                 }
             }
             if let timeout {
@@ -386,13 +628,20 @@ private struct ToolApprovalMetadata: View {
                 }
             }
         }
-        .pikachuFont(.callout)
+        .pikachuFont(compact ? .caption : .callout)
     }
+}
 
-    private func pathValue(_ value: String) -> some View {
-        let singleLine = value.replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n")
-        return ScrollView(.horizontal) {
-            Text(verbatim: singleLine)
+private func singleLineApprovalPath(_ path: String) -> String {
+    path.replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n")
+}
+
+private struct ApprovalPathValue: View {
+    let path: String
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Text(verbatim: singleLineApprovalPath(path))
                 .fontDesign(.monospaced)
                 .lineLimit(1)
                 .fixedSize()
@@ -400,22 +649,36 @@ private struct ToolApprovalMetadata: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .fixedSize(horizontal: false, vertical: true)
-        .help(value)
+        .help(path)
     }
 }
 
 struct EditApprovalPreview: View {
     let replacements: [RuntimeToolApproval.Replacement]
     @Binding var isExpanded: Bool
+    var showsChangeCount = false
     private let heightLimit: CGFloat = 244
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
             preview.padding(.top, 6)
         } label: {
-            Text("修改内容").pikachuFont(.callout, weight: .semibold)
+            if showsChangeCount {
+                HStack(spacing: 8) {
+                    Text("查看修改 · \(replacements.count) 处",
+                         comment: "Disclosure label followed by the number of edits in this approval.")
+                        .pikachuFont(.callout, weight: .semibold)
+                    FlatDisclosureChevron(expanded: isExpanded)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(PikachuTheme.mutedSurface, in: RoundedRectangle(cornerRadius: 8))
+            } else {
+                Text("修改内容").pikachuFont(.callout, weight: .semibold)
+            }
         }
-        .disclosureGroupStyle(FlatDisclosureStyle())
+        .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: showsChangeCount ? nil : .leading))
         .accessibilityIdentifier("edit-approval-preview")
     }
 
@@ -462,6 +725,64 @@ private struct EditApprovalText: View {
     }
 }
 
+struct CommandApprovalPreview: View {
+    let command: String
+    @Binding var wrapsLines: Bool
+    var pasteboard: NSPasteboard? = nil
+    @Environment(\.pikachuTypography) private var typography
+
+    var body: some View {
+        let iconSide = typography.pointSize(for: .callout)
+        HStack(alignment: .top, spacing: ApprovalSheetLayout.previewTextSpacing) {
+            ApprovalTextScrollView(text: command, maxHeight: ApprovalSheetLayout.commandPreviewHeight(typography: typography),
+                                   wrapsLines: wrapsLines)
+                .accessibilityIdentifier("command-approval-preview")
+            HStack(spacing: ApprovalSheetLayout.previewActionSpacing) {
+                Button {
+                    wrapsLines.toggle()
+                } label: {
+                    WrapLinesIcon()
+                        .stroke(style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
+                        .frame(width: iconSide, height: iconSide)
+                        .frame(width: ApprovalSheetLayout.previewActionSize)
+                        .accessibilityHidden(true)
+                }
+                .buttonStyle(FlatControlButtonStyle(isOpen: wrapsLines, inset: false, height: ApprovalSheetLayout.previewActionSize))
+                .help("自动换行")
+                .accessibilityLabel("自动换行")
+                .accessibilityValue(wrapsLines ? Text("已开启") : Text("已关闭"))
+                .accessibilityAddTraits(wrapsLines ? .isSelected : [])
+                .accessibilityIdentifier("command-approval-wrap-lines")
+
+                ApprovalCopyButton(text: command, title: "复制命令", identifier: "command-approval-copy",
+                                   size: ApprovalSheetLayout.previewActionSize, pasteboard: pasteboard)
+            }
+        }
+        .padding(ApprovalSheetLayout.previewInset)
+        .flatSurface(PikachuTheme.mutedSurface, radius: 9)
+    }
+}
+
+private struct WrapLinesIcon: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+            }
+            path.move(to: point(0, 0.14))
+            path.addLine(to: point(1, 0.14))
+            path.move(to: point(0, 0.46))
+            path.addLine(to: point(0.76, 0.46))
+            path.addQuadCurve(to: point(0.76, 0.86), control: point(1.18, 0.66))
+            path.addLine(to: point(0.53, 0.86))
+            path.move(to: point(0.66, 0.69))
+            path.addLines([point(0.49, 0.86), point(0.66, 1)])
+            path.move(to: point(0, 0.78))
+            path.addLine(to: point(0.25, 0.78))
+        }
+    }
+}
+
 private struct ApprovalTextPreview: View {
     let text: String
     let copyLabel: LocalizedStringKey
@@ -471,36 +792,52 @@ private struct ApprovalTextPreview: View {
         HStack(alignment: .top, spacing: 8) {
             ApprovalTextScrollView(text: text, maxHeight: 196)
                 .accessibilityIdentifier("\(identifier)-preview")
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-            } label: {
-                Label(copyLabel, systemImage: "doc.on.doc")
-                    .labelStyle(.iconOnly)
-                    .pikachuFont(.callout)
-            }
-            .buttonStyle(FlatControlButtonStyle())
-            .help(copyLabel)
-            .accessibilityIdentifier("\(identifier)-copy")
+            ApprovalCopyButton(text: text, title: copyLabel, identifier: "\(identifier)-copy")
         }
         .padding(10)
         .flatSurface(PikachuTheme.mutedSurface, radius: 9)
     }
 }
 
+private struct ApprovalCopyButton: View {
+    let text: String
+    let title: LocalizedStringKey
+    let identifier: String
+    var size: CGFloat? = nil
+    var pasteboard: NSPasteboard? = nil
+
+    var body: some View {
+        Button {
+            let board = pasteboard ?? .general
+            board.clearContents()
+            board.setString(text, forType: .string)
+        } label: {
+            Label(title, systemImage: "doc.on.doc")
+                .labelStyle(.iconOnly)
+                .pikachuFont(.caption)
+                .frame(width: size)
+        }
+        .buttonStyle(FlatControlButtonStyle(inset: size == nil, height: size))
+        .help(title)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
 private struct ApprovalTextScrollView: View {
     let text: String
     let maxHeight: CGFloat
+    var wrapsLines = true
 
     var body: some View {
         // Measure the wrapped text so short previews hug their contents.
-        ApprovalVerbatimText(text: text)
+        ApprovalVerbatimText(text: text, wrapsLines: wrapsLines)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .frame(maxHeight: maxHeight)
             .hidden()
             .accessibilityHidden(true)
             .overlay {
-                ScrollView {
-                    ApprovalVerbatimText(text: text).textSelection(.enabled)
+                ScrollView(wrapsLines ? .vertical : [.horizontal, .vertical]) {
+                    ApprovalVerbatimText(text: text, wrapsLines: wrapsLines).textSelection(.enabled)
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
@@ -509,6 +846,7 @@ private struct ApprovalTextScrollView: View {
 
 private struct ApprovalVerbatimText: View {
     let text: String
+    var wrapsLines = true
 
     var body: some View {
         Group {
@@ -519,7 +857,7 @@ private struct ApprovalVerbatimText: View {
             }
         }
         .pikachuFont(.body, design: .monospaced)
-        .fixedSize(horizontal: false, vertical: true)
+        .fixedSize(horizontal: !wrapsLines, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

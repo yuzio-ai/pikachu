@@ -287,6 +287,38 @@ final class SessionDetailUITests: XCTestCase {
         }
     }
 
+    @MainActor func testComposerControlsCompressBeforeWrappingTrailingGroup() async {
+        var leading = CGRect.zero
+        var trailing = CGRect.zero
+        let host = NSHostingView(rootView: ComposerControlsLayout {
+            Color.clear.frame(minWidth: 180, idealWidth: 260, maxWidth: 260)
+                .frame(height: 24)
+                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { leading = $0 }
+            Color.clear.frame(minWidth: 72, idealWidth: 100, maxWidth: 100)
+                .frame(height: 32)
+                .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { trailing = $0 }
+        })
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 450, height: 200),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+
+        for (width, expectedLeading, expectedTrailing): (CGFloat, CGFloat, CGFloat) in
+            [(450, 260, 100), (365, 260, 89), (320, 232, 72), (250, 250, 100), (450, 260, 100)] {
+            window.setContentSize(NSSize(width: width, height: 200))
+            await settleWindow(window)
+            XCTAssertEqual(leading.width, expectedLeading, accuracy: 1)
+            XCTAssertEqual(trailing.width, expectedTrailing, accuracy: 1)
+            XCTAssertEqual(trailing.maxX - leading.minX, width, accuracy: 1)
+            if width == 250 {
+                XCTAssertEqual(trailing.minY - leading.maxY, 6, accuracy: 1)
+            } else {
+                XCTAssertEqual(leading.midY, trailing.midY, accuracy: 1)
+                XCTAssertGreaterThanOrEqual(trailing.minX - leading.maxX, 15)
+            }
+        }
+    }
+
     @MainActor func testOversizedStarterCanScrollToSendRow() async throws {
         var sendFrame = CGRect.zero
         let host = NSHostingView(rootView: SessionDetailViewport(isStarter: true) { _ in
@@ -320,7 +352,8 @@ final class SessionDetailUITests: XCTestCase {
     }
 
     @MainActor func testComposerReturnKeysInsertNewlinesAndCommandReturnSends() async throws {
-        let workspace = await newConversationWorkspace()
+        let runtime = StubSessionRuntime { $0.mode == .followUp ? .queued : .started }
+        let workspace = await newConversationWorkspace(runtime: runtime)
         let presentation = try XCTUnwrap(workspace.viewed)
         presentation.controller.draft = "abcd"
         let host = NSHostingView(rootView: SessionDetail(
@@ -339,6 +372,11 @@ final class SessionDetailUITests: XCTestCase {
         await settleWindow(window)
         let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
         editor.setSelectedRange(NSRange(location: 2, length: 0))
+
+        func editorFrame() throws -> CGRect {
+            let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+            return editor.convert(editor.bounds, to: host)
+        }
 
         func pressReturn(_ modifiers: NSEvent.ModifierFlags) async throws {
             let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
@@ -360,6 +398,32 @@ final class SessionDetailUITests: XCTestCase {
         for _ in 0..<10 where presentation.controller.transcript.isEmpty { await settleWindow(window) }
         XCTAssertEqual(presentation.controller.transcript.first?.editableText, "ab\n\ncd")
         XCTAssertTrue(presentation.controller.draft.isEmpty)
+
+        // During execution the visible primary button is Stop, but the editor still sends with ⌘↩.
+        for _ in 0..<10 where presentation.controller.phase != .running { await settleWindow(window) }
+        XCTAssertEqual(presentation.controller.phase, .running)
+        workspace.focusInput()
+        await settleWindow(window)
+        let runningFrame = try editorFrame()
+
+        presentation.controller.draft = "Run next\non another line"
+        await settleWindow(window)
+        XCTAssertEqual(try editorFrame().minX, runningFrame.minX, accuracy: 1)
+
+        presentation.controller.mode = .followUp
+        try await pressReturn([.command])
+        for _ in 0..<10 where presentation.controller.transcript.last?.delivery != .queued { await settleWindow(window) }
+        XCTAssertEqual(presentation.controller.transcript.last?.editableText, "Run next\non another line")
+        XCTAssertEqual(presentation.controller.transcript.last?.delivery, .queued)
+        XCTAssertEqual(presentation.controller.phase, .running)
+
+        await presentation.controller.stop()
+        workspace.focusInput()
+        await settleWindow(window)
+        // Hiding the inline capsule gives its width back to the editor.
+        let idleFrame = try editorFrame()
+        XCTAssertLessThan(idleFrame.minX, runningFrame.minX)
+        XCTAssertEqual(idleFrame.maxX, runningFrame.maxX, accuracy: 1)
     }
 
     @MainActor func testFirstSubmissionMovesLocalDraftIntoTranscript() async throws {
@@ -1382,7 +1446,8 @@ final class SessionDetailUITests: XCTestCase {
         window.beginSheet(blockingSheet, completionHandler: nil)
         await settleWindow(window)
         let request = RuntimeInteraction(instanceID: instance, requestID: "auto-approval", kind: .confirm, title: "Confirm fixture",
-                                         toolApproval: .init(workingDirectory: "/fixture", operation: .command(text: "printf fixture", timeoutSeconds: nil)))
+                                         toolApproval: .init(workingDirectory: "/fixture/" + String(repeating: "long-directory/", count: 12),
+                                                             operation: .command(text: "printf fixture", timeoutSeconds: nil)))
         controller.receive(.init(instanceID: instance, event: .interaction(request)))
         await settleWindow(window)
         XCTAssertTrue(window.attachedSheet === blockingSheet)
@@ -1395,10 +1460,21 @@ final class SessionDetailUITests: XCTestCase {
         }
         let approvalSheet = try XCTUnwrap(window.attachedSheet)
         XCTAssertFalse(approvalSheet === blockingSheet)
-        XCTAssertGreaterThanOrEqual(approvalSheet.frame.width, 720, "Tool approvals need room for long commands and paths")
+        XCTAssertEqual(approvalSheet.frame.width, 640, accuracy: 1)
+        XCTAssertLessThan(approvalSheet.frame.height, 250, "A short command should fit its contents")
         XCTAssertEqual(controller.interactions, [request], "Automatically showing an approval must not answer it")
-        controller.receive(.init(instanceID: instance, event: .interactionEnded(request.id, .cancelled)))
-        await settleWindow(window)
+        let activeHeight = approvalSheet.frame.height
+        controller.receive(.init(instanceID: instance, event: .interactionEnded(request.id, .expired)))
+        try await settleApprovalResize(approvalSheet, from: activeHeight)
+        XCTAssertTrue(controller.didExpire(request))
+        XCTAssertTrue(window.attachedSheet === approvalSheet)
+        XCTAssertEqual(approvalSheet.frame.width, 640, accuracy: 1)
+        let expiredContent = try XCTUnwrap(approvalSheet.contentView)
+        XCTAssertGreaterThan(approvalSheet.frame.height, activeHeight)
+        XCTAssertGreaterThanOrEqual(expiredContent.bounds.height + 1, expiredContent.fittingSize.height)
+        try clickApproval(in: expiredContent, x: expiredContent.bounds.width - 40,
+                          fromTop: expiredContent.bounds.height - 34)
+        try await awaitApprovalSheetDismissal(in: window)
         _ = await workspace.disconnect(id)
     }
 
@@ -1436,8 +1512,229 @@ final class SessionDetailUITests: XCTestCase {
             toolApproval: .init(workingDirectory: "/fixture", operation: .edit(path: "file.swift", replacements: [long, short]))
         )
         let sheet = NSHostingView(rootView: InteractionView(request: request, controller: SessionController(), sessionTitle: "Fixture"))
-        XCTAssertEqual(sheet.fittingSize.width, 620, accuracy: 1)
+        XCTAssertEqual(sheet.fittingSize.width, 640, accuracy: 1)
         XCTAssertLessThan(sheet.fittingSize.height, 250, "Editing details should start collapsed")
+    }
+
+    @MainActor func testApprovalWidthUsesPrimaryContentAndRestoresThePreferredTier() {
+        let standard = PikachuTypography()
+        func width(_ command: String, typography: PikachuTypography = .init()) -> CGFloat? {
+            ApprovalSheetLayout.preferredWidth(for: .command(text: command, timeoutSeconds: nil), typography: typography)
+        }
+        XCTAssertEqual(width("printf fixture"), 640)
+        XCTAssertEqual(width(Array(repeating: "printf fixture", count: 12).joined(separator: "\n")), 640)
+        XCTAssertEqual(width(String(repeating: "x", count: 200)), 700)
+        XCTAssertEqual(width(String(repeating: "foo ", count: 28)), 640)
+        XCTAssertEqual(width(String(repeating: "foo ", count: 28), typography: .init(size: .extraLarge)), 700)
+        XCTAssertEqual(ApprovalSheetLayout.preferredWidth(for: .edit(path: "file.swift", replacements: []), typography: standard), 640)
+        XCTAssertEqual(ApprovalSheetLayout.preferredWidth(for: .edit(path: String(repeating: "dir/", count: 30) + "file.swift",
+                                                                      replacements: []), typography: standard), 700)
+        XCTAssertNil(ApprovalSheetLayout.preferredWidth(for: .write(path: "file.swift", content: ""), typography: standard))
+        XCTAssertNil(ApprovalSheetLayout.preferredWidth(for: .inspect(.read, arguments: []), typography: standard))
+        XCTAssertEqual(ApprovalSheetLayout.width(preferred: 700, available: 640), 592)
+        XCTAssertEqual(ApprovalSheetLayout.width(preferred: 700, available: 860), 700)
+    }
+
+    @MainActor func testCommandPreviewWrapTogglePreservesOriginalClipboardText() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let command = "printf " + String(repeating: "x", count: 200) + "\r\n  printf '尾部'\n"
+        let host = NSHostingView(rootView: CommandApprovalPreview(command: command, wrapsLines: .constant(true), pasteboard: pasteboard)
+            .frame(width: 592).pikachuTypography(.extraLarge))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 592, height: 240),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil) }
+        await settleWindow(window)
+
+        for wrapsLines in [true, false] {
+            host.rootView = CommandApprovalPreview(command: command, wrapsLines: .constant(wrapsLines), pasteboard: pasteboard)
+                .frame(width: 592).pikachuTypography(.extraLarge)
+            pasteboard.clearContents()
+            await settleWindow(window)
+            let scroll = try XCTUnwrap(approvalScrollViews(in: host).first)
+            try clickApproval(in: host, x: host.bounds.width - ApprovalSheetLayout.previewInset - ApprovalSheetLayout.previewActionSize / 2,
+                              fromTop: approvalTop(of: scroll, in: host) + ApprovalSheetLayout.previewActionSize / 2)
+            await settleWindow(window)
+            let copied = try XCTUnwrap(pasteboard.string(forType: .string))
+            XCTAssertEqual(Array(copied.utf8), Array(command.utf8))
+        }
+    }
+
+    @MainActor func testAdaptiveApprovalSheetsThroughWorkbench() async throws {
+        let runtime = StubSessionRuntime()
+        let workspace = await newConversationWorkspace(runtime: runtime)
+        let id = try XCTUnwrap(workspace.selected?.id)
+        let connected = await workspace.activate(id)
+        XCTAssertTrue(connected)
+        let controller = try XCTUnwrap(workspace.execution(for: id))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 620),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = NSHostingView(rootView: WorkbenchView(
+            workspace: workspace, settings: AppSettings(), quitRequest: 0, openSettingsRequest: 0,
+            terminate: { _, cancel in cancel() }, sidebarVisibility: .constant(.all),
+            canAutomaticallyPresentInteraction: { [weak window] in window?.attachedSheet == nil }
+        ))
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            if let sheet = window.attachedSheet { window.endSheet(sheet) }
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        await settleWindow(window)
+
+        func present(_ operation: RuntimeToolApproval.Operation, id: String) async throws -> (RuntimeInteraction, NSWindow) {
+            let request = RuntimeInteraction(instanceID: runtime.instanceID, requestID: id, kind: .confirm,
+                                             title: "Approval fixture",
+                                             toolApproval: .init(workingDirectory: "/fixture/pikachu", operation: operation))
+            runtime.emit(.interaction(request))
+            let sheet = try await awaitApprovalSheet(in: window)
+            XCTAssertEqual(controller.interactions, [request])
+            return (request, sheet)
+        }
+
+        let command = "printf 'first line'\nprintf " + String(repeating: "x", count: 250) + "\nprintf 'last line'"
+        let (commandRequest, commandSheet) = try await present(.command(text: command, timeoutSeconds: 10), id: "long-command")
+        XCTAssertEqual(commandSheet.frame.width, 700, accuracy: 1)
+        let commandContent = try XCTUnwrap(commandSheet.contentView)
+        let initialHeight = commandSheet.frame.height
+        let wrappedScroll = try XCTUnwrap(approvalScrollViews(in: commandContent).first { !$0.hasHorizontalScroller })
+        addApprovalScreenshot(of: commandContent, name: "Command approval · light · wrap on")
+        let wrapFromRight = ApprovalSheetLayout.inset + ApprovalSheetLayout.previewInset
+            + ApprovalSheetLayout.previewActionSize * 1.5 + ApprovalSheetLayout.previewActionSpacing
+        try clickApproval(in: commandContent, x: commandContent.bounds.width - wrapFromRight,
+                          fromTop: approvalTop(of: wrappedScroll, in: commandContent) + ApprovalSheetLayout.previewActionSize / 2)
+        try await settleApprovalResize(commandSheet, from: initialHeight)
+        XCTAssertEqual(commandSheet.frame.width, 700, accuracy: 1)
+        XCTAssertLessThan(commandSheet.frame.height, initialHeight)
+        let unwrappedScroll = try XCTUnwrap(approvalScrollViews(in: commandContent).first {
+            $0.hasHorizontalScroller && $0.hasVerticalScroller
+        })
+        addApprovalScreenshot(of: commandContent, name: "Command approval · light · wrap off")
+        let document = try XCTUnwrap(unwrappedScroll.documentView)
+        let horizontalOverflow = document.frame.width - unwrappedScroll.contentView.bounds.width
+        XCTAssertGreaterThan(horizontalOverflow, 100)
+        unwrappedScroll.contentView.scroll(to: NSPoint(x: horizontalOverflow, y: 0))
+        XCTAssertGreaterThan(unwrappedScroll.contentView.bounds.minX, 0)
+
+        window.setContentSize(CGSize(width: 720, height: 620))
+        await settleWindow(window)
+        XCTAssertTrue(window.attachedSheet === commandSheet)
+        XCTAssertEqual(commandSheet.frame.width, 672, accuracy: 1)
+        window.setContentSize(CGSize(width: 1120, height: 760))
+        await settleWindow(window)
+        XCTAssertEqual(commandSheet.frame.width, 700, accuracy: 1)
+
+        runtime.emit(.interactionEnded(commandRequest.id, .expired))
+        for _ in 0..<25 where !controller.didExpire(commandRequest) {
+            try await Task.sleep(for: .milliseconds(20))
+            await settleWindow(window)
+        }
+        await settleWindow(commandSheet)
+        XCTAssertTrue(controller.didExpire(commandRequest))
+        XCTAssertTrue(window.attachedSheet === commandSheet)
+        let escape = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                  windowNumber: commandSheet.windowNumber, context: nil, characters: "\u{1B}",
+                                                  charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53))
+        commandSheet.sendEvent(escape)
+        try await awaitApprovalSheetDismissal(in: window)
+
+        let path = String(repeating: "long-directory/", count: 12) + "Target.swift"
+        let old = Array(repeating: "let n = 1", count: 40).joined(separator: "\n")
+        let replacements = try JSONDecoder().decode([RuntimeToolApproval.Replacement].self, from: JSONSerialization.data(withJSONObject: [
+            ["oldText": old, "newText": "let n = 2"],
+            ["oldText": "let m = 1", "newText": "let m = 2"]
+        ]))
+        let (editRequest, editSheet) = try await present(.edit(path: path, replacements: replacements), id: "long-edit")
+        editSheet.appearance = NSAppearance(named: .darkAqua)
+        await settleWindow(editSheet)
+        let editContent = try XCTUnwrap(editSheet.contentView)
+        XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
+        let collapsedHeight = editSheet.frame.height
+        XCTAssertLessThan(collapsedHeight, 250)
+        let targetPath = try XCTUnwrap(approvalScrollViews(in: editContent).first {
+            ($0.documentView?.frame.width ?? 0) > $0.contentView.bounds.width + 100
+        })
+        addApprovalScreenshot(of: editContent, name: "Edit approval · dark · collapsed")
+        try clickApproval(in: editContent, x: editContent.bounds.midX,
+                          fromTop: approvalTop(of: targetPath, in: editContent) + targetPath.bounds.height + 26)
+        try await settleApprovalResize(editSheet, from: collapsedHeight)
+        XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
+        XCTAssertGreaterThan(editSheet.frame.height, collapsedHeight + 200)
+        XCTAssertLessThan(editSheet.frame.height, window.frame.height)
+        addApprovalScreenshot(of: editContent, name: "Edit approval · dark · expanded")
+        let expandedHeight = editSheet.frame.height
+        let expandedPath = try XCTUnwrap(approvalScrollViews(in: editContent).first {
+            ($0.documentView?.frame.width ?? 0) > $0.contentView.bounds.width + 100
+        })
+        try clickApproval(in: editContent, x: editContent.bounds.midX,
+                          fromTop: approvalTop(of: expandedPath, in: editContent) + expandedPath.bounds.height + 26)
+        try await settleApprovalResize(editSheet, from: expandedHeight)
+        XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
+        XCTAssertEqual(editSheet.frame.height, collapsedHeight, accuracy: 1)
+        runtime.emit(.interactionEnded(editRequest.id, .cancelled))
+        try await awaitApprovalSheetDismissal(in: window)
+        _ = await workspace.disconnect(id)
+    }
+
+    @MainActor private func awaitApprovalSheet(in window: NSWindow) async throws -> NSWindow {
+        for _ in 0..<25 where window.attachedSheet == nil {
+            try await Task.sleep(for: .milliseconds(20))
+            await settleWindow(window)
+        }
+        let sheet = try XCTUnwrap(window.attachedSheet)
+        await settleWindow(sheet)
+        return sheet
+    }
+
+    @MainActor private func awaitApprovalSheetDismissal(in window: NSWindow) async throws {
+        for _ in 0..<25 where window.attachedSheet != nil {
+            try await Task.sleep(for: .milliseconds(20))
+            await settleWindow(window)
+        }
+        XCTAssertNil(window.attachedSheet)
+    }
+
+    @MainActor private func settleApprovalResize(_ sheet: NSWindow, from previousHeight: CGFloat) async throws {
+        for _ in 0..<25 where sheet.frame.height == previousHeight {
+            try await Task.sleep(for: .milliseconds(20))
+            await settleWindow(sheet)
+        }
+        await settleWindow(sheet)
+    }
+
+    @MainActor private func addApprovalScreenshot(of view: NSView, name: String) {
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        guard let png = bitmap.representation(using: .png, properties: [:]) else { return }
+        let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor private func approvalScrollViews(in view: NSView) -> [NSScrollView] {
+        if let scroll = view as? NSScrollView { return [scroll] }
+        return view.subviews.flatMap { approvalScrollViews(in: $0) }
+    }
+
+    @MainActor private func approvalTop(of view: NSView, in root: NSView) -> CGFloat {
+        let rect = view.convert(view.bounds, to: root)
+        return root.isFlipped ? rect.minY - root.bounds.minY : root.bounds.maxY - rect.maxY
+    }
+
+    @MainActor private func clickApproval(in view: NSView, x: CGFloat, fromTop: CGFloat) throws {
+        let window = try XCTUnwrap(view.window)
+        let y = view.isFlipped ? view.bounds.minY + fromTop : view.bounds.maxY - fromTop
+        let location = view.convert(NSPoint(x: x, y: y), to: nil)
+        for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
+            let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0,
+                                                         windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                                                         clickCount: 1, pressure: 1))
+            window.sendEvent(event)
+        }
     }
 
     @MainActor func testInteractionViewsDoNotCaptureTheWorkbenchStopShortcut() async throws {

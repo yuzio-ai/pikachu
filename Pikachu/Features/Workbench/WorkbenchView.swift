@@ -111,7 +111,9 @@ struct WorkbenchView: View {
             Group {
                 switch value {
                 case .interaction(let request, let controller, let title):
-                    InteractionView(request: request, controller: controller, sessionTitle: title).id(request.id)
+                    InteractionView(request: request, controller: controller, sessionTitle: title,
+                                    availableSize: workbenchSize)
+                        .id(request.id)
                 case .toolFailures(let failures):
                     ToolFailureDetailsSheet(failures: failures, close: { modal = nil })
                 case .chooseSessionProject:
