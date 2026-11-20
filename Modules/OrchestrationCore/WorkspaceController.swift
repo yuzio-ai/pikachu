@@ -40,6 +40,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     public private(set) var isShuttingDown = false
     private var sessionOperations: Set<UUID> = []
     public private(set) var refreshingHistoryIndex = false
+    public private(set) var historyIndexWarning: String?
     private var savingProject = false
     private var savingProjectConfigDirectories: Set<String> = []
     private var executionPolicies: [UUID: AgentExecutionPolicy] = [:]
@@ -64,7 +65,10 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     @ObservationIgnored private let runtimeFactory: @MainActor (ProjectRecord, SessionReference, WorkspaceRuntimeLaunch) -> any AgentRuntime
     @ObservationIgnored private let inspectModels: @MainActor (RuntimeModel?) async throws -> RuntimeConfigurationOptions
     @ObservationIgnored private var autosave: Task<Void, Never>?
+    @ObservationIgnored private let idleRuntimeTimeout: Duration
+    @ObservationIgnored private var idleReapers: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var dirtyDrafts: Set<UUID> = []
+    private var defaultAgentModeSave: Task<Bool, Never>?
     @ObservationIgnored private var savingSnapshot = false
     @ObservationIgnored private var snapshotWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored private let validateWorktree: @MainActor (String, String) async -> Bool
@@ -90,24 +94,25 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         (draftIndicators[session.id] ?? (!session.draft.isEmpty || session.draftFiles?.isEmpty == false)) || !session.recovered.isEmpty
     }
     public convenience init(store: any WorkspaceStore, reader: any RuntimeHistoryReader,
-                            clock: any RuntimeClock = SystemRuntimeClock(),
+                            clock: any RuntimeClock = SystemRuntimeClock(), idleRuntimeTimeout: Duration = .seconds(35 * 60),
                             validateWorktree: @escaping @MainActor (String, String) async -> Bool = { _, _ in true },
                             inspectModels: @escaping @MainActor (RuntimeModel?) async throws -> RuntimeConfigurationOptions = { _ in
                                 throw RuntimeFailure(.setup, String(localized: "未配置模型目录。", bundle: #bundle))
                             }, factory: @escaping @MainActor (ProjectRecord, SessionReference) -> any AgentRuntime) {
-        self.init(store: store, reader: reader, clock: clock,
+        self.init(store: store, reader: reader, clock: clock, idleRuntimeTimeout: idleRuntimeTimeout,
                   validateWorktree: validateWorktree, inspectModels: inspectModels) { project, reference, _ in
             factory(project, reference)
         }
     }
     public init(store: any WorkspaceStore, reader: any RuntimeHistoryReader,
-                clock: any RuntimeClock = SystemRuntimeClock(),
+                clock: any RuntimeClock = SystemRuntimeClock(), idleRuntimeTimeout: Duration = .seconds(35 * 60),
                 validateWorktree: @escaping @MainActor (String, String) async -> Bool = { _, _ in true },
                 inspectModels: @escaping @MainActor (RuntimeModel?) async throws -> RuntimeConfigurationOptions = { _ in
                     throw RuntimeFailure(.setup, String(localized: "未配置模型目录。", bundle: #bundle))
                 }, runtimeFactory: @escaping @MainActor (ProjectRecord, SessionReference, WorkspaceRuntimeLaunch) -> any AgentRuntime) {
         self.store = store; self.reader = reader; self.clock = clock; self.runtimeFactory = runtimeFactory
         self.inspectModels = inspectModels; self.validateWorktree = validateWorktree
+        self.idleRuntimeTimeout = idleRuntimeTimeout
     }
     public func start() async {
         guard !initialized else { return }
@@ -143,6 +148,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         } catch { storageError = String(localized: "本地工作台数据无法读取，已阻止执行；没有重建或覆盖原数据。", bundle: #bundle) }
     }
     @discardableResult public func addProject(_ path: URL, createInitialSession: Bool = true) async -> UUID? {
+        if createInitialSession, !(await waitForDefaultAgentModeSave()) { return nil }
         guard canManageProjects else { return nil }
         let location = path.standardizedFileURL.resolvingSymlinksInPath().path
         var directory: ObjCBool = false
@@ -157,7 +163,9 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         savingProject = true
         defer { savingProject = false }
         if createInitialSession { await select(appendNewSession(to: project.id)) }
-        if await flush() { await refreshHistoryIndex(projectID: project.id, refreshViewed: false) }
+        if await flush(), let feedback = await refreshHistoryIndex(projectID: project.id, refreshViewed: false), feedback.warning {
+            if storageError == nil { historyIndexWarning = feedback.message }
+        }
         return project.id
     }
     @discardableResult public func relocateProject(_ projectID: UUID, to path: URL) async -> ProjectOperationFeedback? {
@@ -199,7 +207,8 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         return .init(message: String(localized: "工作目录已更新。", bundle: #bundle), warning: false)
     }
     @discardableResult public func createSession(in projectID: UUID) async -> UUID? {
-        guard canManageProjects, state.projects.contains(where: { $0.id == projectID }) else { return nil }
+        guard await waitForDefaultAgentModeSave(), canManageProjects,
+              state.projects.contains(where: { $0.id == projectID }) else { return nil }
         let id = appendNewSession(to: projectID)
         await select(id); _ = await flush()
         return id
@@ -210,13 +219,34 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         return reference.id
     }
 
+    public var defaultAgentMode: AgentMode { state.defaultAgentMode ?? .interactive }
+    public var isSavingDefaultAgentMode: Bool { defaultAgentModeSave != nil }
+
+    @discardableResult public func setDefaultAgentMode(_ mode: AgentMode) async -> Bool {
+        guard initialized, !isShuttingDown, defaultAgentModeSave == nil else { return false }
+        let save = Task {
+            defer { defaultAgentModeSave = nil }
+            return await saveSnapshot { $0.defaultAgentMode = mode }
+        }
+        defaultAgentModeSave = save
+        return await save.value
+    }
+
+    private func waitForDefaultAgentModeSave() async -> Bool {
+        // A new session must not pick up the previous mode while a change is being saved.
+        while let save = defaultAgentModeSave {
+            guard await save.value else { return false }
+        }
+        return true
+    }
+
     private func makeNewSession(in projectID: UUID) -> SessionReference {
         var reference = SessionReference(projectID: projectID)
         if let model = state.modelPreferences?.defaultModel {
             reference.pendingSelection = .init(provider: model.provider, modelID: model.modelID)
             reference.pendingModelName = model.name
         }
-        reference.agentMode = .interactive
+        reference.agentMode = defaultAgentMode
         reference.processingStatus = .open
         reference.sidebarActivity = .init(date: reference.lastViewed)
         return reference
@@ -276,6 +306,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         state.selectedSessionID = id; state.sessions[i].lastViewed = Date()
         if let p = state.projects.firstIndex(where: { $0.id == state.sessions[i].projectID }) { state.projects[p].lastViewed = Date() }
         viewed = presentation(id); scheduleSave()
+        scheduleIdleReap(id)
         await refreshHistory(id)
         trimHistoryCache(keeping: id)
     }
@@ -336,14 +367,15 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     }
     public func refreshWorkspaceHistory() async {
         guard canManageProjects, !state.projects.isEmpty else { return }
-        await refreshHistoryIndex(projectID: nil, refreshViewed: true)
+        guard let feedback = await refreshHistoryIndex(projectID: nil, refreshViewed: true) else { return }
+        historyIndexWarning = feedback.warning && storageError == nil ? feedback.message : nil
     }
     private struct HistoryBinding: Hashable {
         let projectID: UUID
         let sessionID: String
     }
     @discardableResult private func refreshHistoryIndex(projectID: UUID?, refreshViewed: Bool) async -> ProjectOperationFeedback? {
-        guard initialized, !refreshingHistoryIndex, storageError == nil else { return nil }
+        guard initialized, !isShuttingDown, !Task.isCancelled, !refreshingHistoryIndex, storageError == nil else { return nil }
         refreshingHistoryIndex = true
         defer { refreshingHistoryIndex = false }
         let projects = state.projects
@@ -353,9 +385,9 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             if let path = session.worktreePath { pathsByProject[session.projectID, default: []].append(path) }
         }
         let locations = scope.flatMap { pathsByProject[$0] ?? [] }
-        error = nil
         do {
             let found = try await reader.discoverSummaries(locations: Array(Set(locations)).sorted())
+            guard !Task.isCancelled, !isShuttingDown else { return nil }
             var issues = found.issues
             var ownersByPath: [String: Set<UUID>] = [:]
             for project in projects {
@@ -387,6 +419,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 }
                 if scope.contains(binding.projectID) { foundByBinding[binding, default: []].append(history) }
             }
+            var indexChanged = false
             for (binding, group) in foundByBinding where !ambiguous.contains(binding) {
                 guard group.count == 1, let history = group.first else { issues.append(String(localized: "同一会话 ID 对应多个文件，请保留唯一来源后刷新。", bundle: #bundle)); continue }
                 if let i = indexed[binding] {
@@ -394,7 +427,10 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                     guard !sessionOperations.contains(id), executionPolicies[id] == nil else { continue }
                     var reference = state.sessions[i]
                     updateHistoryMetadata(history, in: &reference)
-                    if state.sessions[i] != reference { state.sessions[i] = reference }
+                    if state.sessions[i] != reference {
+                        state.sessions[i] = reference
+                        indexChanged = true
+                    }
                 } else {
                     var reference = SessionReference(projectID: binding.projectID, title: history.title)
                     reference.runtimeSessionID = history.sessionID
@@ -408,26 +444,20 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                         reference.sidebarActivity = .init(date: reference.lastViewed, isEstimate: true)
                     }
                     state.sessions.append(reference)
+                    indexChanged = true
                 }
             }
-            let warning: String?
-            if issues.isEmpty {
-                warning = nil
-            } else {
+            if refreshViewed, let id = state.selectedSessionID { await refreshHistory(id) }
+            if indexChanged, !(await flush()) { return storageError.map { .init(message: $0, warning: true) } }
+            if !issues.isEmpty {
                 var seen = Set<String>()
                 let message = issues.filter { seen.insert($0).inserted }.prefix(3).joined(separator: "\n")
-                warning = message
-                notice = message
+                return .init(message: message, warning: true)
             }
-            if refreshViewed, let id = state.selectedSessionID { await refreshHistory(id) }
-            guard await flush() else { return storageError.map { .init(message: $0, warning: true) } }
-            if let warning { return .init(message: warning, warning: true) }
-            let message = String(localized: "会话列表已刷新。", bundle: #bundle)
-            if refreshViewed { notice = message }
-            return .init(message: message, warning: false)
+            return .init(message: String(localized: "会话列表已刷新。", bundle: #bundle), warning: false)
         } catch {
+            guard !Task.isCancelled, !isShuttingDown else { return nil }
             let message = String(localized: "会话发现失败，现有索引和源历史保持不变。", bundle: #bundle)
-            self.error = message
             return .init(message: message, warning: true)
         }
     }
@@ -526,7 +556,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             return false
         }
         sessionOperations.insert(id)
-        defer { sessionOperations.remove(id) }
+        defer { endOperation(id) }
         var directory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: target, isDirectory: &directory), directory.boolValue else {
             source.executionError = String(localized: "工作目录不可用：\(target)", bundle: #bundle)
@@ -543,6 +573,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
            URL(fileURLWithPath: reference.workingDirectory(in: project)).standardizedFileURL.path ==
             URL(fileURLWithPath: target).standardizedFileURL.path { return true }
         if reference.hasBoundWorkingDirectory {
+            guard await waitForDefaultAgentModeSave(), storageError == nil, !isShuttingDown else { return false }
             var newSession = makeNewSession(in: project.id)
             newSession.worktreePath = path
             newSession.draft = source.controller.draft
@@ -584,6 +615,26 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             executionLaunches.removeValue(forKey: id)
         }
         sessionOperations.remove(id)
+        scheduleIdleReap(id)
+    }
+
+    private func scheduleIdleReap(_ id: UUID) {
+        idleReapers.removeValue(forKey: id)?.cancel()
+        guard !isOperating(on: id), execution(for: id)?.canReclaimIdleRuntime == true else { return }
+        idleReapers[id] = Task { [weak self, idleRuntimeTimeout] in
+            do { try await Task.sleep(for: idleRuntimeTimeout) } catch { return }
+            guard !Task.isCancelled, let self else { return }
+            self.idleReapers.removeValue(forKey: id)
+            guard !self.isOperating(on: id), let controller = self.execution(for: id), controller.canReclaimIdleRuntime,
+                  let reference = self.state.sessions.first(where: { $0.id == id }), reference.submissions.isEmpty else { return }
+            // Resume only when there is durable history, or nothing to resume yet.
+            if reference.runtimeSessionID != nil || !controller.transcript.isEmpty {
+                guard reference.historyConfirmed == true, let file = reference.file,
+                      FileManager.default.fileExists(atPath: file.path) else { return }
+            }
+            // Use the same close path as a manual disconnect. Unknown cleanup keeps the slot blocked.
+            _ = await self.disconnect(id)
+        }
     }
 
     private func matchesLaunchConfiguration(_ id: UUID, directory: String) -> Bool {
@@ -790,7 +841,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     @discardableResult public func disconnect(_ id: UUID, force: Bool = false) async -> Bool {
         guard !sessionOperations.contains(id) else { return false }
         sessionOperations.insert(id)
-        defer { sessionOperations.remove(id) }
+        defer { endOperation(id) }
         let closed = await closeExecution(id, force: force)
         let saved = await flush()
         return closed && saved
@@ -813,8 +864,15 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         return controller.canStop && (!sessionOperations.contains(id) || !controller.interactions.isEmpty)
     }
 
-    public func beginShutdown() { isShuttingDown = true }
-    public func cancelShutdown() { isShuttingDown = false }
+    public func beginShutdown() {
+        isShuttingDown = true
+        for task in idleReapers.values { task.cancel() }
+        idleReapers.removeAll()
+    }
+    public func cancelShutdown() {
+        isShuttingDown = false
+        for id in executionIDs { scheduleIdleReap(id) }
+    }
 
     public func disconnectAll(force: Bool = false) async -> Bool {
         var clean = true
@@ -902,7 +960,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         guard !isOperating(on: id), let i = state.sessions.firstIndex(where: { $0.id == id }) else { return false }
         presentation(id).executionError = nil
         sessionOperations.insert(id)
-        defer { sessionOperations.remove(id) }
+        defer { endOperation(id) }
         state.sessions[i].pendingSelection = selection
         state.sessions[i].pendingModelName = name
         guard await flush() else { return false }
@@ -1014,7 +1072,9 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 self.state.sessions[i].processingStatus = .open
             }
             self.scheduleSave()
+            self.scheduleIdleReap(id)
         }
+        view.controller.onRuntimeActivityChanged = { [weak self] in self?.scheduleIdleReap(id) }
         view.controller.onControlChanged = { [weak self] in
             guard let self else { return }
             let before = self.state.sessions.first { $0.id == id }?.recovered
@@ -1023,6 +1083,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 self.executionPolicies.removeValue(forKey: id)
                 self.executionLaunches.removeValue(forKey: id)
             }
+            self.scheduleIdleReap(id)
             if before != self.state.sessions.first(where: { $0.id == id })?.recovered {
                 Task { _ = await self.flush() }
             } else { self.scheduleSave() }

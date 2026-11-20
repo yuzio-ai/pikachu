@@ -193,6 +193,7 @@ public struct WorkspaceSnapshot: Codable, Sendable {
     public var selectedSessionID: UUID?
     public var preferences = WorkspacePreferences()
     public var modelPreferences: WorkspaceModelPreferences?
+    public var defaultAgentMode: AgentMode?
     public var trustedPiConfigDirectories: Set<String>?
     public init() {}
 }

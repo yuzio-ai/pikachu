@@ -5,14 +5,30 @@ import AgentRuntimeCore
 import OrchestrationCore
 import PiRuntimeAdapter
 import WorkspacePersistence
+@testable import Pikachu
 
 private actor MemoryWorkspaceStore: WorkspaceStore {
     var snapshot: WorkspaceSnapshot
     var fail = false
+    private var modeSaveBegan: XCTestExpectation?
+    private var resumeModeSave: CheckedContinuation<Void, Never>?
     init(_ snapshot: WorkspaceSnapshot = .init()) { self.snapshot = snapshot }
     func load() -> WorkspaceSnapshot { snapshot }
     func setFailure(_ value: Bool) { fail = value }
-    func save(_ value: WorkspaceSnapshot) throws {
+    func pauseNextModeSave(began: XCTestExpectation) { modeSaveBegan = began }
+    func releaseModeSave() {
+        modeSaveBegan = nil
+        resumeModeSave?.resume()
+        resumeModeSave = nil
+    }
+    func save(_ value: WorkspaceSnapshot) async throws {
+        if let began = modeSaveBegan, value.defaultAgentMode != snapshot.defaultAgentMode {
+            modeSaveBegan = nil
+            await withCheckedContinuation { continuation in
+                resumeModeSave = continuation
+                began.fulfill()
+            }
+        }
         if fail { throw RuntimeFailure(.setup, "injected storage error") }
         if value.revision > snapshot.revision { snapshot = value }
     }
@@ -522,18 +538,39 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         XCTAssertEqual(workspace.state.sessions.filter { $0.runtimeSessionID == "known" }.count, 1)
         XCTAssertEqual(workspace.state.sessions.first { $0.runtimeSessionID == "independent" }?.sidebarStatus, .settled)
         let ambiguity = String(localized: "部分会话的工作目录对应多个项目，已保留现有绑定。", bundle: Bundle(for: WorkspaceController.self))
-        XCTAssertTrue(workspace.notice?.split(separator: "\n").contains(Substring(ambiguity)) == true)
+        XCTAssertTrue(workspace.historyIndexWarning?.split(separator: "\n").contains(Substring(ambiguity)) == true)
+        XCTAssertNil(workspace.notice)
         XCTAssertTrue(workspace.executionIDs.isEmpty)
         let previousIDs = workspace.state.sessions.map(\.id)
         await reader.set([], interrupted: true)
         await workspace.refreshWorkspaceHistory()
-        XCTAssertNotNil(workspace.error)
-        XCTAssertEqual(workspace.state.sessions.map(\.id), previousIDs)
-        await reader.set([])
-        await workspace.refreshWorkspaceHistory()
+        XCTAssertNotNil(workspace.historyIndexWarning)
         XCTAssertNil(workspace.error)
         XCTAssertEqual(workspace.state.sessions.map(\.id), previousIDs)
+        workspace.notice = "Other notice"
+        await reader.set([])
+        await workspace.refreshWorkspaceHistory()
+        XCTAssertNil(workspace.historyIndexWarning)
+        XCTAssertEqual(workspace.notice, "Other notice")
+        XCTAssertEqual(workspace.state.sessions.map(\.id), previousIDs)
         XCTAssertEqual(workspace.state.selectedSessionID, other.id)
+
+        await reader.set([
+            .init(sessionID: "cancelled", file: firstRoot.appendingPathComponent("cancelled.jsonl"), cwd: first.path,
+                  title: "取消后不导入", items: [], incompleteTail: false, warnings: [], selection: nil)
+        ], issues: ["Cancelled scan warning"])
+        let cancelledRefresh = Task { await workspace.refreshWorkspaceHistory() }
+        for _ in 0..<100 {
+            if await reader.pausedRequests() != nil { break }
+            try await Task.sleep(for: .milliseconds(2))
+        }
+        XCTAssertTrue(workspace.refreshingHistoryIndex)
+        cancelledRefresh.cancel()
+        await reader.resume()
+        await cancelledRefresh.value
+        XCTAssertFalse(workspace.refreshingHistoryIndex)
+        XCTAssertNil(workspace.historyIndexWarning)
+        XCTAssertEqual(workspace.state.sessions.map(\.id), previousIDs)
     }
 
     func testSidebarImportsConfirmedModelAndLastActivityWithoutMarkingInterruptedHistorySettled() async throws {
@@ -615,6 +652,83 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         XCTAssertEqual(starts.count, 1)
         XCTAssertEqual(catalogRequests, 3)
         _ = await host.disconnectAll()
+    }
+
+    func testNewSessionWaitsForDefaultAgentModeSave() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = MemoryWorkspaceStore()
+        let host = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
+        await host.start()
+        let projectID = await host.addProject(root)
+        let project = try XCTUnwrap(projectID)
+        let initialModeSaved = await host.setDefaultAgentMode(.automatic)
+        XCTAssertTrue(initialModeSaved)
+
+        for shouldFail in [false, true] {
+            let mode: AgentMode = shouldFail ? .interactive : .plan
+            let saveBegan = expectation(description: "Writing the new default mode")
+            await store.pauseNextModeSave(began: saveBegan)
+            let save = Task { await host.setDefaultAgentMode(mode) }
+            await fulfillment(of: [saveBegan], timeout: 2)
+
+            let sessionCount = host.state.sessions.count
+            let creationBegan = expectation(description: "Requesting a new session during the save")
+            let create = Task {
+                creationBegan.fulfill()
+                return await host.createSession(in: project)
+            }
+            await fulfillment(of: [creationBegan], timeout: 2)
+            XCTAssertEqual(host.state.sessions.count, sessionCount)
+            await store.setFailure(shouldFail)
+            await store.releaseModeSave()
+
+            let saved = await save.value
+            let created = await create.value
+            XCTAssertEqual(saved, !shouldFail)
+            if shouldFail {
+                XCTAssertNil(created)
+                XCTAssertEqual(host.state.sessions.count, sessionCount)
+                XCTAssertEqual(host.defaultAgentMode, .plan)
+            } else {
+                let id = try XCTUnwrap(created)
+                XCTAssertEqual(host.state.sessions.first { $0.id == id }?.executionMode, .plan)
+            }
+        }
+    }
+
+    func testDefaultAgentModeAppliesOnlyToNewSessionsAndSurvivesRestart() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = MemoryWorkspaceStore()
+        let reader = PiHistoryReader(roots: [])
+        let host = WorkspaceController(store: store, reader: reader) { _, _ in FakeRuntime() }
+        await host.start()
+        XCTAssertEqual(host.defaultAgentMode, .interactive)
+        let projectID = await host.addProject(root)
+        let project = try XCTUnwrap(projectID)
+        let first = try XCTUnwrap(host.selected?.id)
+        XCTAssertEqual(host.selected?.executionMode, .interactive)
+
+        let saved = await host.setDefaultAgentMode(.plan)
+        XCTAssertTrue(saved)
+        XCTAssertEqual(host.selected?.executionMode, .interactive)
+        await host.createSession(in: project)
+        XCTAssertEqual(host.selected?.executionMode, .plan)
+
+        await store.setFailure(true)
+        let failed = await host.setDefaultAgentMode(.automatic)
+        XCTAssertFalse(failed)
+        XCTAssertEqual(host.defaultAgentMode, .plan)
+
+        let snapshot = await store.load()
+        let restored = try JSONDecoder().decode(WorkspaceSnapshot.self, from: JSONEncoder().encode(snapshot))
+        let reopened = WorkspaceController(store: MemoryWorkspaceStore(restored), reader: reader) { _, _ in FakeRuntime() }
+        await reopened.start()
+        XCTAssertEqual(reopened.defaultAgentMode, .plan)
+        XCTAssertEqual(reopened.state.sessions.first { $0.id == first }?.executionMode, .interactive)
+        await reopened.createSession(in: project)
+        XCTAssertEqual(reopened.selected?.executionMode, .plan)
     }
 
     func testFileReferencesAndModeSurviveRestartWithOldSessionDefaults() async throws {
@@ -980,6 +1094,100 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         let clean = await workspace.disconnectAll()
         XCTAssertTrue(clean)
         XCTAssertTrue(workspace.executionIDs.isEmpty)
+    }
+
+    private func waitForIdleReclaim(_ predicate: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !predicate(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(predicate(), "Timed out waiting for idle reclaim")
+    }
+
+    func testIdleRuntimeReclaimsAndSendResumesSameHistoryWithDraft() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = try historyFile(root, records: [user("previous", nil, "Previous prompt")])
+        let project = ProjectRecord(path: root.path)
+        var reference = SessionReference(projectID: project.id)
+        reference.file = file; reference.runtimeSessionID = "fixture"; reference.historyConfirmed = true
+        var snapshot = WorkspaceSnapshot(); snapshot.projects = [project]; snapshot.sessions = [reference]; snapshot.selectedSessionID = reference.id
+        var runtimes: [WorkspaceTestRuntime] = []
+        let store = MemoryWorkspaceStore(snapshot)
+        let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: []), idleRuntimeTimeout: .milliseconds(100)) { _, reference in
+            let runtime = WorkspaceTestRuntime(identity: reference.runtimeSessionID ?? "wrong binding", file: reference.file)
+            runtimes.append(runtime)
+            return runtime
+        }
+        await workspace.start()
+        let activated = await workspace.activate(reference.id)
+        XCTAssertTrue(activated)
+        let controller = try XCTUnwrap(workspace.viewed?.controller)
+        let attachment = root.appendingPathComponent("notes.txt")
+        controller.draft = "Continue"; controller.draftFiles = [attachment]
+        try await waitForIdleReclaim { !workspace.isOperating(on: reference.id) && controller.connection == .disconnected }
+        XCTAssertNil(workspace.execution(for: reference.id))
+        XCTAssertEqual(controller.draft, "Continue")
+        XCTAssertEqual(controller.draftFiles, [attachment])
+        XCTAssertEqual(workspace.selected?.file, file)
+        XCTAssertTrue(controller.transcript.contains { $0.text == "Previous prompt" })
+        let saved = await store.load()
+        XCTAssertEqual(saved.sessions.first?.draft, "Continue")
+        XCTAssertEqual(saved.sessions.first?.draftFiles, [attachment])
+        await workspace.send(reference.id)
+        XCTAssertEqual(runtimes.count, 2)
+        XCTAssertEqual(runtimes.first?.sendCount, 0)
+        XCTAssertEqual(runtimes.last?.submittedTexts, ["Continue"])
+        XCTAssertEqual(workspace.execution(for: reference.id)?.session?.id, "fixture")
+        XCTAssertTrue(controller.transcript.contains { $0.text == "Previous prompt" })
+        _ = await workspace.disconnectAll()
+    }
+
+    func testIdleRuntimeReclaimWaitsForWorkQueueAndInteraction() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = WorkspaceTestRuntime()
+        let workspace = WorkspaceController(store: MemoryWorkspaceStore(), reader: PiHistoryReader(roots: []), idleRuntimeTimeout: .milliseconds(80)) { _, _ in runtime }
+        await workspace.start()
+        _ = await workspace.addProject(root)
+        let id = try XCTUnwrap(workspace.selected?.id)
+        let activated = await workspace.activate(id)
+        XCTAssertTrue(activated)
+        let controller = try XCTUnwrap(workspace.execution(for: id))
+        func emit(_ event: AgentEvent) { controller.receive(.init(instanceID: runtime.instanceID, event: event)) }
+        emit(.phase(.running))
+        try await Task.sleep(for: .milliseconds(180))
+        XCTAssertEqual(controller.connection, .connected)
+        emit(.queue(.init(followUp: ["pending"])))
+        emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(180))
+        XCTAssertEqual(controller.connection, .connected)
+        let request = RuntimeInteraction(instanceID: runtime.instanceID, requestID: "keep-alive", kind: .confirm, title: "Confirm")
+        emit(.interaction(request))
+        emit(.queue(.init()))
+        try await Task.sleep(for: .milliseconds(180))
+        XCTAssertEqual(controller.connection, .connected)
+        emit(.interactionEnded(request.id, .answered))
+        try await waitForIdleReclaim { !workspace.isOperating(on: id) && workspace.execution(for: id) == nil }
+    }
+
+    func testIdleRuntimeReclaimKeepsUnconfirmedCleanupBlocked() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = WorkspaceTestRuntime(closeFails: true)
+        var starts = 0
+        let workspace = WorkspaceController(store: MemoryWorkspaceStore(), reader: PiHistoryReader(roots: []), idleRuntimeTimeout: .milliseconds(80)) { _, _ in
+            starts += 1
+            return runtime
+        }
+        await workspace.start()
+        _ = await workspace.addProject(root)
+        let id = try XCTUnwrap(workspace.selected?.id)
+        let activated = await workspace.activate(id)
+        XCTAssertTrue(activated)
+        try await waitForIdleReclaim { !workspace.isOperating(on: id) && workspace.execution(for: id)?.connection == .blocked }
+        await workspace.send(id, submitted: .init(text: "Must not send"))
+        XCTAssertEqual(starts, 1)
+        XCTAssertEqual(runtime.sendCount, 0)
+        XCTAssertEqual(workspace.executionIDs, [id])
     }
 
     func testMoreThanTwoSessionsRunWithoutEvictionAndCleanupRemainsIsolated() async throws {

@@ -150,6 +150,12 @@ public struct TranscriptToolSummary: Equatable {
     public var mode: SendMode = .steer { didSet { onControlChanged?() } }
     @ObservationIgnored public var onControlChanged: (@MainActor () -> Void)?
     @ObservationIgnored var onDraftEdited: (@MainActor () -> Void)?
+    @ObservationIgnored var onRuntimeActivityChanged: (@MainActor () -> Void)?
+    @ObservationIgnored private var runtimeReads = 0
+    var canReclaimIdleRuntime: Bool {
+        connection == .connected && phase == .idle && activeTurn == nil && queueIsKnown && queue.isEmpty &&
+            interactions.isEmpty && !commandPending && !replying && runtimeReads == 0
+    }
     @ObservationIgnored public var prepareSubmission: (@MainActor (UserPrompt) async throws -> Void)?
     @ObservationIgnored public var resolveSubmission: (@MainActor (UUID, DeliveryState) async -> Void)?
     @ObservationIgnored public var onTurnFinished: (@MainActor (TurnRecord) -> Void)?
@@ -449,6 +455,8 @@ public struct TranscriptToolSummary: Equatable {
     public func configurationOptions() async throws -> RuntimeConfigurationOptions {
         guard connection == .connected, let runtime else { throw RuntimeFailure(.setup, String(localized: "会话尚未连接。", bundle: #bundle)) }
         let source = runtime.instanceID
+        runtimeReads += 1; onRuntimeActivityChanged?()
+        defer { runtimeReads -= 1; onRuntimeActivityChanged?() }
         let options = try await runtime.configurationOptions()
         guard connection == .connected, instance == source else { throw RuntimeFailure(.connection, String(localized: "会话连接已变化，请重试模型查询。", bundle: #bundle)) }
         return options
@@ -486,7 +494,8 @@ public struct TranscriptToolSummary: Equatable {
     @discardableResult public func reply(_ request: RuntimeInteraction, _ response: InteractionResponse) async -> Bool {
         guard !replying, phase != .stopping, request.instanceID == instance,
               interactions.contains(where: { $0.id == request.id }), let runtime else { return false }
-        replying = true; defer { replying = false }
+        replying = true; onRuntimeActivityChanged?()
+        defer { replying = false; onRuntimeActivityChanged?() }
         do { try await runtime.respond(to: request, with: response); return true }
         catch let problem as RuntimeFailure where problem.kind == .unsupportedInteraction { notice = problem.detail }
         catch { failure = .init(.outcomeUnknown, String(localized: "交互回复结果不明，请停止任务并核对运行时状态。", bundle: #bundle)); phase = .uncertain }
@@ -495,7 +504,11 @@ public struct TranscriptToolSummary: Equatable {
     public func refreshUsage() async {
         guard connection == .connected, !usageLoading, let runtime else { return }
         let generation = usageGeneration; usageLoading = true
-        defer { if generation == usageGeneration { usageLoading = false } }
+        runtimeReads += 1; onRuntimeActivityChanged?()
+        defer {
+            if generation == usageGeneration { usageLoading = false }
+            runtimeReads -= 1; onRuntimeActivityChanged?()
+        }
         do {
             let value = try await runtime.usage()
             guard generation == usageGeneration, instance == runtime.instanceID, value.sessionID == session?.id else { return }
