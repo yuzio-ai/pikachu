@@ -108,12 +108,14 @@ private actor SidebarHistoryReader: RuntimeHistoryReader {
     private var histories: [RuntimeHistory] = []
     private var issues: [String] = []
     private var interrupted = false
+    private var pauseNextScan = false
     private var pause: CheckedContinuation<Void, Never>?
 
-    func set(_ histories: [RuntimeHistory], issues: [String] = [], interrupted: Bool = false) {
+    func set(_ histories: [RuntimeHistory], issues: [String] = [], interrupted: Bool = false, pauseNextScan: Bool = false) {
         self.histories = histories
         self.issues = issues
         self.interrupted = interrupted
+        self.pauseNextScan = pauseNextScan
     }
     func read(_ file: URL) throws -> RuntimeHistory {
         guard let history = histories.first(where: { $0.file == file }) else { throw RuntimeFailure(.protocolError, "missing") }
@@ -122,12 +124,16 @@ private actor SidebarHistoryReader: RuntimeHistoryReader {
     func discover(locations: [String]) async throws -> HistoryDiscovery {
         requests.append(locations)
         if interrupted { throw RuntimeFailure(.connection, "interrupted") }
-        if requests.count == 1 { await withCheckedContinuation { pause = $0 } }
+        if pauseNextScan {
+            pauseNextScan = false
+            await withCheckedContinuation { pause = $0 }
+        }
         return .init(sessions: histories, issues: issues)
     }
     func pausedRequests() -> [[String]]? { pause == nil ? nil : requests }
     func requestCount() -> Int { requests.count }
     func resume() {
+        pauseNextScan = false
         pause?.resume()
         pause = nil
     }
@@ -558,7 +564,7 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
                   title: "冲突", items: [], incompleteTail: false, warnings: [], selection: nil),
             .init(sessionID: "independent", file: firstRoot.appendingPathComponent("new.jsonl"), cwd: first.path,
                   title: "新发现的历史", items: [], incompleteTail: false, warnings: [], selection: nil),
-        ], issues: ["部分历史不可读"])
+        ], issues: ["部分历史不可读"], pauseNextScan: true)
         let refresh = Task { await workspace.refreshWorkspaceHistory() }
         var requests: [[String]]?
         for _ in 0..<100 {
@@ -600,7 +606,7 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         await reader.set([
             .init(sessionID: "cancelled", file: firstRoot.appendingPathComponent("cancelled.jsonl"), cwd: first.path,
                   title: "取消后不导入", items: [], incompleteTail: false, warnings: [], selection: nil)
-        ], issues: ["Cancelled scan warning"])
+        ], issues: ["Cancelled scan warning"], pauseNextScan: true)
         let cancelledRefresh = Task { await workspace.refreshWorkspaceHistory() }
         for _ in 0..<100 {
             if await reader.pausedRequests() != nil { break }
