@@ -733,8 +733,15 @@ struct ProviderLogo: View {
     private static let names = [
         "openai": "openai", "openai-codex": "openai",
         "anthropic": "anthropic",
+        "deepseek": "deepseek",
         "google": "googlegemini", "google-vertex": "googlegemini", "google-gemini-cli": "googlegemini",
     ]
+
+    /// Maps a Pi provider identifier to the bundled mark, or nil when the provider
+    /// has no asset and the generic chip icon applies.
+    static func assetName(for provider: String) -> String? {
+        names[provider.lowercased()]
+    }
     private static let images: [String: NSImage] = {
         var images: [String: NSImage] = [:]
         for name in Set(names.values) {
@@ -748,7 +755,7 @@ struct ProviderLogo: View {
 
     var body: some View {
         Group {
-            if let name = Self.names[provider.lowercased()], let image = Self.images[name] {
+            if let name = Self.assetName(for: provider), let image = Self.images[name] {
                 // Gemini uses the full frame to keep its translucent tips visible.
                 let imageSide = name == "googlegemini" ? Self.frameSide : Self.markSide
                 Image(nsImage: image).resizable().scaledToFit()

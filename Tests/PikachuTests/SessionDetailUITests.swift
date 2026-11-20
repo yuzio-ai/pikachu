@@ -95,6 +95,19 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v2..1", installed: "1.2.0"))
     }
 
+    func testProviderLogosMapKnownProvidersAndFallBackToTheGenericChip() {
+        XCTAssertEqual(ProviderLogo.assetName(for: "deepseek"), "deepseek")
+        XCTAssertEqual(ProviderLogo.assetName(for: "DeepSeek"), "deepseek")
+        XCTAssertEqual(ProviderLogo.assetName(for: "openai-codex"), "openai")
+        XCTAssertEqual(ProviderLogo.assetName(for: "google-vertex"), "googlegemini")
+        XCTAssertNil(ProviderLogo.assetName(for: ""))
+        XCTAssertNil(ProviderLogo.assetName(for: "unverified-provider"))
+        let bundle = Bundle(for: AppDelegate.self)
+        for name in ["openai", "anthropic", "googlegemini", "deepseek"] {
+            XCTAssertNotNil(bundle.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"), name)
+        }
+    }
+
     @MainActor func testTranscriptScrollerFollowsSessionDetailWidth() async throws {
         let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
         let presentation = SessionPresentation(id: UUID())
