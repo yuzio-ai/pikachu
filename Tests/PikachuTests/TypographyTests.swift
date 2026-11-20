@@ -79,6 +79,16 @@ import XCTest
         XCTAssertGreaterThan(extraLargeHeight, compactHeight)
     }
 
+    func testIconButtonTargetStaysFixedAcrossInterfaceSizes() {
+        XCTAssertEqual(FlatDisclosureChevron.pointSize, 8)
+        XCTAssertEqual(FlatDisclosureChevron(expanded: false).direction, .forward)
+        XCTAssertEqual(FlatDisclosureChevron(expanded: true).direction, .down)
+        for size in InterfaceFontSize.allCases {
+            let host = NSHostingView(rootView: IconButtonLabel(systemName: "ellipsis").pikachuTypography(size))
+            XCTAssertEqual(host.fittingSize, CGSize(width: 26, height: 26))
+        }
+    }
+
     func testNativeTranscriptRemeasuresShortRowsWithoutDroppingToEstimateOnFontSizeChange() async throws {
         let coordinator = NativeTranscript.Coordinator()
         let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)

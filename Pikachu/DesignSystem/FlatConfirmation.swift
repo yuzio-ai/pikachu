@@ -29,6 +29,7 @@ struct FlatConfirmation: View {
                 Text(request.title).pikachuFont(.title3, weight: .semibold)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
+                    .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.warningText)
                     .accessibilityHidden(true)
             }

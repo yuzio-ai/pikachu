@@ -38,12 +38,8 @@ struct FlatMenuPanel<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3, content: content)
-            .pikachuFont(.callout)
             .buttonStyle(FlatControlButtonStyle())
-            .padding(6)
-            .frame(width: width, alignment: .leading)
-            .flatPanelContent()
-            .presentationBackground(PikachuTheme.surface)
+            .anchoredPopoverCard(width: width, inset: AnchoredCardStyle.compactInset)
             .focusSection()
     }
 }

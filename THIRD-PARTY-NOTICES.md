@@ -2,7 +2,7 @@
 
 ## Jannchie Icons
 
-Icons: `loading-spokes`, `code-sparkle`, `file`, `file-search-badge`, `file-code-badge`, `terminal`.
+Icons: `loading-infinity`, `loading-spokes`, `code-sparkle`, `file`, `file-search-badge`, `file-code-badge`, `terminal`.
 
 Source: https://github.com/Jannchie/jannchie-icons
 

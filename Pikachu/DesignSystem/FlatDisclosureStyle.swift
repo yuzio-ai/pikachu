@@ -1,25 +1,23 @@
 import SwiftUI
 
 struct FlatDisclosureStyle: DisclosureGroupStyle {
-    var chevronEdge: HorizontalEdge = .leading
+    var chevronEdge: HorizontalEdge? = .leading
 
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 configuration.isExpanded.toggle()
             } label: {
-                let chevron = Image(systemName: configuration.isExpanded ? "chevron.down" : "chevron.forward")
-                    .pikachuFont(.micro, weight: .semibold)
-                    .foregroundStyle(PikachuTheme.secondaryText)
-                    .frame(width: 12)
-                    .accessibilityHidden(true)
                 HStack(spacing: 7) {
-                    if chevronEdge == .leading {
-                        chevron
+                    switch chevronEdge {
+                    case .leading:
+                        FlatDisclosureChevron(expanded: configuration.isExpanded)
                         configuration.label
-                    } else {
+                    case .trailing:
                         configuration.label.frame(maxWidth: .infinity, alignment: .leading)
-                        chevron
+                        FlatDisclosureChevron(expanded: configuration.isExpanded)
+                    case nil:
+                        configuration.label
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -31,5 +29,30 @@ struct FlatDisclosureStyle: DisclosureGroupStyle {
                 configuration.content
             }
         }
+    }
+}
+
+struct FlatDisclosureChevron: View {
+    enum Direction: String {
+        case forward, down, up
+    }
+
+    let direction: Direction
+    nonisolated static let pointSize: CGFloat = 8
+
+    init(_ direction: Direction) {
+        self.direction = direction
+    }
+
+    init(expanded: Bool) {
+        self.init(expanded ? .down : .forward)
+    }
+
+    var body: some View {
+        Image(systemName: "chevron.\(direction.rawValue)")
+            .font(.system(size: Self.pointSize, weight: .semibold))
+            .foregroundStyle(PikachuTheme.tertiaryText)
+            .frame(width: 12)
+            .accessibilityHidden(true)
     }
 }

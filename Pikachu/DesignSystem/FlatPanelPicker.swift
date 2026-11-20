@@ -6,6 +6,7 @@ struct FlatPanelPicker<Selection: Hashable>: View {
     let options: [Selection]
     var detail: LocalizedStringKey? = nil
     let optionTitle: (Selection) -> Text
+    @State private var showsOptions = false
 
     var body: some View {
         let selectedTitle = optionTitle(selection)
@@ -20,14 +21,11 @@ struct FlatPanelPicker<Selection: Hashable>: View {
             }
             Spacer(minLength: 8)
 
-            FlatMenu(width: 176, triggerTreatment: .outlined) {
+            FlatMenu(width: 176, triggerTreatment: .outlined, presentation: $showsOptions) {
                 HStack(spacing: 8) {
                     selectedTitle.lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.down")
-                        .pikachuFont(.caption2, weight: .semibold)
-                        .foregroundStyle(PikachuTheme.secondaryText)
-                        .accessibilityHidden(true)
+                    FlatDisclosureChevron(.down)
                 }
                 .foregroundStyle(PikachuTheme.primaryText)
                 .padding(.horizontal, 10)
@@ -44,7 +42,7 @@ struct FlatPanelPicker<Selection: Hashable>: View {
                 }
             }
             .accessibilityLabel(Text(title))
-            .accessibilityValue(selectedTitle)
+            .accessibilityValue(Text("\(selectedTitle)，\(showsOptions ? Text("已展开") : Text("已折叠"))"))
         }
     }
 }

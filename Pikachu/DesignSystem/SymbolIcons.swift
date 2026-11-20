@@ -1,6 +1,20 @@
 import SwiftUI
 
+struct IconButtonLabel: View {
+    nonisolated static let side: CGFloat = 26
+
+    let systemName: String
+    var weight: Font.Weight? = nil
+
+    var body: some View {
+        Image(systemName: systemName)
+            .pikachuFont(.callout, weight: weight)
+            .frame(width: Self.side, height: Self.side)
+    }
+}
+
 struct ToolCallIcon: View {
+    @Environment(\.pikachuTypography) private var typography
     var tool: String? = nil
 
     private var assetName: String {
@@ -14,14 +28,18 @@ struct ToolCallIcon: View {
     }
 
     var body: some View {
+        // The artwork is inset inside its SVG view box.
+        let side = typography.pointSize(for: .caption) + 4
         Image(assetName)
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .frame(width: 19, height: 19)
+            .frame(width: side, height: side)
             .accessibilityHidden(true)
     }
 }
+
+private let gitIconStroke = StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
 
 struct GitBranchIcon: View {
     var body: some View {
@@ -39,10 +57,9 @@ struct GitBranchIcon: View {
             topCircle.addEllipse(in: CGRect(x: 15 * w, y: 3 * h, width: 6 * w, height: 6 * h))
             var bottomCircle = Path()
             bottomCircle.addEllipse(in: CGRect(x: 3 * w, y: 15 * h, width: 6 * w, height: 6 * h))
-            let style = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-            context.stroke(line, with: .foreground, style: style)
-            context.stroke(topCircle, with: .foreground, style: style)
-            context.stroke(bottomCircle, with: .foreground, style: style)
+            context.stroke(line, with: .foreground, style: gitIconStroke)
+            context.stroke(topCircle, with: .foreground, style: gitIconStroke)
+            context.stroke(bottomCircle, with: .foreground, style: gitIconStroke)
         }
         .frame(width: 13, height: 13)
         .accessibilityHidden(true)
@@ -61,9 +78,8 @@ struct GitCommitIcon: View {
             lines.addLine(to: CGPoint(x: 9 * w, y: 12 * h))
             lines.move(to: CGPoint(x: 15 * w, y: 12 * h))
             lines.addLine(to: CGPoint(x: 21 * w, y: 12 * h))
-            let style = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-            context.stroke(circle, with: .foreground, style: style)
-            context.stroke(lines, with: .foreground, style: style)
+            context.stroke(circle, with: .foreground, style: gitIconStroke)
+            context.stroke(lines, with: .foreground, style: gitIconStroke)
         }
         .frame(width: 14, height: 13)
         .accessibilityHidden(true)
@@ -97,10 +113,9 @@ struct FileTextIcon: View {
             lines.move(to: CGPoint(x: 8 * w, y: 17 * h))
             lines.addLine(to: CGPoint(x: 16 * w, y: 17 * h))
 
-            let style = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-            context.stroke(outline, with: .foreground, style: style)
-            context.stroke(fold, with: .foreground, style: style)
-            context.stroke(lines, with: .foreground, style: style)
+            context.stroke(outline, with: .foreground, style: gitIconStroke)
+            context.stroke(fold, with: .foreground, style: gitIconStroke)
+            context.stroke(lines, with: .foreground, style: gitIconStroke)
         }
         .frame(width: 13, height: 13)
         .accessibilityHidden(true)

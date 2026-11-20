@@ -9,6 +9,8 @@ struct FlatControlButtonStyle: ButtonStyle {
     var isOpen = false
     var inset = true
     var cornerRadius: CGFloat = 8
+    var height: CGFloat? = nil
+    var outlineColor: Color? = nil
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovered = false
 
@@ -41,9 +43,10 @@ struct FlatControlButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(foreground)
             .padding(.horizontal, inset ? 8 : 0)
-            .padding(.vertical, inset ? 5 : 0)
+            .padding(.vertical, inset && height == nil ? 5 : 0)
+            .frame(height: height)
             .background(fill, in: shape)
-            .overlay { shape.strokeBorder(outline, lineWidth: 1).allowsHitTesting(false) }
+            .overlay { shape.strokeBorder(outlineColor ?? outline, lineWidth: 1).allowsHitTesting(false) }
             .contentShape(shape)
             .opacity(isEnabled ? 1 : 0.45)
             .onHover { isHovered = $0 }
