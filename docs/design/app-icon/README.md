@@ -14,6 +14,7 @@
 
 - [方形 AppIcon 源图](pikachu-appicon-square-1024.png)为 1024 × 1024 px 的不透明 PNG，背景铺满画布。
 - [独立展示图](pikachu-logo-1024.png)为 1024 × 1024 px 的 sRGB PNG，带深色圆角底，底板外透明。
+- [侧栏品牌图](../../../Pikachu/Resources/Assets.xcassets/SidebarBrandMark.imageset/SidebarBrandMark.png)为 128 × 128 px 的透明 PNG，保留闪电 P 与金紫渐变。工作台顶行以 16 pt 显示。
 
 各尺寸图标已从方形源图生成至 [AppIcon.appiconset](../../../Pikachu/Resources/Assets.xcassets/AppIcon.appiconset)，由 `Pikachu.xcodeproj` 构建时通过 `actool` 编译成 `AppIcon` 并写入 `Pikachu.app`。已验证包内资源、注册字段及 Dock / Finder 图标显示。
 
