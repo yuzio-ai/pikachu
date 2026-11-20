@@ -116,6 +116,7 @@ struct SessionSidebar: View {
     let openProject: () -> Void
     let createSession: () -> Void
     let openSettings: () -> Void
+    var toolSearchPaths: [String] = []
     @AppStorage("session-sidebar-open-expanded") private var openExpanded = true
     @State private var filteredOpenExpansion: Bool?
 
@@ -135,7 +136,7 @@ struct SessionSidebar: View {
                     .padding(.bottom, 6)
             }
             SessionSidebarList(workspace: workspace, filter: filter, groups: groups, openExpanded: showsOpen)
-            SessionSidebarFooter(workspace: workspace, openSettings: openSettings)
+            SessionSidebarFooter(workspace: workspace, openSettings: openSettings, toolSearchPaths: toolSearchPaths)
         }
         .foregroundStyle(PikachuTheme.primaryText)
         .background(PikachuTheme.sidebar)
@@ -964,6 +965,7 @@ struct SessionReminderMenuActions: View {
 private struct SessionSidebarFooter: View {
     let workspace: WorkspaceController
     let openSettings: () -> Void
+    var toolSearchPaths: [String] = []
 
     var body: some View {
         HStack(spacing: 4) {
@@ -971,7 +973,7 @@ private struct SessionSidebarFooter: View {
             SidebarIconButton("当前会话统计", icon: IconButtonLabel(systemName: "chart.bar")) { workspace.usageExpanded.toggle() }
                 .disabled(workspace.viewed == nil)
             Spacer(minLength: 0)
-            SidebarQuotaButton(windows: [])
+            SidebarQuotaButton(toolSearchPaths: toolSearchPaths)
             SidebarUpgradeButton()
         }
         .padding(.horizontal, 10)

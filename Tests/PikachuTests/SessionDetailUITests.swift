@@ -87,6 +87,17 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
 }
 
 final class SessionDetailUITests: XCTestCase {
+    func testCodexQuotaUsesOnlyCodexWindowsAndPreservesResetTime() throws {
+        let payload = #"{"rateLimits":{"limitId":"codex","primary":{"usedPercent":5}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":99,"windowDurationMins":10080,"resetsAt":1795250809},"secondary":{"usedPercent":71}},"other":{"primary":{"usedPercent":100}}}}"#
+        let observed = Date(timeIntervalSince1970: 1_795_250_000)
+        let windows = try CodexQuotaClient.windows(from: Data(payload.utf8), observedAt: observed)
+        XCTAssertEqual(windows.map(\.value), ["1%", "29%"])
+        XCTAssertEqual(windows.first?.resetAt, Date(timeIntervalSince1970: 1_795_250_809))
+        XCTAssertTrue(windows.allSatisfy { $0.expiresAt == observed.addingTimeInterval(300) })
+        let unknown = #"{"rateLimits":{"limitId":"other","primary":{"usedPercent":100}}}"#
+        XCTAssertTrue(try CodexQuotaClient.windows(from: Data(unknown.utf8), observedAt: observed).isEmpty)
+    }
+
     func testSidebarUpgradeOnlyOffersNewerStableVersions() {
         XCTAssertEqual(PikachuReleaseCheck.newerVersion(tag: "v0.10.0", installed: "0.9.9"), "0.10.0")
         XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v1.2.0", installed: "1.2"))

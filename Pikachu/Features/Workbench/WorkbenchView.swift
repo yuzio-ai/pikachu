@@ -28,7 +28,8 @@ struct WorkbenchView: View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
             SessionSidebar(workspace: workspace, filter: $sidebarFilter,
                            openProject: openProject, createSession: requestNewSession,
-                           openSettings: { presentSettings(.general) })
+                           openSettings: { presentSettings(.general) },
+                           toolSearchPaths: settings.toolSearchPaths)
                 // The native overlay can size the sidebar from its content instead of the column's minimum.
                 .frame(minWidth: Self.minimumSidebarWidth)
                 .navigationSplitViewColumnWidth(min: Self.minimumSidebarWidth, ideal: 292, max: 360)

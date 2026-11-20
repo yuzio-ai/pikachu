@@ -18,7 +18,7 @@ struct AccountQuotaWindow: Identifiable {
     var value: String? {
         guard let remaining, remaining >= 0 else { return nil }
         guard let limit, limit > 0, remaining <= limit else { return remaining.formatted() }
-        let percent = Int((Double(remaining) / Double(limit) * 100).rounded(.down))
+        let percent = limit == 100 ? remaining : Int((Double(remaining) / Double(limit) * 100).rounded(.down))
         return percent == 0 && remaining > 0 ? "<1%" : "\(percent)%"
     }
 }
@@ -43,8 +43,12 @@ struct SidebarQuotaSummary {
 }
 
 struct SidebarQuotaButton: View {
-    let windows: [AccountQuotaWindow]
+    var toolSearchPaths: [String] = []
+    @State private var windows: [AccountQuotaWindow] = []
     @State private var showsDetails = false
+    @State private var loading = false
+    @State private var lastAttempt: Date?
+    @State private var issue: String?
 
     var body: some View {
         let now = Date.now
@@ -53,41 +57,48 @@ struct SidebarQuotaButton: View {
             let summary = SidebarQuotaSummary(windows: windows)
             let value = summary.value(at: timeline.date)
             let warns = summary.showsLowQuotaWarning(at: timeline.date)
-            let symbol = warns ? "exclamationmark.triangle" : "gauge.with.dots.needle.33percent"
+            let warningText = warns ? String(localized: "额度偏低：\(value ?? "")") : nil
+            let quotaText = value.map { String(localized: "额度：\($0)") }
             Button { showsDetails.toggle() } label: {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 4) {
-                        Image(systemName: symbol)
-                        Text("额度")
-                        if let value { Text(value).monospacedDigit() }
-                    }
-                    .padding(.horizontal, 6)
-                    .frame(minWidth: IconButtonLabel.side)
-                    .fixedSize()
-                    if let value {
-                        HStack(spacing: 3) {
-                            Image(systemName: symbol)
-                            Text(value).monospacedDigit()
-                        }
-                        .padding(.horizontal, 6)
-                        .frame(minWidth: IconButtonLabel.side)
-                        .fixedSize()
-                    }
-                    IconButtonLabel(systemName: symbol)
-                }
-                .pikachuFont(.caption)
-                .foregroundStyle(warns ? PikachuTheme.warningText : PikachuTheme.secondaryText)
-                .frame(height: IconButtonLabel.side)
+                IconButtonLabel(systemName: warns ? "exclamationmark.triangle" : "gauge.with.dots.needle.33percent")
+                    .foregroundStyle(warns ? PikachuTheme.warningText : PikachuTheme.secondaryText)
             }
             .buttonStyle(FlatControlButtonStyle(isOpen: showsDetails, inset: false))
-            .help("账户额度")
+            .help(warningText ?? quotaText ?? "账户额度")
             .accessibilityLabel("账户额度")
-            .accessibilityValue(warns ? String(localized: "额度偏低：\(value ?? "")") :
-                value ?? (windows.isEmpty ? String(localized: "暂不可用") : String(localized: "查看明细")))
+            .accessibilityValue(warningText ?? value ?? String(localized: "查看明细"))
             .accessibilityIdentifier("account-quota")
             .popover(isPresented: $showsDetails, arrowEdge: .bottom) {
-                SidebarQuotaDetails(windows: windows, date: timeline.date)
+                SidebarQuotaDetails(windows: windows, date: timeline.date, loading: loading, issue: issue) {
+                    Task { await refresh(force: true) }
+                }
             }
+        }
+        .task { await refresh(force: false) }
+        .onChange(of: showsDetails) { _, open in
+            if open { Task { await refresh(force: false) } }
+        }
+    }
+
+    private func refresh(force: Bool) async {
+        guard !loading else { return }
+        let now = Date.now
+        if !force, let lastAttempt, now.timeIntervalSince(lastAttempt) < 30 { return }
+        if !force, issue == nil, !windows.isEmpty, windows.allSatisfy({ !$0.isStale(at: now) }) { return }
+        loading = true
+        defer { loading = false; lastAttempt = .now }
+        do {
+            windows = try await CodexQuotaClient.fetch(searchPaths: toolSearchPaths)
+            issue = nil
+        } catch CodexQuotaClient.Failure.notInstalled {
+            windows = []
+            issue = String(localized: "未找到本机 Codex CLI。")
+        } catch CodexQuotaClient.Failure.notSignedIn {
+            windows = []
+            issue = String(localized: "本机 Codex 未使用 ChatGPT 账号登录。")
+        } catch {
+            for index in windows.indices { windows[index].expiresAt = .now }
+            issue = String(localized: "暂时无法查询 Codex 额度。")
         }
     }
 }
@@ -149,15 +160,8 @@ struct SidebarUpgradeButton: View {
                 Task { await check(showResult: true) }
             }
         } label: {
-            ViewThatFits(in: .horizontal) {
-                Label("升级", systemImage: available ? "arrow.up.circle.fill" : "arrow.up.circle")
-                    .padding(.horizontal, 6)
-                    .fixedSize()
-                IconButtonLabel(systemName: available ? "arrow.up.circle.fill" : "arrow.up.circle")
-            }
-            .pikachuFont(.caption)
-            .foregroundStyle(available ? PikachuTheme.accentText : PikachuTheme.secondaryText)
-            .frame(height: IconButtonLabel.side)
+            IconButtonLabel(systemName: available ? "arrow.up.circle.fill" : "arrow.up.circle")
+                .foregroundStyle(available ? PikachuTheme.accentText : PikachuTheme.secondaryText)
         }
         .buttonStyle(FlatControlButtonStyle(treatment: available ? .prominent : .quiet, inset: false))
         .disabled(checking && !available)
@@ -206,16 +210,27 @@ struct SidebarUpgradeButton: View {
 private struct SidebarQuotaDetails: View {
     let windows: [AccountQuotaWindow]
     let date: Date
+    let loading: Bool
+    let issue: String?
+    let refresh: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
-            Text("账户额度").anchoredCardTitle()
-            if windows.isEmpty {
+            HStack {
+                Text("本机 Codex 账号").anchoredCardTitle()
+                Spacer()
+                if loading { FlatProgressView().controlSize(.mini) }
+                Button("刷新", action: refresh).buttonStyle(FlatControlButtonStyle()).disabled(loading)
+            }
+            Text("仅显示本机 Codex 额度，未与当前会话关联。")
+                .pikachuFont(.caption).foregroundStyle(.secondary)
+            if let issue {
+                Text(issue).foregroundStyle(.secondary)
+            } else if windows.isEmpty && !loading {
                 Text("没有可用的账户额度数据。").foregroundStyle(.secondary)
             }
             ForEach(windows) { window in
                 PikachuDivider()
-                Text("\(window.provider) · \(window.account)").pikachuFont(.subheadline, weight: .medium)
                 Text(window.period).foregroundStyle(.secondary)
                 Text("剩余：\(window.value ?? String(localized: "未知"))")
                 if window.isStale(at: date) { Text("待更新").foregroundStyle(.secondary) }
