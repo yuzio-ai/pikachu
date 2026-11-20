@@ -95,16 +95,24 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertNil(PikachuReleaseCheck.newerVersion(tag: "v2..1", installed: "1.2.0"))
     }
 
-    func testProviderLogosMapKnownProvidersAndFallBackToTheGenericChip() {
+    func testProviderLogosMapKnownProvidersAndFallBackToTheGenericChip() throws {
         XCTAssertEqual(ProviderLogo.assetName(for: "deepseek"), "deepseek")
         XCTAssertEqual(ProviderLogo.assetName(for: "DeepSeek"), "deepseek")
         XCTAssertEqual(ProviderLogo.assetName(for: "openai-codex"), "openai")
         XCTAssertEqual(ProviderLogo.assetName(for: "google-vertex"), "googlegemini")
         XCTAssertNil(ProviderLogo.assetName(for: ""))
         XCTAssertNil(ProviderLogo.assetName(for: "unverified-provider"))
+        // Wide or thin-stroked marks fill the 13 pt frame; square marks keep 12 pt.
+        XCTAssertEqual(ProviderLogo.drawSide(for: "deepseek"), 13)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "google"), 13)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "openai"), 12)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "unverified-provider"), 12)
         let bundle = Bundle(for: AppDelegate.self)
         for name in ["openai", "anthropic", "googlegemini", "deepseek"] {
-            XCTAssertNotNil(bundle.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"), name)
+            let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"), name)
+            let image = try XCTUnwrap(NSImage(contentsOf: url), name)
+            // Templates must carry at least 2x pixels of their draw box so thin strokes survive.
+            XCTAssertGreaterThanOrEqual(image.size.width, 26, name)
         }
     }
 

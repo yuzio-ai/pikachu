@@ -729,22 +729,25 @@ struct ComposerModel {
 struct ProviderLogo: View {
     let provider: String
     private static let frameSide: CGFloat = 13
-    private static let markSide: CGFloat = 12
-    private static let names = [
-        "openai": "openai", "openai-codex": "openai",
-        "anthropic": "anthropic",
-        "deepseek": "deepseek",
-        "google": "googlegemini", "google-vertex": "googlegemini", "google-gemini-cli": "googlegemini",
-    ]
+    private static let defaultSide: CGFloat = 12
 
-    /// Maps a Pi provider identifier to the bundled mark, or nil when the provider
-    /// has no asset and the generic chip icon applies.
-    static func assetName(for provider: String) -> String? {
-        names[provider.lowercased()]
+    /// Visible marks sit in one optical band next to 13 pt text, so wide or
+    /// thin-stroked marks may fill the whole frame instead of the default 12 pt.
+    private struct Mark {
+        let asset: String
+        let side: CGFloat
     }
+    private static let marks: [String: Mark] = [
+        "openai": .init(asset: "openai", side: defaultSide), "openai-codex": .init(asset: "openai", side: defaultSide),
+        "anthropic": .init(asset: "anthropic", side: defaultSide),
+        // The whale reads smaller than square marks; it needs the full frame.
+        "deepseek": .init(asset: "deepseek", side: frameSide),
+        "google": .init(asset: "googlegemini", side: frameSide), "google-vertex": .init(asset: "googlegemini", side: frameSide),
+        "google-gemini-cli": .init(asset: "googlegemini", side: frameSide),
+    ]
     private static let images: [String: NSImage] = {
         var images: [String: NSImage] = [:]
-        for name in Set(names.values) {
+        for name in Set(marks.values.map(\.asset)) {
             guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"),
                   let image = NSImage(contentsOf: url) else { continue }
             image.isTemplate = true
@@ -753,18 +756,27 @@ struct ProviderLogo: View {
         return images
     }()
 
+    /// Maps a Pi provider identifier to the bundled mark, or nil when the provider
+    /// has no asset and the generic chip icon applies.
+    static func assetName(for provider: String) -> String? {
+        marks[provider.lowercased()]?.asset
+    }
+
+    /// The calibrated draw size inside the 13 pt frame.
+    static func drawSide(for provider: String) -> CGFloat {
+        marks[provider.lowercased()]?.side ?? defaultSide
+    }
+
     var body: some View {
         Group {
-            if let name = Self.assetName(for: provider), let image = Self.images[name] {
-                // Gemini uses the full frame to keep its translucent tips visible.
-                let imageSide = name == "googlegemini" ? Self.frameSide : Self.markSide
+            if let mark = Self.marks[provider.lowercased()], let image = Self.images[mark.asset] {
                 Image(nsImage: image).resizable().scaledToFit()
-                    .frame(width: imageSide, height: imageSide)
+                    .frame(width: mark.side, height: mark.side)
             } else {
                 Image(systemName: "cpu")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: Self.markSide, height: Self.markSide)
+                    .frame(width: Self.defaultSide, height: Self.defaultSide)
             }
         }
         .frame(width: Self.frameSide, height: Self.frameSide)
