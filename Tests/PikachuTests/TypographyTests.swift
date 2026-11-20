@@ -54,6 +54,38 @@ import XCTest
         XCTAssertEqual(PikachuTypography(size: .extraLarge).pointSize(for: .body), 16)
     }
 
+    func testSwiftUIUsesTabularDigitsForDefaultAndExplicitTypography() {
+        for size in InterfaceFontSize.allCases {
+            let widths = (0...9).map { digit in
+                let text = Text(verbatim: String(repeating: String(digit), count: 8))
+                return (
+                    NSHostingView(rootView: text.pikachuTypography(size)).fittingSize.width,
+                    NSHostingView(rootView: text.pikachuFont(.caption, weight: .medium)
+                        .pikachuTypography(size)).fittingSize.width
+                )
+            }
+            for width in widths.dropFirst() {
+                XCTAssertEqual(width.0, widths[0].0, accuracy: 0.01)
+                XCTAssertEqual(width.1, widths[0].1, accuracy: 0.01)
+            }
+            XCTAssertGreaterThan(widths[0].0, 0)
+            XCTAssertGreaterThan(widths[0].1, 0)
+        }
+    }
+
+    func testAppKitUsesTabularDigitsAcrossTypographyPresets() {
+        for size in InterfaceFontSize.allCases {
+            let typography = PikachuTypography(size: size)
+            for role in PikachuTypography.TextRole.allCases {
+                let font = typography.nsFont(role)
+                let widths = (0...9).map { String($0).size(withAttributes: [.font: font]).width }
+                for width in widths.dropFirst() {
+                    XCTAssertEqual(width, widths[0], accuracy: 0.01)
+                }
+            }
+        }
+    }
+
     func testNativeTranscriptInvalidatesAndRemeasuresHeightsOnFontSizeChange() async throws {
         let coordinator = NativeTranscript.Coordinator()
         let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)

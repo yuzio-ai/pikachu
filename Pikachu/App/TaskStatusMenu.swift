@@ -121,7 +121,7 @@ struct TaskStatusSnapshot {
 
     private func addGroup(_ title: String, sessions: [SessionReference], projectNames: [UUID: String],
                           acknowledgesCompletion: Bool = false) {
-        let group = NSMenuItem(title: String(localized: "\(title)（\(sessions.count)）"), action: nil, keyEquivalent: "")
+        let group = menuItem(String(localized: "\(title)（\(sessions.count)）"), action: nil)
         if !sessions.isEmpty {
             let submenu = NSMenu()
             for session in sessions {
@@ -136,8 +136,15 @@ struct TaskStatusSnapshot {
     }
 
     private func actionItem(_ title: String, action: Selector) -> NSMenuItem {
-        let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        let entry = menuItem(title, action: action)
         entry.target = self
+        return entry
+    }
+
+    private func menuItem(_ title: String, action: Selector?) -> NSMenuItem {
+        let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.menuFont(ofSize: 0).pointSize, weight: .regular)
+        entry.attributedTitle = NSAttributedString(string: title, attributes: [.font: font])
         return entry
     }
 

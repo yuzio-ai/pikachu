@@ -134,12 +134,14 @@ struct PikachuTypography: Equatable, Sendable {
 
     func font(_ role: TextRole, weight: Font.Weight? = nil, design: Font.Design = .default) -> Font {
         let resolvedWeight = weight ?? (role == .headline ? .semibold : .regular)
-        return .system(size: pointSize(for: role), weight: resolvedWeight, design: design)
+        let font = Font.system(size: pointSize(for: role), weight: resolvedWeight, design: design)
+        // Use tabular digits without changing the spacing of surrounding text.
+        return design == .monospaced ? font : font.monospacedDigit()
     }
 
     func nsFont(_ role: TextRole, weight: NSFont.Weight? = nil) -> NSFont {
         let resolvedWeight = weight ?? (role == .headline ? .semibold : .regular)
-        return .systemFont(ofSize: pointSize(for: role), weight: resolvedWeight)
+        return .monospacedDigitSystemFont(ofSize: pointSize(for: role), weight: resolvedWeight)
     }
 
     var sidebarTimeWidth: CGFloat {
