@@ -376,6 +376,24 @@ struct SessionDetail: View {
         let prompt = presentation.controller.draftPrompt
         Task { await workspace.send(presentation.id, submitted: prompt) }
     }
+    private var retryableModelPrompt: UserPrompt? {
+        guard !workspace.isOperating(on: presentation.id), !blocksComposerPanels,
+              reference?.submissions.contains(where: \.needsReview) == false else { return nil }
+        return workspace.execution(for: presentation.id)?.retryableModelPrompt
+    }
+
+    private func confirmModelRetry(_ prompt: UserPrompt) {
+        presentConfirmation(ConfirmationRequest(
+            title: "重试上一条任务？", message: "将重新发送上一条消息。本轮已执行的操作不会撤销。",
+            confirmTitle: "重试"
+        ) {
+            Task {
+                guard retryableModelPrompt?.id == prompt.id else { return }
+                await workspace.send(presentation.id, submitted: .init(text: prompt.text, mode: prompt.mode, files: prompt.files))
+            }
+        })
+    }
+
     private func handleEditUserMessage(_ item: TranscriptItem) {
         let hasExistingDraft = !presentation.controller.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !presentation.controller.draftFiles.isEmpty
@@ -434,10 +452,13 @@ struct SessionDetail: View {
                         turnStarts: presentation.controller.transcriptTurnStarts,
                         diagnosticSession: presentation.id.uuidString,
                         historyLoading: presentation.loading,
+                        showsThinking: presentation.controller.connection == .connected &&
+                            presentation.controller.phase == .running && !presentation.controller.isStopping,
                         queue: presentation.controller.queue,
                         queueIsKnown: presentation.controller.queueIsKnown,
                         showsEmptyState: presentation.loadError == nil && presentation.executionIssue == nil,
                         composerClearance: composerClearance,
+                        workspaceDirectory: workspace.workingDirectory(for: presentation.id).map { URL(fileURLWithPath: $0, isDirectory: true) },
                         onEditUserMessage: handleEditUserMessage
                     ).id(presentation.id)
                 }
@@ -448,7 +469,25 @@ struct SessionDetail: View {
                                         expanded: $extensionStatusExpanded)
                 }
                 if let failure = presentation.controller.failure {
-                    FeedbackBanner(text: failure.detail, warning: true)
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .pikachuFont(.caption)
+                            .foregroundStyle(PikachuTheme.warningText)
+                            .accessibilityHidden(true)
+                        Text(failure.detail).pikachuFont(.callout).textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let prompt = retryableModelPrompt {
+                            Button("重试") { confirmModelRetry(prompt) }
+                                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                                .pikachuFont(.caption)
+                                .fixedSize()
+                                .accessibilityIdentifier("retry-model-turn")
+                        }
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .flatSurface(PikachuTheme.mutedSurface, radius: 8)
+                    .padding(.horizontal, 12).padding(.vertical, 2)
+                    .frame(maxWidth: .infinity)
                     if presentation.controller.connection == .disconnected && workspace.storageError == nil &&
                         (failure.kind == .setup || failure.kind == .unsupportedVersion) {
                         Button("打开连接设置…", action: openSettings)
