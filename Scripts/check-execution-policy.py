@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the shipped execution policy with Pi 1.5.2 and a loopback model."""
+"""Exercise the shipped execution policy with the selected Pi and a loopback model."""
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -240,7 +240,63 @@ def verify(args, project, agent, server):
         pi.settle()
         assert target.read_text() == "direct"
         assert not any(event.get("method") == "confirm" for event in pi.buffer)
+        target.unlink()
         print("PASS automatic mode writes directly and loads the selected extension", flush=True)
+
+    def assert_resumed_automatic(content, *, extension_active):
+        while not server.calls.empty():
+            server.calls.get_nowait()
+        with Pi(args, project, agent, "automatic") as pi:
+            assert pi.command("switch_session", sessionPath=history)["cancelled"] is False
+            assert pi.command("get_state")["sessionFile"] == history
+            server.tool_call = ("write", {"path": target.name, "content": content})
+            pi.prompt()
+            offered = server.calls.get(timeout=15)
+            assert READ_TOOLS | WRITE_TOOLS <= offered, offered
+            assert ("fixture_tool" in offered) is extension_active, offered
+            assert not any(name.startswith("pikachu_") for name in offered), offered
+            pi.settle()
+            assert target.read_text() == content
+            assert not any(event.get("method") == "confirm" for event in pi.buffer)
+            target.unlink()
+
+    # The plan check above appended a read-only loadout to `history`. Re-record the
+    # interactive loadout first so the test exercises both starting points.
+    with Pi(args, project, agent, "interactive") as pi:
+        assert pi.command("switch_session", sessionPath=history)["cancelled"] is False
+        confirm = confirm_tool(pi, "write", {"path": target.name, "content": "not approved"})
+        pi.send({"type": "extension_ui_response", "id": confirm["id"], "confirmed": False})
+        pi.settle()
+        assert not target.exists()
+    assert_resumed_automatic("resumed from interactive", extension_active=True)
+    print("PASS automatic restores native tools after interactive approval mode", flush=True)
+
+    with Pi(args, project, agent, "plan") as pi:
+        assert pi.command("switch_session", sessionPath=history)["cancelled"] is False
+        pi.verify_policy()
+        while not server.calls.empty():
+            server.calls.get_nowait()
+        server.tool_call = None
+        pi.prompt()
+        pi.settle()
+        assert server.calls.get(timeout=2) == READ_TOOLS
+    # Pi records the extension tool as inactive when plan mode takes over.
+    # Restoring native tools must not re-enable an inactive extension tool.
+    assert_resumed_automatic("resumed from plan", extension_active=False)
+    print("PASS automatic restores native tools after plan mode", flush=True)
+
+    while not server.calls.empty():
+        server.calls.get_nowait()
+    with Pi(args, project, agent, "interactive") as pi:
+        assert pi.command("switch_session", sessionPath=history)["cancelled"] is False
+        pi.verify_policy()
+        confirm = confirm_tool(pi, "write", {"path": target.name, "content": "approval restored"})
+        assert server.calls.get(timeout=2) == pi.tools
+        assert not target.exists()
+        pi.send({"type": "extension_ui_response", "id": confirm["id"], "confirmed": True})
+        pi.settle()
+        assert target.read_text() == "approval restored"
+    print("PASS switching back from automatic restores interactive write approval", flush=True)
 
 
 def main():
@@ -256,7 +312,12 @@ def main():
             project.mkdir()
             agent.mkdir()
             (project / "automatic.ts").write_text(
-                'export default function(pi) { pi.registerCommand("fixture-extension", { handler: async () => {} }); }'
+                'import { Type } from "typebox";\n'
+                'export default function(pi) {\n'
+                '  pi.registerCommand("fixture-extension", { handler: async () => {} });\n'
+                '  pi.registerTool({ name: "fixture_tool", label: "Fixture", description: "Fixture tool",\n'
+                '    parameters: Type.Object({}), execute: async () => ({ content: [], details: {} }) });\n'
+                '}\n'
             )
             (agent / "models.json").write_text(json.dumps({"providers": {"fixture": {
                 "baseUrl": f"http://127.0.0.1:{server.server_port}/v1", "api": "openai-completions",

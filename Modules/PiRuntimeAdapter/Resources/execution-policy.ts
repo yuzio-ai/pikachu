@@ -59,6 +59,16 @@ export default function executionPolicy(pi: ExtensionAPI) {
             }
         }
         pi.on("session_start", () => { pi.setActiveTools(tools); });
+    } else {
+        pi.on("session_start", (event) => {
+            if (event.reason !== "resume") return;
+            // Pi restores the historical tool names before this event. A plan or
+            // approval-mode history may not have the native mutation tools active.
+            const active = pi.getActiveTools();
+            const registered = new Set(pi.getAllTools().map((tool) => tool.name));
+            const missing = ["bash", "edit", "write"].filter((name) => registered.has(name) && !active.includes(name));
+            if (missing.length > 0) pi.setActiveTools([...active, ...missing]);
+        });
     }
     const instructions = {
         plan: "本轮制定计划。按需读取和搜索，给出可实施的计划。文件修改和命令执行留到执行阶段。",

@@ -115,10 +115,10 @@ for mode in ["normal", "rejected", "authentication", "timeout", "malformed", "cr
 await test("runtime/unsupported-version") {
     var config = try configuration("version", fakeMode: "normal")
     let executable = config.workspace.appendingPathComponent("wrong-version")
-    try "#!/bin/sh\nprintf '99.0.0\\n'\n".write(to: executable, atomically: true, encoding: .utf8)
+    try "#!/bin/sh\nprintf '2.0.0\\n'\n".write(to: executable, atomically: true, encoding: .utf8)
     try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path); config.executable = executable
     let store = SessionController(); await store.connect(PiRuntime(configuration: config))
-    try check(store.failure?.kind == .unsupportedVersion && !store.canSend, "Unverified version was allowed")
+    try check(store.failure?.kind == .unsupportedVersion && !store.canSend, "Unsupported major version was allowed")
     return snapshot(store)
 }
 await test("runtime/connection-timeout") {

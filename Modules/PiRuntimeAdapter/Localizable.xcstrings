@@ -478,12 +478,12 @@
         }
       }
     },
-    "此构建仅验证过 Pi 1.5.2，请选择该版本。" : {
+    "此构建支持 Pi 1.x，请选择该大版本的 Pi。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This build was tested only with Pi 1.5.2. Select that version to continue."
+            "value" : "This build supports Pi 1.x. Select a Pi 1.x installation."
           }
         }
       }

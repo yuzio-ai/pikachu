@@ -134,7 +134,10 @@ private final class PiConnection: @unchecked Sendable {
         while version.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }
         if version.isRunning { version.terminate(); throw RuntimeFailure(.setup, String(localized: "Pi 版本检测超时。", bundle: #bundle)) }
         let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard version.terminationStatus == 0 && text == "1.5.2" else { throw RuntimeFailure(.unsupportedVersion, String(localized: "此构建仅验证过 Pi 1.5.2，请选择该版本。", bundle: #bundle)) }
+        let supportedVersion = /1\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?/
+        guard version.terminationStatus == 0, text.wholeMatch(of: supportedVersion) != nil else {
+            throw RuntimeFailure(.unsupportedVersion, String(localized: "此构建支持 Pi 1.x，请选择该大版本的 Pi。", bundle: #bundle))
+        }
         var arguments = ["--mode", "rpc", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes"]
         var scratch: URL?
         if modelProbe {

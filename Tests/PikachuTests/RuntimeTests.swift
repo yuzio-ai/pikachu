@@ -108,7 +108,7 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
 
         if "--version" in sys.argv:
             record("version")
-            print("1.5.2")
+            print(os.environ["PIKACHU_TEST_PI_VERSION"])
             sys.exit(0)
 
         record("models" if "--no-session" in sys.argv else "runtime")
@@ -119,11 +119,13 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
         """
         try fixture.write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
-        let config = PiConfiguration(executable: executable, nodeDirectory: root, workspace: root,
+        var config = PiConfiguration(executable: executable, nodeDirectory: root, workspace: root,
                                      agentDirectory: root, sessionDirectory: root.appendingPathComponent("sessions"),
-                                     environmentOverrides: ["PIKACHU_TEST_RECEIPT": receipt.path, "PIKACHU_TEST_VALUE": "fixture value"],
+                                     environmentOverrides: ["PIKACHU_TEST_RECEIPT": receipt.path, "PIKACHU_TEST_VALUE": "fixture value",
+                                                            "PIKACHU_TEST_PI_VERSION": "1.6.0"],
                                      toolSearchPaths: [tools.path])
         _ = try await PiRuntime.inspectModels(config, model: nil)
+        config.environmentOverrides?["PIKACHU_TEST_PI_VERSION"] = "1.5.3"
         let runtime = PiRuntime(configuration: config)
         do {
             let session = try await runtime.connect()
