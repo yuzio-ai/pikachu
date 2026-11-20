@@ -33,16 +33,20 @@ public struct HistoryItem: Sendable, Identifiable {
 public struct HistoryTurnInfo: Sendable, Equatable {
     public let id: String
     public let itemIDs: [String]
+    public let firstUserItemID: String?
     public let firstUserTimestampMs: Int64?
     public let firstAssistantTimestampMs: Int64?
+    public let lastAssistantTimestampMs: Int64?
     public let firstToolCallID: String?
     public let endedAt: Date?
     public let durationSeconds: TimeInterval?
     public let status: TurnStatus
-    public init(id: String, itemIDs: [String], firstUserTimestampMs: Int64? = nil, firstAssistantTimestampMs: Int64? = nil,
+    public init(id: String, itemIDs: [String], firstUserItemID: String? = nil,
+                firstUserTimestampMs: Int64? = nil, firstAssistantTimestampMs: Int64? = nil, lastAssistantTimestampMs: Int64? = nil,
                 firstToolCallID: String? = nil, endedAt: Date? = nil, durationSeconds: TimeInterval? = nil, status: TurnStatus) {
-        self.id = id; self.itemIDs = itemIDs; self.firstUserTimestampMs = firstUserTimestampMs
+        self.id = id; self.itemIDs = itemIDs; self.firstUserItemID = firstUserItemID; self.firstUserTimestampMs = firstUserTimestampMs
         self.firstAssistantTimestampMs = firstAssistantTimestampMs; self.firstToolCallID = firstToolCallID
+        self.lastAssistantTimestampMs = lastAssistantTimestampMs ?? firstAssistantTimestampMs
         self.endedAt = endedAt; self.durationSeconds = durationSeconds; self.status = status
     }
 }

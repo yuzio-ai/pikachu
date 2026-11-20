@@ -8,19 +8,16 @@ struct MarkdownContent: View {
 
     var body: some View {
         let blocks = streaming ? [] : MarkdownBlocks.parse(text)
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 15) {
             if blocks.isEmpty {
                 Text(text).textSelection(.enabled)
             } else {
-                GlassEffectContainer(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(blocks) { block in
-                            MarkdownBlockView(block: block, width: width)
-                        }
-                    }
+                ForEach(blocks) { block in
+                    MarkdownBlockView(block: block, width: width)
                 }
             }
         }
+        .lineSpacing(3)
     }
 }
 
@@ -34,23 +31,22 @@ private struct MarkdownBlockView: View {
             Text(block.content).textSelection(.enabled)
         case .heading(let level):
             Text(block.content)
-                .font(level <= 2 ? .title3 : .headline)
-                .fontWeight(.semibold)
+                .pikachuFont(level <= 2 ? .title3 : .headline, weight: .semibold)
                 .textSelection(.enabled)
                 .accessibilityAddTraits(.isHeader)
         case .code(let language):
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(language.isEmpty ? "code" : language).font(.caption).foregroundStyle(.secondary)
+                    Text(language.isEmpty ? String(localized: "代码") : language).pikachuFont(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    CopyCodeButton(text: block.text).frame(width: 66, height: 23)
+                    CopyCodeButton(text: block.text)
                 }
                 ScrollView(.horizontal) {
-                    Text(block.text).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
+                    Text(block.text).lineSpacing(0).pikachuFont(.callout, design: .monospaced).textSelection(.enabled)
                 }
             }
             .padding(12)
-            .glassEffect(in: .rect(cornerRadius: 9))
+            .flatSurface(PikachuTheme.mutedSurface, radius: 9)
         case .list(let ordered, let items):
             MarkdownListView(ordered: ordered, items: items, width: width)
         case .table(let table):
@@ -62,9 +58,12 @@ private struct MarkdownBlockView: View {
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 6)
-            .glassEffect(in: .rect(cornerRadius: 8))
+            .background(PikachuTheme.mutedSurface, in: .rect(cornerRadius: 8))
+            .overlay(alignment: .leading) {
+                Rectangle().fill(PikachuTheme.selectionBorder).frame(width: 1).allowsHitTesting(false)
+            }
         case .divider:
-            Divider()
+            PikachuDivider()
         }
     }
 }
@@ -77,7 +76,7 @@ private struct MarkdownListView: View {
     var body: some View {
         let markerWidth: CGFloat = ordered ? max(20, CGFloat(String(items.last?.ordinal ?? 1).count + 1) * 8) : 12
 
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(items) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(ordered ? "\(item.ordinal)." : "•")
@@ -86,7 +85,7 @@ private struct MarkdownListView: View {
                         .frame(width: markerWidth, alignment: .trailing)
                         .accessibilityHidden(!ordered)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(item.blocks) { block in
                             MarkdownBlockView(block: block, width: max(1, width - markerWidth - 8))
                         }
@@ -128,7 +127,7 @@ private struct MarkdownTableView: View {
         ScrollView(.horizontal) {
             VStack(spacing: 0) {
                 ForEach(table.rows) { row in
-                    if row.id != table.rows.first?.id { Divider() }
+                    if row.id != table.rows.first?.id { PikachuDivider() }
                     HStack(alignment: .top, spacing: 0) {
                         // Each row has one immutable cell slot per column.
                         ForEach(table.columns.indices, id: \.self) { column in
@@ -144,12 +143,12 @@ private struct MarkdownTableView: View {
                         }
                     }
                     .padding(.vertical, 6)
-                    .background(row.isHeader ? Color.primary.opacity(0.07) : .clear)
+                    .background(row.isHeader ? PikachuTheme.mutedSurface : .clear)
                     .accessibilityElement(children: .contain)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .glassEffect(in: .rect(cornerRadius: 8))
+        .clipShape(.rect(cornerRadius: 8))
+        .flatSurface()
     }
 }

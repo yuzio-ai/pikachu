@@ -1,26 +1,29 @@
+@MainActor public struct TranscriptTurnStart {
+    let turn: TurnRecord
+    let precedingItemID: String?
+}
+
 @MainActor public enum TranscriptDisplayRow {
     case item(TranscriptItem)
-    case completedTools([TranscriptItem])
+    case turnHeader(TurnRecord)
+    case runningTool(TranscriptItem)
+    case toolCalls([TranscriptItem]) // Consecutive tool calls that have stopped running.
 
     public var id: String {
         switch self {
-        case .item(let item): item.id
-        case .completedTools(let items): items[0].id
-        }
-    }
-
-    public var isTool: Bool {
-        switch self {
-        case .item(let item): item.kind == .tool
-        case .completedTools: true
+        case .item(let item), .runningTool(let item): item.id
+        case .turnHeader(let turn): "turn-header:\(turn.displayID)"
+        case .toolCalls(let items): items[0].id
         }
     }
 
     public func hasSameItems(as other: Self) -> Bool {
         switch (self, other) {
-        case (.item(let item), .item(let otherItem)):
+        case (.item(let item), .item(let otherItem)), (.runningTool(let item), .runningTool(let otherItem)):
             item === otherItem
-        case (.completedTools(let items), .completedTools(let otherItems)):
+        case (.turnHeader(let turn), .turnHeader(let otherTurn)):
+            turn === otherTurn
+        case (.toolCalls(let items), .toolCalls(let otherItems)):
             items.count == otherItems.count && zip(items, otherItems).allSatisfy { $0 === $1 }
         default:
             false
@@ -28,73 +31,51 @@
     }
 
     public func contains(_ itemID: String) -> Bool {
-        switch self {
-        case .item(let item): item.id == itemID
-        case .completedTools(let items): items.contains { $0.id == itemID }
-        }
+        if case .toolCalls(let items) = self { return items.contains { $0.id == itemID } }
+        return id == itemID
     }
 
-    public static func grouped(_ items: [TranscriptItem]) -> [Self] {
+    public static func project(_ items: [TranscriptItem], turnStarts: [TranscriptTurnStart] = []) -> [Self] {
+        let startsByPredecessor = Dictionary(grouping: turnStarts, by: \.precedingItemID)
         var rows: [Self] = []
-        var completed: [TranscriptItem] = []
+        var tools: [TranscriptItem] = []
+        var shownTurns = Set<String>()
 
-        func flushCompleted() {
-            if completed.count > 1 {
-                rows.append(.completedTools(completed))
-            } else if let item = completed.first {
-                rows.append(.item(item))
-            }
-            completed.removeAll()
+        func flushTools() {
+            guard !tools.isEmpty else { return }
+            rows.append(.toolCalls(tools))
+            tools = []
         }
 
+        func showHeader(_ turn: TurnRecord) {
+            guard shownTurns.insert(turn.displayID).inserted else { return }
+            flushTools()
+            rows.append(.turnHeader(turn))
+        }
+
+        for start in startsByPredecessor[nil] ?? [] { showHeader(start.turn) }
         for item in items {
-            if item.kind == .tool && item.isCompletedTool {
-                if let last = completed.last, last.turn !== item.turn {
-                    flushCompleted()
+            if item.kind != .user, let turn = item.turn { showHeader(turn) }
+            if item.kind == .tool {
+                if item.toolSummary?.state == .running {
+                    flushTools()
+                    rows.append(.runningTool(item))
+                } else {
+                    if let last = tools.last, last.turn !== item.turn { flushTools() }
+                    tools.append(item)
                 }
-                completed.append(item)
-            } else {
-                flushCompleted()
+            } else if item.kind != .assistant || item.hasVisibleText {
+                flushTools()
                 rows.append(.item(item))
             }
+            if item.kind == .user, let turn = item.turn { showHeader(turn) }
+            if let starts = startsByPredecessor[item.id] {
+                for start in starts { showHeader(start.turn) }
+            }
         }
-        flushCompleted()
+        // An empty assistant placeholder can disappear before the next turn emits anything.
+        for start in turnStarts { showHeader(start.turn) }
+        flushTools()
         return rows
-    }
-
-    public static func turnHeaders(for rows: [Self]) -> [Int: TurnRecord] {
-        var headers: [Int: TurnRecord] = [:]
-        var currentTurn: TurnRecord?
-        var firstRowIndex: Int?
-        var firstAssistantIndex: Int?
-
-        func flushSegment() {
-            guard let turn = currentTurn, let target = firstAssistantIndex ?? firstRowIndex else { return }
-            headers[target] = turn
-        }
-
-        for (index, row) in rows.enumerated() {
-            let rowTurn: TurnRecord?
-            let isAssistant: Bool
-            switch row {
-            case .item(let item):
-                rowTurn = (item.kind == .assistant || item.kind == .tool) ? item.turn : nil
-                isAssistant = item.kind == .assistant
-            case .completedTools(let items):
-                rowTurn = items.first?.turn
-                isAssistant = false
-            }
-
-            if rowTurn !== currentTurn {
-                flushSegment()
-                currentTurn = rowTurn
-                firstRowIndex = rowTurn == nil ? nil : index
-                firstAssistantIndex = (rowTurn != nil && isAssistant) ? index : nil
-            } else if currentTurn != nil && isAssistant && firstAssistantIndex == nil {
-                firstAssistantIndex = index
-            }
-        }
-        flushSegment()
-        return headers
     }
 }

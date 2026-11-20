@@ -179,7 +179,8 @@ await test("interaction/expiry-and-unsupported-cost") {
     try await wait { host.interactions.isEmpty && host.phase == .idle }
     await host.refreshUsage()
     try check(host.usage?.sessionID == host.session?.id && host.usage?.estimatedCostUSD == nil,"Unknown cost reported as priced")
-    try check(host.notice?.contains("过期") == true,"Expiry not explained")
+    let expectedExpiry = String(localized: "扩展交互已过期，未提交过期回复。", bundle: Bundle(for: SessionController.self))
+    try check(host.notice?.contains(expectedExpiry) == true,"Expiry not explained")
     try check(await host.disconnect(),"Expiry cleanup failed")
     return ["expiryRetired":true,"unknownCostExplicit":true,"noInference":true]
 }

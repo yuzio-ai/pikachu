@@ -32,17 +32,17 @@ public actor PiRuntime: AgentRuntime {
         }.value
     }
     public func connect() async throws -> RuntimeSession {
-        guard connection == nil else { throw RuntimeFailure(.setup, "当前连接尚未关闭。") }
+        guard connection == nil else { throw RuntimeFailure(.setup, String(localized: "当前连接尚未关闭。", bundle: #bundle)) }
         let ticket = UUID(); epoch = ticket
         let config = configuration, id = instanceID, sink = channel
         var resumeID: String?
         if let file = config.resumeFile {
             let history = try await PiHistoryReader(roots: []).read(file)
             guard !history.incompleteTail, config.expectedSessionID == nil || history.sessionID == config.expectedSessionID else {
-                throw RuntimeFailure(.protocolError, "会话尾部尚未写完或标识不匹配，禁止激活执行。")
+                throw RuntimeFailure(.protocolError, String(localized: "会话尾部尚未写完或标识不匹配，禁止激活执行。", bundle: #bundle))
             }
             guard URL(fileURLWithPath: history.cwd).standardizedFileURL.resolvingSymlinksInPath() == config.workspace.standardizedFileURL.resolvingSymlinksInPath() else {
-                throw RuntimeFailure(.setup, "历史工作目录与项目当前位置不同。请只读查看旧会话，或在当前位置新建会话；不会在旧目录执行。")
+                throw RuntimeFailure(.setup, String(localized: "历史工作目录与项目当前位置不同。请只读查看旧会话，或在当前位置新建会话；不会在旧目录执行。", bundle: #bundle))
             }
             resumeID = history.sessionID
         }
@@ -50,11 +50,11 @@ public actor PiRuntime: AgentRuntime {
         guard epoch == ticket else { try? await Task.detached { try bridge.close(force: true) }.value; throw CancellationError() }
         connection = bridge
         do {
-            try await Task.detached { try bridge.verifyPolicy(config.agentMode) }.value
+            try await Task.detached { try bridge.verifyPolicy(config.executionPolicy) }.value
             if let file = config.resumeFile, let resumeID {
                 try await Task.detached {
                     try bridge.resume(file, expectedID: resumeID)
-                    try bridge.verifyPolicy(config.agentMode)
+                    try bridge.verifyPolicy(config.executionPolicy)
                 }.value
             }
             return try await Task.detached { try bridge.session() }.value
@@ -62,11 +62,11 @@ public actor PiRuntime: AgentRuntime {
         catch { try? await Task.detached { try bridge.close(force: true) }.value; throw error }
     }
     public func send(_ prompt: UserPrompt) async throws -> PromptDisposition {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         return try await Task.detached { try connection.send(prompt) }.value
     }
     public func stop() async throws {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         try await Task.detached { try connection.stop() }.value
     }
     public func close(force: Bool) async throws {
@@ -76,23 +76,23 @@ public actor PiRuntime: AgentRuntime {
         connection = nil; channel.finish()
     }
     public func configurationOptions() async throws -> RuntimeConfigurationOptions {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         return try await Task.detached { try connection.options() }.value
     }
     public func currentSession() async throws -> RuntimeSession {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         return try await Task.detached { try connection.session() }.value
     }
     public func applyConfiguration(_ selection: RuntimeSelection) async throws -> RuntimeSession {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         return try await Task.detached { try connection.configure(selection) }.value
     }
     public func usage() async throws -> RuntimeUsage {
-        guard let connection else { throw RuntimeFailure(.connection, "尚未连接运行时。") }
+        guard let connection else { throw RuntimeFailure(.connection, String(localized: "尚未连接运行时。", bundle: #bundle)) }
         return try await Task.detached { try connection.usage() }.value
     }
     public func respond(to request: RuntimeInteraction, with response: InteractionResponse) async throws {
-        guard let connection, request.instanceID == instanceID else { throw RuntimeFailure(.unsupportedInteraction, "交互来自已结束的执行实例。") }
+        guard let connection, request.instanceID == instanceID else { throw RuntimeFailure(.unsupportedInteraction, String(localized: "交互来自已结束的执行实例。", bundle: #bundle)) }
         try await Task.detached { try connection.broker.respond(request, response) }.value
     }
     public func cancelInteractions() async {
@@ -120,17 +120,9 @@ private final class PiConnection: @unchecked Sendable {
         let fm = FileManager.default
         guard fm.fileExists(atPath: config.workspace.path), fm.isExecutableFile(atPath: config.executable.path),
               fm.isExecutableFile(atPath: config.nodeDirectory.appendingPathComponent("node").path) else {
-            throw RuntimeFailure(.setup, "项目、Pi 路径或 Node 路径不可用。")
+            throw RuntimeFailure(.setup, String(localized: "项目、Pi 路径或 Node 路径不可用。", bundle: #bundle))
         }
-        var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = config.nodeDirectory.path + ":" + (environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")
-        environment["PI_CODING_AGENT_DIR"] = config.agentDirectory.path
-        if !config.proxy.isEmpty {
-            guard let url = URL(string: config.proxy), ["http", "https", "socks5"].contains(url.scheme ?? ""), url.host != nil else {
-                throw RuntimeFailure(.setup, "代理地址无效。")
-            }
-            environment["HTTP_PROXY"] = config.proxy; environment["HTTPS_PROXY"] = config.proxy; environment["NODE_USE_ENV_PROXY"] = "1"
-        }
+        var environment = try config.launchEnvironment(inheriting: ProcessInfo.processInfo.environment)
         // Version probe is bounded and never starts an agent run.
         let version = Process(), out = Pipe()
         version.executableURL = config.executable; version.arguments = ["--version"]; version.environment = environment
@@ -138,34 +130,45 @@ private final class PiConnection: @unchecked Sendable {
         try version.run()
         let deadline = Date().addingTimeInterval(5)
         while version.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }
-        if version.isRunning { version.terminate(); throw RuntimeFailure(.setup, "Pi 版本检测超时。") }
+        if version.isRunning { version.terminate(); throw RuntimeFailure(.setup, String(localized: "Pi 版本检测超时。", bundle: #bundle)) }
         let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard version.terminationStatus == 0 && text == "1.5.2" else { throw RuntimeFailure(.unsupportedVersion, "此构建仅验证过 Pi 1.5.2，请选择该版本。") }
+        guard version.terminationStatus == 0 && text == "1.5.2" else { throw RuntimeFailure(.unsupportedVersion, String(localized: "此构建仅验证过 Pi 1.5.2，请选择该版本。", bundle: #bundle)) }
         var arguments = ["--mode", "rpc", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes"]
         if modelProbe {
             arguments += ["--no-session", "--no-tools", "--no-mcp", "--no-context-files"]
         } else {
+            arguments += [config.approveProjectConfiguration ? "--approve" : "--no-approve"]
             try fm.createDirectory(at: config.sessionDirectory, withIntermediateDirectories: true)
             arguments += ["--session-dir", config.sessionDirectory.path]
+            let execution = config.executionPolicy
             if config.agentMode == .automatic {
                 if let fixture = config.extensionFixture { arguments += ["-e", fixture.path] }
                 for path in config.extensionPaths {
-                    guard fm.isReadableFile(atPath: path.path) else { throw RuntimeFailure(.setup, "所选扩展文件无法读取。") }
+                    guard fm.isReadableFile(atPath: path.path) else { throw RuntimeFailure(.setup, String(localized: "所选扩展文件无法读取。", bundle: #bundle)) }
                     arguments += ["-e", path.path]
                 }
             } else {
-                guard let policy = Bundle.piRuntimeAdapter.url(forResource: "execution-policy", withExtension: "ts"),
-                      fm.isReadableFile(atPath: policy.path) else { throw RuntimeFailure(.setup, "无法加载 Pikachu 执行模式。") }
-                let tools = config.agentMode == .plan ? "read,grep,find,ls" : "read,grep,find,ls,pikachu_bash,pikachu_edit,pikachu_write"
-                arguments += ["--no-mcp", "--tools", tools, "-e", policy.path]
-                environment["PIKACHU_EXECUTION_MODE"] = config.agentMode.rawValue
+                let readTools = ["read", "grep", "find", "ls"]
+                let tools = execution.approval == .everyCall ? readTools.map { "pikachu_" + $0 } : readTools
+                let writeTools = ["bash", "edit", "write"]
+                let enabled = execution.mode == .plan ? tools : tools + writeTools.map {
+                    execution.approval == .never ? $0 : "pikachu_" + $0
+                }
+                arguments += ["--no-mcp", "--tools", enabled.joined(separator: ",")]
             }
+            guard let policy = Bundle.piRuntimeAdapter.url(forResource: "execution-policy", withExtension: "ts"),
+                  fm.isReadableFile(atPath: policy.path) else { throw RuntimeFailure(.setup, String(localized: "无法加载 Pikachu 执行模式。", bundle: #bundle)) }
+            arguments += ["-e", policy.path]
+            environment["PIKACHU_EXECUTION_MODE"] = execution.mode.rawValue
+            environment["PIKACHU_TOOL_APPROVAL"] = execution.approval.rawValue
         }
         do {
             let transport = try RPCProcess(executable: config.executable.path, arguments: arguments, cwd: config.workspace,
                                            environment: environment, supervised: true, streaming: true)
             client = transport
-            broker = PiInteractionBroker(instanceID: instanceID, native: config.nativeDialogs, write: { try transport.send($0) }, emit: { sink.send(.init(instanceID: instanceID, event: $0)) })
+            broker = PiInteractionBroker(instanceID: instanceID, native: config.nativeDialogs,
+                                         toolApprovals: !modelProbe && config.executionPolicy.approval != .never,
+                                         write: { try transport.send($0) }, emit: { sink.send(.init(instanceID: instanceID, event: $0)) })
         } catch { throw PiEventMapper.failure(String(describing: error)) }
         Thread.detachNewThread { [self] in pump() }
     }
@@ -178,13 +181,13 @@ private final class PiConnection: @unchecked Sendable {
     func session() throws -> RuntimeSession {
         do {
             let state = try client.ok("get_state", timeout: 15)
-            guard let id = state["sessionId"] as? String else { throw RuntimeFailure(.protocolError, "运行时未返回会话标识。") }
+            guard let id = state["sessionId"] as? String else { throw RuntimeFailure(.protocolError, String(localized: "运行时未返回会话标识。", bundle: #bundle)) }
             let model = state["model"] as? Record
             // Pi uses an "unknown" placeholder when no authenticated model exists.
             // It is display information, not a configuration that can be restored.
             let provider = model?["provider"] as? String, modelID = model?["id"] as? String
             let configured = provider?.isEmpty == false && provider != "unknown" && modelID?.isEmpty == false && modelID != "unknown"
-            return .init(id: id, model: model?["name"] as? String ?? model?["id"] as? String ?? "未配置模型",
+            return .init(id: id, model: model?["name"] as? String ?? model?["id"] as? String ?? String(localized: "未配置模型", bundle: #bundle),
                          thinking: state["thinkingLevel"] as? String ?? "—", capabilities: [.streaming, .tools, .interruption, .queuedPrompts],
                          file: (state["sessionFile"] as? String).map { URL(fileURLWithPath: $0) }, provider: configured ? provider : nil, modelID: configured ? modelID : nil)
         } catch let failure as RuntimeFailure { verificationTrace("session-failed"); throw failure }
@@ -201,28 +204,28 @@ private final class PiConnection: @unchecked Sendable {
     }
     func resume(_ file: URL, expectedID: String) throws {
         let result = try client.ok("switch_session", ["sessionPath": file.path], timeout: 15)
-        guard result["cancelled"] as? Bool == false else { throw RuntimeFailure(.setup, "运行时取消了会话恢复；没有发送任务。") }
+        guard result["cancelled"] as? Bool == false else { throw RuntimeFailure(.setup, String(localized: "运行时取消了会话恢复；没有发送任务。", bundle: #bundle)) }
         let restored = try session()
         guard restored.id == expectedID, restored.file?.standardizedFileURL.resolvingSymlinksInPath() == file.standardizedFileURL.resolvingSymlinksInPath() else {
-            throw RuntimeFailure(.protocolError, "恢复后的会话标识或文件位置不匹配。")
+            throw RuntimeFailure(.protocolError, String(localized: "恢复后的会话标识或文件位置不匹配。", bundle: #bundle))
         }
     }
-    func verifyPolicy(_ mode: AgentMode) throws {
-        guard mode != .automatic else { return }
+    func verifyPolicy(_ policy: AgentExecutionPolicy) throws {
+        guard policy.mode != .automatic else { return }
         let command = "pikachu-verify-policy"
         let commands = try client.ok("get_commands")["commands"] as? [Record] ?? []
         guard commands.contains(where: { $0["name"] as? String == command && $0["source"] as? String == "extension" }) else {
-            throw RuntimeFailure(.setup, "Pikachu 执行模式未加载。")
+            throw RuntimeFailure(.setup, String(localized: "Pikachu 执行模式未加载。", bundle: #bundle))
         }
         let nonce = UUID().uuidString
         let reply = try client.ok("prompt", ["message": "/\(command) \(nonce)"])
-        guard reply["disposition"] as? String == "handled" else { throw RuntimeFailure(.setup, "执行模式验证失败。") }
+        guard reply["disposition"] as? String == "handled" else { throw RuntimeFailure(.setup, String(localized: "执行模式验证失败。", bundle: #bundle)) }
         let end = Date().addingTimeInterval(2)
         while Date() < end {
-            if lock.withLock({ policyStatus == "\(mode.rawValue):\(nonce)" }) { return }
+            if lock.withLock({ policyStatus == "\(policy.mode.rawValue):\(policy.approval.rawValue):\(nonce)" }) { return }
             Thread.sleep(forTimeInterval: 0.01)
         }
-        throw RuntimeFailure(.setup, "运行时工具权限与所选模式不匹配。")
+        throw RuntimeFailure(.setup, String(localized: "运行时工具列表或审批规则与当前设置不匹配。", bundle: #bundle))
     }
     func options() throws -> RuntimeConfigurationOptions {
         let models = try client.ok("get_available_models")["models"] as? [Record] ?? []
@@ -235,7 +238,7 @@ private final class PiConnection: @unchecked Sendable {
     func configure(_ selection: RuntimeSelection) throws -> RuntimeSession {
         let state = try client.ok("get_state")
         guard state["isStreaming"] as? Bool == false, state["isCompacting"] as? Bool != true,
-              state["pendingMessageCount"] as? Int == 0 else { throw RuntimeFailure(.setup, "运行期间不能修改模型配置。") }
+              state["pendingMessageCount"] as? Int == 0 else { throw RuntimeFailure(.setup, String(localized: "运行期间不能修改模型配置。", bundle: #bundle)) }
         let before = try session()
         let changesModel = before.provider != selection.provider || before.modelID != selection.modelID
         if changesModel { try selectModel(provider: selection.provider, id: selection.modelID) }
@@ -243,20 +246,20 @@ private final class PiConnection: @unchecked Sendable {
             if let thinking = selection.thinking {
                 let levels = try client.ok("get_available_thinking_levels")["levels"] as? [String] ?? []
                 guard levels.contains(thinking) else {
-                    throw RuntimeFailure(.setup, "该模型不支持所选推理强度，请重新选择。")
+                    throw RuntimeFailure(.setup, String(localized: "该模型不支持所选推理强度，请重新选择。", bundle: #bundle))
                 }
                 _ = try client.ok("set_thinking_level", ["level": thinking])
             }
             let applied = try session()
             guard applied.provider == selection.provider, applied.modelID == selection.modelID,
-                  selection.thinking == nil || applied.thinking == selection.thinking else { throw RuntimeFailure(.outcomeUnknown, "模型配置读回不一致，请重新连接核对。") }
+                  selection.thinking == nil || applied.thinking == selection.thinking else { throw RuntimeFailure(.outcomeUnknown, String(localized: "模型配置读回不一致，请重新连接核对。", bundle: #bundle)) }
             return applied
         } catch {
             if changesModel, let provider = before.provider, let model = before.modelID {
                 do {
                     try selectModel(provider: provider, id: model)
                     _ = try client.ok("set_thinking_level", ["level": before.thinking])
-                } catch { throw RuntimeFailure(.outcomeUnknown, "无法确认恢复原模型配置，请重新连接。") }
+                } catch { throw RuntimeFailure(.outcomeUnknown, String(localized: "无法确认恢复原模型配置，请重新连接。", bundle: #bundle)) }
             }
             throw error
         }
@@ -272,11 +275,11 @@ private final class PiConnection: @unchecked Sendable {
             let requestID = try client.submit("prompt", fields)
             let acknowledgement = try client.response(requestID, timeout: 5, extendingDeadline: { self.broker.acknowledgementDeadline(since: revision) })
             guard acknowledgement["success"] as? Bool == true else {
-                throw RuntimeFailure(.model, "运行时未接受这条输入。请检查连接与模型配置后重试。")
+                throw RuntimeFailure(.model, String(localized: "运行时未接受这条输入。请检查连接与模型配置后重试。", bundle: #bundle))
             }
             let response = acknowledgement["data"] as? Record ?? [:]
             guard let text = response["disposition"] as? String, let disposition = PromptDisposition(rawValue: text) else {
-                throw RuntimeFailure(.outcomeUnknown, "未能确认消息接受状态；不会自动重发。")
+                throw RuntimeFailure(.outcomeUnknown, String(localized: "未能确认消息接受状态；不会自动重发。", bundle: #bundle))
             }
             if disposition == .handled { broker.cancelAll(reason: .expired, send: false) }
             return disposition
@@ -295,7 +298,7 @@ private final class PiConnection: @unchecked Sendable {
             _ = try client.ok("abort", timeout: 15)
             let state = try client.ok("get_state")
             guard state["isStreaming"] as? Bool == false, state["pendingMessageCount"] as? Int == 0 else {
-                throw RuntimeFailure(.outcomeUnknown, "任务尚未确认停止。")
+                throw RuntimeFailure(.outcomeUnknown, String(localized: "任务尚未确认停止。", bundle: #bundle))
             }
             broker.resume()
         } catch let failure as RuntimeFailure { broker.cancelAll(); throw failure }
@@ -309,7 +312,7 @@ private final class PiConnection: @unchecked Sendable {
         if force { client.crash() }
         do {
             try client.close()
-            guard client.supervisionStatus["state"] as? String == "clean" else { throw RuntimeFailure(.supervision, "工具进程清理未确认。") }
+            guard client.supervisionStatus["state"] as? String == "clean" else { throw RuntimeFailure(.supervision, String(localized: "工具进程清理未确认。", bundle: #bundle)) }
             lock.withLock { disposed = true }
             emit(.disconnected(cleanupConfirmed: true))
         } catch {
@@ -323,12 +326,6 @@ private final class PiConnection: @unchecked Sendable {
             do { try broker.expire() } catch { emit(.failure(PiEventMapper.failure(String(describing: error)))) }
             let observation = client.observation(after: cursor); cursor = observation.nextCursor
             for record in observation.records {
-                if record["type"] as? String == "message_start",
-                   let message = record["message"] as? Record,
-                   message["role"] as? String == "user",
-                   let ts = PiEventMapper.epochMs(message["timestamp"]) {
-                    emit(.userMessageTimestamp(ts))
-                }
                 for event in mapper.map(record) {
                     switch event {
                     case .phase(.running): lock.withLock { runActive = true }
@@ -342,7 +339,7 @@ private final class PiConnection: @unchecked Sendable {
                         do { try broker.accept(record) }
                         catch { emit(.failure(error as? RuntimeFailure ?? PiEventMapper.failure(String(describing: error)))); client.crash() }
                     } else if method == "notify" {
-                        emit(.notice(PiEventMapper.clipped(record["message"] as? String ?? "扩展通知", limit: 2000)))
+                        emit(.notice(PiEventMapper.clipped(record["message"] as? String ?? String(localized: "扩展通知", bundle: #bundle), limit: 2000)))
                     } else if method == "set_editor_text" {
                         if let text = record["text"] as? String, !text.isEmpty { emit(.suggestedDraft(PiEventMapper.clipped(text))) }
                     } else if method == "setStatus", let key = record["statusKey"] as? String, key.utf8.count <= 1_024 {
@@ -353,7 +350,7 @@ private final class PiConnection: @unchecked Sendable {
                     } else if method == "setTitle" {
                         emit(.extensionStatus("title", (record["title"] as? String).map { PiEventMapper.clipped($0, limit: 2_000) }))
                     } else if !["select", "confirm", "input", "editor", "setStatus", "setWidget", "setTitle", "set_editor_text"].contains(method) {
-                        emit(.failure(.init(.unsupportedInteraction, "运行时请求了无法识别的交互，请停止任务或结束进程。")))
+                        emit(.failure(.init(.unsupportedInteraction, String(localized: "运行时请求了无法识别的交互，请停止任务或结束进程。", bundle: #bundle))))
                     }
                 }
             }
@@ -364,7 +361,7 @@ private final class PiConnection: @unchecked Sendable {
                 let clean = client.supervisionStatus["state"] as? String == "clean" && !client.process.isRunning
                 broker.cancelAll(reason: .disconnected, send: false)
                 emit(.failure(.init(observation.failure == nil ? .connection : .protocolError,
-                                    clean ? "运行时连接已中断，受管进程已清理。不会自动重发任务。" : "运行时连接已中断，工具清理尚未确认。")))
+                                    clean ? String(localized: "运行时连接已中断，受管进程已清理。不会自动重发任务。", bundle: #bundle) : String(localized: "运行时连接已中断，工具清理尚未确认。", bundle: #bundle))))
                 emit(.disconnected(cleanupConfirmed: clean)); return
             }
             Thread.sleep(forTimeInterval: 0.01)

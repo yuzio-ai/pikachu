@@ -54,7 +54,7 @@ build/Build/Products/Debug/workspace-verify --real
 build/Build/Products/Debug/workspace-verify --case workspace/local-drafts-and-restart
 ```
 
-默认验证本地草稿持久化、只读历史分支/压缩/损坏拦截、本机 Pi 无推理恢复及合成故障无重放；`--real` 额外验证模型配置读回、真实编码恢复、运行中切换和目录重新定位。
+默认验证本地草稿持久化、只读历史分支、压缩和损坏拦截、本机 Pi 无推理恢复、合成故障无重放，以及同目录两个 Pi 实例的独立扩展交互。`--real` 额外验证模型配置读回、真实编码恢复、运行中并行发送和目录重新定位。
 
 ### 4. `interaction-verify`（原生扩展交互、用量与大输出负载）
 

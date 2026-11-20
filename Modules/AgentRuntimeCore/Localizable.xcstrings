@@ -1,0 +1,143 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "**执行过程**会在这里实时更新。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "**Progress** will update here in real time."
+          }
+        }
+      }
+    },
+    "已处理补充内容：\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed follow-up input:\n%@"
+          }
+        }
+      }
+    },
+    "正在检查项目。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspecting the project."
+          }
+        }
+      }
+    },
+    "正在运行测试…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running tests…"
+          }
+        }
+      }
+    },
+    "此运行时不支持交互回复。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This runtime does not support interaction replies."
+          }
+        }
+      }
+    },
+    "此运行时不支持模型配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This runtime does not support model configuration."
+          }
+        }
+      }
+    },
+    "此运行时不支持状态读取。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This runtime does not support reading its state."
+          }
+        }
+      }
+    },
+    "此运行时未提供统计。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This runtime does not provide usage data."
+          }
+        }
+      }
+    },
+    "演示指令已处理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo command handled"
+          }
+        }
+      }
+    },
+    "演示推理模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo Reasoning Model"
+          }
+        }
+      }
+    },
+    "演示模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo Model"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示模型"
+          }
+        }
+      },
+      "comment" : "An explicit source translation includes zh-Hans in the compiled bundle."
+    },
+    "演示模型或推理强度不可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo model or reasoning level is unavailable."
+          }
+        }
+      }
+    },
+    "演示模型拒绝了请求" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo model rejected the request"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

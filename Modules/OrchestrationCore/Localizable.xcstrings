@@ -1,0 +1,716 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    " 下方保留上次可读内容，可能已过期。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " The last readable content is shown below and may be out of date."
+          }
+        }
+      }
+    },
+    "上一执行实例的清理未确认，不能建立新连接。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cleanup of the previous instance is unconfirmed. A new connection cannot be started."
+          }
+        }
+      }
+    },
+    "上次运行已中断。仅恢复历史和草稿，没有恢复推理或执行队列。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The previous run was interrupted. History and drafts were restored. Inference and queued tasks were not resumed."
+          }
+        }
+      }
+    },
+    "交互回复结果不明，请停止任务并核对运行时状态。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The interaction reply could not be confirmed. Stop the task and check the runtime status."
+          }
+        }
+      }
+    },
+    "仍有未完成的控制请求，不能确认停止。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A control request is still pending. The stop cannot be confirmed."
+          }
+        }
+      }
+    },
+    "会话列表已刷新。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session list was refreshed."
+          }
+        }
+      }
+    },
+    "会话发现失败，现有索引和源历史保持不变。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not discover sessions. The index and source history were kept."
+          }
+        }
+      }
+    },
+    "会话尚未连接。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session is not connected."
+          }
+        }
+      }
+    },
+    "会话尾部尚未写完，请稍后重新读取。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session file is still being written. Reload it later."
+          }
+        }
+      }
+    },
+    "会话已不可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session is no longer available."
+          }
+        }
+      }
+    },
+    "会话标识不匹配。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session ID does not match."
+          }
+        }
+      }
+    },
+    "会话连接已变化，请重试模型查询。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session connection has changed. Try loading the models again."
+          }
+        }
+      }
+    },
+    "停止结果尚未确认。请结束受管进程。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stop could not be confirmed. End the managed processes."
+          }
+        }
+      }
+    },
+    "历史会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historical Session"
+          }
+        }
+      }
+    },
+    "历史工作目录与当前位置不同。旧会话可只读查看；请在当前位置新建会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session’s historical working directory differs from the current one. You can browse the old session read-only or start a new session in the current location."
+          }
+        }
+      }
+    },
+    "历史文件缺失，已阻止继续发送。请恢复原文件或在新会话中执行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The history file is missing and sending is blocked. Restore the file or start a new session."
+          }
+        }
+      }
+    },
+    "历史读取失败，未修改源文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not read session history. The source file was kept."
+          }
+        }
+      }
+    },
+    "发送状态未能持久化，没有发送任务。请先修复本地存储。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The delivery state could not be saved. The task was not sent. Fix local storage first."
+          }
+        }
+      }
+    },
+    "发送结果尚未确认，不会自动重发。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delivery is unconfirmed. Pikachu will not resend automatically."
+          }
+        }
+      }
+    },
+    "同一会话 ID 对应多个文件，请保留唯一来源后刷新。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiple files share a session ID. Keep one source file and refresh."
+          }
+        }
+      }
+    },
+    "工作台不可写。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The workspace cannot be written."
+          }
+        }
+      }
+    },
+    "工作树不可用：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worktree unavailable: %@"
+          }
+        }
+      }
+    },
+    "工作目录不可用：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working directory unavailable: %@"
+          }
+        }
+      }
+    },
+    "工作目录已更新。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The working directory has been updated."
+          }
+        }
+      }
+    },
+    "已有执行实例使用此会话历史，草稿已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another runtime is using this session history. Your draft is saved."
+          }
+        }
+      }
+    },
+    "当前任务仍占用执行槽位。草稿已保留，请返回任务或明确停止后再执行。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The current task is still active. Your draft was kept. Return to that task or stop it before starting another."
+          }
+        }
+      }
+    },
+    "当前任务及队列完成后才能使用待应用模型，草稿已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The pending model can be used once the task and queue finish. Your draft was kept."
+          }
+        }
+      }
+    },
+    "执行会话标识与历史绑定不一致，没有发送任务。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The active session ID does not match the history binding. The task was not sent."
+          }
+        }
+      }
+    },
+    "扩展交互已过期，未提交过期回复。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The extension request expired. The reply was not submitted."
+          }
+        }
+      }
+    },
+    "扩展提供的输入已保留为草稿，没有覆盖编辑框。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The extension input was saved as a separate draft. Your current input was kept."
+          }
+        }
+      }
+    },
+    "提交状态未保存。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The submission state could not be saved."
+          }
+        }
+      }
+    },
+    "新会话" : {
+      "comment" : "An explicit source translation includes zh-Hans in the compiled bundle.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Session"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新会话"
+          }
+        }
+      }
+    },
+    "旧执行实例清理未确认，没有启动目标会话。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cleanup of the previous instance is unconfirmed. The target session was not started."
+          }
+        }
+      }
+    },
+    "未配置模型目录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No model catalog is configured."
+          }
+        }
+      }
+    },
+    "本地会话绑定重复。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duplicate local session bindings."
+          }
+        }
+      }
+    },
+    "本地保存失败，已阻止新任务。会话状态和草稿仍在内存中，请修复存储后重试保存。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local save failed and new tasks are blocked. Session state and drafts are still in memory. Fix storage and try saving again."
+          }
+        }
+      }
+    },
+    "本地工作台数据无法读取，已阻止执行；没有重建或覆盖原数据。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The workspace data could not be read and execution is blocked. The original data was kept."
+          }
+        }
+      }
+    },
+    "本地索引不一致。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The local index is inconsistent."
+          }
+        }
+      }
+    },
+    "查看 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review %@"
+          }
+        }
+      }
+    },
+    "模型配置暂时无法应用，草稿已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model settings could not be applied. Your draft was kept."
+          }
+        }
+      }
+    },
+    "模型配置结果不明，请重新连接核对。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model configuration could not be confirmed. Reconnect to check it."
+          }
+        }
+      }
+    },
+    "此历史会话使用的运行时尚未接入，原记录已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This historical session uses an unsupported runtime. The original history was kept."
+          }
+        }
+      }
+    },
+    "目录不可用或已属于其他项目。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The directory is unavailable or already belongs to another project."
+          }
+        }
+      }
+    },
+    "该会话有未核实的发送记录。请先核对执行结果，避免重复操作。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This session has unconfirmed deliveries. Check the run results before sending again to avoid duplicate actions."
+          }
+        }
+      }
+    },
+    "请先处理会话草稿。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolve the session draft first."
+          }
+        }
+      }
+    },
+    "请先处理等待中的输入。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respond to pending input first."
+          }
+        }
+      }
+    },
+    "请先恢复工作台存储。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore workspace storage first."
+          }
+        }
+      }
+    },
+    "请先核实执行结果。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verify the run result first."
+          }
+        }
+      }
+    },
+    "请先核对未确认的发送记录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review unconfirmed deliveries first."
+          }
+        }
+      }
+    },
+    "请先清理并断开该项目的执行会话，再重新定位。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clean up and disconnect this project’s active session before relocating the project."
+          }
+        }
+      }
+    },
+    "请先确认此会话的运行时已清理。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm that this session’s runtime has been cleaned up first."
+          }
+        }
+      }
+    },
+    "请先确认运行时进程已清理。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm that the runtime processes have been cleaned up first."
+          }
+        }
+      }
+    },
+    "请等待会话空闲后再更改工作目录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the session to become idle before changing its working directory."
+          }
+        }
+      }
+    },
+    "请等待当前控制请求结束。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the current control request to finish."
+          }
+        }
+      }
+    },
+    "请等待当前操作结束。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the current operation to finish."
+          }
+        }
+      }
+    },
+    "请等待执行和队列结束。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the run and queue to finish."
+          }
+        }
+      }
+    },
+    "运行时事件流意外结束，进程清理尚未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The runtime event stream ended unexpectedly. Process cleanup is unconfirmed."
+          }
+        }
+      }
+    },
+    "运行时统计暂不可用，未将缺失数据计作零。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runtime usage is unavailable. Missing data is not counted as zero."
+          }
+        }
+      }
+    },
+    "进程清理尚未确认，不能继续执行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process cleanup is unconfirmed. Execution cannot continue."
+          }
+        }
+      }
+    },
+    "连接在启动期间中断。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection was interrupted during startup."
+          }
+        }
+      }
+    },
+    "连接失败，请检查项目与运行时配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not connect. Check your project and runtime settings."
+          }
+        }
+      }
+    },
+    "连接失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not connect."
+          }
+        }
+      }
+    },
+    "部分会话的工作目录对应多个项目，已保留现有绑定。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some working directories match several projects. The existing session bindings were kept."
+          }
+        }
+      }
+    },
+    "项目目录不存在。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project directory does not exist."
+          }
+        }
+      }
+    },
+    "项目目录已移动，请重新定位后执行。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project directory has moved. Locate it again before running tasks."
+          }
+        }
+      }
+    },
+    "请先等待项目配置设置保存完成，再重新定位。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the project configuration setting to finish saving before relocating."
+          }
+        }
+      }
+    },
+    "当前无法修改该目录的项目配置设置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project configuration setting for this directory cannot be changed right now."
+          }
+        }
+      }
+    },
+    "工作目录不可用或不属于当前项目。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The working directory is unavailable or does not belong to the selected project."
+          }
+        }
+      }
+    },
+    "正在保存该目录的项目配置设置，请稍后再试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving the project configuration setting for this directory. Please try again shortly."
+          }
+        }
+      }
+    },
+    "正在保存该目录的项目配置设置，请稍后再试。草稿已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving the project configuration setting for this directory. Your draft was kept; please try again shortly."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

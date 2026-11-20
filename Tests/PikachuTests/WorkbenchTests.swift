@@ -1,7 +1,7 @@
 import XCTest
 import Foundation
 import AgentRuntimeCore
-import OrchestrationCore
+@testable import OrchestrationCore
 @testable import PiRuntimeAdapter
 
 private final class BrokerRecorder: @unchecked Sendable {
@@ -55,6 +55,53 @@ final class WorkbenchTests: XCTestCase {
         XCTAssertFalse(replied); XCTAssertTrue(host.interactions.isEmpty)
         _ = await host.disconnect(force:true)
     }
+    @MainActor func testOnlyNewLocalToolApprovalsTriggerApprovalCallback() async {
+        let runtime = FakeRuntime(), host = SessionController()
+        await host.connect(runtime)
+        var approvals: [String] = []
+        host.onApprovalRequested = { approvals.append($0.id) }
+        let confirmation = RuntimeInteraction(instanceID: runtime.instanceID, requestID: "confirm", kind: .confirm, title: "Confirm?")
+        let tool = RuntimeToolApproval(workingDirectory: "/fixture", operation: .command(text: "printf test", timeoutSeconds: 10))
+        let approval = RuntimeInteraction(instanceID: runtime.instanceID, requestID: "approval", kind: .confirm,
+                                          title: "Run command?", toolApproval: tool)
+        host.receive(.init(instanceID: runtime.instanceID, event: .interaction(confirmation)))
+        host.receive(.init(instanceID: UUID(), event: .interaction(approval)))
+        XCTAssertTrue(approvals.isEmpty)
+        host.receive(.init(instanceID: runtime.instanceID, event: .interaction(approval)))
+        host.receive(.init(instanceID: runtime.instanceID, event: .interaction(approval)))
+        XCTAssertEqual(approvals, [approval.id])
+        _ = await host.disconnect(force: true)
+    }
+
+    @MainActor func testExpiredRequestKeepsReadOnlyDetailsInTranscript() async throws {
+        let runtime = FakeRuntime(), host = SessionController()
+        await host.connect(runtime)
+        let deadline = Date(timeIntervalSince1970: 100)
+        let approval = RuntimeToolApproval(workingDirectory: "/fixture", operation: .command(text: "printf test", timeoutSeconds: 10))
+        let request = RuntimeInteraction(instanceID: runtime.instanceID, requestID: "approval", kind: .confirm,
+                                         title: "Run command?", message: "Request details", prefill: "private draft",
+                                         expiresAt: deadline, toolApproval: approval)
+        host.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+        XCTAssertFalse(host.didExpire(request))
+        host.receive(.init(instanceID: runtime.instanceID, event: .interactionEnded(request.id, .expired)))
+        host.receive(.init(instanceID: runtime.instanceID, event: .interactionEnded(request.id, .expired)))
+        XCTAssertTrue(host.interactions.isEmpty)
+        XCTAssertTrue(host.didExpire(request))
+        XCTAssertNotNil(host.notice)
+        XCTAssertNil(host.noticeExcludingExpiredInteraction, "The composer shows an expiry pill instead of a duplicate banner")
+        let records = host.transcript.compactMap(\.expiredInteraction)
+        XCTAssertEqual(records.count, 1)
+        let record = try XCTUnwrap(records.first)
+        XCTAssertEqual(record.title, request.title)
+        XCTAssertEqual(record.message, request.message)
+        XCTAssertEqual(record.toolApproval, approval)
+        XCTAssertEqual(record.expiresAt, deadline)
+        XCTAssertTrue(record.prefill.isEmpty)
+        let acceptedLateReply = await host.reply(request, .confirmed(true))
+        XCTAssertFalse(acceptedLateReply)
+        _ = await host.disconnect(force: true)
+    }
+
     func testAllFourDialogRepliesAndDuplicateAreBoundToInstance() throws {
         let recorder = BrokerRecorder(), instance = UUID()
         let broker = PiInteractionBroker(instanceID: instance, native: true, write: recorder.write, emit: recorder.emit)
@@ -97,6 +144,91 @@ final class WorkbenchTests: XCTestCase {
         try broker.accept(["method":"confirm", "id":"huge", "title":"Fixture", "message":String(repeating:"x",count:70_000)])
         XCTAssertEqual(recorder.writes.first?["cancelled"] as? Bool,true)
         XCTAssertFalse(recorder.events.contains { if case .interaction = $0 { true } else { false } })
+    }
+    func testBundledCommandApprovalPreservesOriginalCommandAndScope() throws {
+        let command = "  printf '%s\\n' \"a; b\"\r\n\t# e\u{301} 🐈\n"
+        let directory = "/tmp/Project With \"Quotes\""
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "tool": "bash",
+            "workingDirectory": directory,
+            "parameters": ["command": command, "timeout": 1.5]
+        ])
+        let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
+        let raw: [String: Any] = ["method": "confirm", "id": "shell", "message": message, "timeout": 120_000]
+
+        for isBundledPolicy in [true, false] {
+            let recorder = BrokerRecorder()
+            let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: isBundledPolicy,
+                                             write: recorder.write, emit: recorder.emit)
+            try broker.accept(raw)
+            guard case .interaction(let request) = try XCTUnwrap(recorder.events.first) else { return XCTFail() }
+            if isBundledPolicy {
+                let approval = try XCTUnwrap(request.toolApproval)
+                guard case .command(let text, let timeout) = approval.operation else { return XCTFail() }
+                XCTAssertEqual(Array(text.utf8), Array(command.utf8))
+                XCTAssertEqual(approval.workingDirectory, directory)
+                XCTAssertEqual(timeout, 1.5)
+            } else {
+                XCTAssertNil(request.toolApproval)
+                XCTAssertEqual(request.message, message)
+            }
+            try broker.respond(request, .confirmed(false))
+            XCTAssertEqual(recorder.writes.first?["confirmed"] as? Bool, false)
+        }
+    }
+    func testBundledFileApprovalsDecodeContentAndOrderedReplacements() throws {
+        let recorder = BrokerRecorder()
+        let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: true,
+                                         write: recorder.write, emit: recorder.emit)
+        let path = "Sources/File \"A\".swift"
+        let content = "import Foundation\r\n\tlet literal = \"\\n\"\n"
+        let replacement = "e\u{301}\t🐈\n"
+        let edits = [
+            ["oldText": content, "newText": ""],
+            ["oldText": "unchanged", "newText": replacement]
+        ]
+        let cases: [(String, [String: Any])] = [
+            ("write", ["path": path, "content": content]),
+            ("edit", ["path": path, "edits": edits])
+        ]
+        for (tool, parameters) in cases {
+            let payload = try JSONSerialization.data(withJSONObject: [
+                "tool": tool, "workingDirectory": "/tmp/Project", "parameters": parameters
+            ])
+            let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
+            try broker.accept(["method": "confirm", "id": tool, "message": message])
+        }
+        let approvals = recorder.events.compactMap { event -> RuntimeToolApproval? in
+            guard case .interaction(let request) = event else { return nil }
+            return request.toolApproval
+        }
+        XCTAssertEqual(approvals.count, 2)
+        guard case .write(let writePath, let writeText) = try XCTUnwrap(approvals.first).operation,
+              case .edit(let editPath, let replacements) = try XCTUnwrap(approvals.last).operation else { return XCTFail() }
+        XCTAssertEqual(writePath, path)
+        XCTAssertEqual(Array(writeText.utf8), Array(content.utf8))
+        XCTAssertEqual(editPath, path)
+        XCTAssertEqual(replacements.map(\.oldText), [content, "unchanged"])
+        XCTAssertEqual(replacements.map { Array($0.newText.utf8) }, [[], Array(replacement.utf8)])
+    }
+    func testBundledSearchApprovalDecodesArguments() throws {
+        let recorder = BrokerRecorder()
+        let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: true,
+                                         write: recorder.write, emit: recorder.emit)
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "tool": "grep", "workingDirectory": "/tmp/Project",
+            "parameters": ["path": "Sources", "pattern": "a\\nb", "limit": 40, "literal": true]
+        ])
+        let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
+        try broker.accept(["method": "confirm", "id": "search", "message": message])
+        guard case .interaction(let request) = try XCTUnwrap(recorder.events.first),
+              case .inspect(.grep, let arguments) = request.toolApproval?.operation else { return XCTFail() }
+        XCTAssertEqual(arguments, [
+            .init(name: "path", value: "Sources"),
+            .init(name: "pattern", value: "a\\nb"),
+            .init(name: "limit", value: "40"),
+            .init(name: "literal", value: "true")
+        ])
     }
     func testUsageUnknownPriceAndCompactedContextStayUnknown() throws {
         let stats: [String:Any] = ["sessionId":"s","tokens":["input":2,"output":3,"cacheRead":4,"cacheWrite":5,"total":14],"cost":0,"contextUsage":["tokens":NSNull(),"contextWindow":200_000,"percent":NSNull()]]

@@ -31,7 +31,7 @@ var instances: [PiRuntime] = []
     let store = try SwiftDataWorkspaceStore(url: storeURL)
     return WorkspaceController(store: store, reader: reader) { project, reference in
         let runtime = PiRuntime(configuration: .init(executable: URL(fileURLWithPath: paths.pi), nodeDirectory: URL(fileURLWithPath: paths.node),
-            workspace: URL(fileURLWithPath: project.path), agentDirectory: auth, sessionDirectory: sessions.appendingPathComponent(project.id.uuidString), proxy: paths.proxy,
+            workspace: URL(fileURLWithPath: reference.workingDirectory(in: project)), agentDirectory: auth, sessionDirectory: sessions.appendingPathComponent(project.id.uuidString), proxy: paths.proxy,
             extensionFixture: repo.appendingPathComponent("Verification/Fixtures/noop-extension.ts"), resumeFile: reference.file, expectedSessionID: reference.runtimeSessionID))
         instances.append(runtime); return runtime
     }
@@ -65,7 +65,7 @@ await test("workspace/local-drafts-and-restart") {
     b = await app.addProject(projectB); bSession = app.selected!.id; app.viewed!.controller.draft = "项目 B 草稿"
     try check(await app.flush(), "Initial drafts did not save")
     app = try workspace(); await app.start()
-    try check(instances.isEmpty && app.activeID == nil, "Restart started a runtime")
+    try check(instances.isEmpty && app.executionIDs.isEmpty, "Restart started a runtime")
     try check(app.selected?.id == bSession && app.viewed!.controller.draft == "项目 B 草稿", "Selected draft not restored")
     await app.select(aSession)
     try check(app.viewed!.controller.draft == "项目 A 草稿 😺。" && app.viewed!.controller.recoveredDrafts.count == 1, "A draft or recovered queue lost")
@@ -74,11 +74,11 @@ await test("workspace/local-drafts-and-restart") {
 await test("workspace/unopened-session-reconnect") {
     try check(await app.activate(aSession), "Pi did not connect")
     try check(app.selected?.file == nil, "Unmaterialized file treated as persisted history")
-    try check(await app.disconnect(), "Unopened runtime did not cleanly close")
+    try check(await app.disconnectAll(), "Unopened runtime did not cleanly close")
     let starts = instances.count; app = try workspace(); await app.start()
     try check(instances.count == starts, "Startup reconnected automatically")
     try check(await app.activate(aSession), "Unopened session became a missing-file dead end")
-    try check(await app.disconnect(), "Reopened runtime did not cleanly close")
+    try check(await app.disconnectAll(), "Reopened runtime did not cleanly close")
     return ["unopenedSessionStillLocal":true,"noAutomaticReconnect":true]
 }
 var fixtureID: UUID!
@@ -97,8 +97,8 @@ await test("workspace/history-branch-compaction-and-read-only-discovery") {
     try check(instances.count == starts && app.viewed!.controller.transcript.filter { $0.kind == .user }.map(\.text) == ["ROOT","KEPT"], "History flattened or started a runtime")
     try check(try Data(contentsOf:file) == bytes, "Browsing mutated Pi history")
     try check(await app.activate(fixtureID), "Valid history did not resume")
-    try check(app.active?.session?.id == id, "Restored runtime ID mismatch")
-    try check(await app.disconnect(), "Restored runtime cleanup failed")
+    try check(app.execution(for: fixtureID)?.session?.id == id, "Restored runtime ID mismatch")
+    try check(await app.disconnectAll(), "Restored runtime cleanup failed")
     return ["readOnly":true,"abandonedBranchExcluded":true,"runtimeIDConfirmed":true]
 }
 await test("workspace/partial-and-corrupt-history-block-execution") {
@@ -121,21 +121,68 @@ await test("workspace/resume-cancellation-is-not-success") {
     let runtime = PiRuntime(configuration:.init(executable:URL(fileURLWithPath:paths.pi),nodeDirectory:URL(fileURLWithPath:paths.node),workspace:projectA,agentDirectory:auth,sessionDirectory:sessions,
         extensionFixture:repo.appendingPathComponent("Verification/Fixtures/dialog-extension.ts"),resumeFile:file,expectedSessionID:id))
     let controller = SessionController(); await controller.connect(runtime)
-    try check(controller.connection == .disconnected && controller.failure?.detail.contains("取消") == true,"Cancelled resume treated as connected")
+    let expectedDetail = String(localized: "运行时取消了会话恢复；没有发送任务。", bundle: Bundle(for: PiRuntime.self))
+    try check(controller.connection == .disconnected && controller.failure?.detail == expectedDetail,
+              "Cancelled resume treated as connected (connection=\(controller.connection), detail=\(controller.failure?.detail ?? "nil"))")
     try check(try Data(contentsOf:file) == bytes,"Cancelled resume modified history")
     try check(await controller.disconnect(force:true),"Cancelled resume cleanup unconfirmed")
     return ["cancelledResponseRejected":true,"sourceUnchanged":true,"cleanupConfirmed":true]
+}
+await test("workspace/same-directory-independent-pi-interactions") {
+    let isolated = work.appendingPathComponent("parallel-checkout", isDirectory: true)
+    try fm.createDirectory(at: isolated, withIntermediateDirectories: true)
+    let store = try SwiftDataWorkspaceStore(url: work.appendingPathComponent("parallel/workspace.store"))
+    var runtimeIDs: [UUID: UUID] = [:]
+    let host = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { project, reference in
+        let runtime = PiRuntime(configuration: .init(
+            executable: URL(fileURLWithPath: paths.pi), nodeDirectory: URL(fileURLWithPath: paths.node),
+            workspace: URL(fileURLWithPath: reference.workingDirectory(in: project)), agentDirectory: auth,
+            sessionDirectory: work.appendingPathComponent("parallel-sessions"), proxy: paths.proxy,
+            extensionFixture: repo.appendingPathComponent("Verification/Fixtures/interaction-extension.ts"),
+            nativeDialogs: true
+        ))
+        runtimeIDs[reference.id] = runtime.instanceID
+        return runtime
+    }
+    await host.start()
+    guard let project = await host.addProject(isolated), let first = host.selected?.id,
+          let second = await host.createSession(in: project) else { throw CheckError.failed("Missing parallel sessions") }
+    let original = Task { await host.send(first, submitted: .init(text: "/interaction-wait")) }
+    do {
+        try await wait { host.execution(for: first)?.interactions.isEmpty == false }
+        guard let a = host.execution(for: first), let request = a.interactions.first else {
+            throw CheckError.failed("A has no pending request")
+        }
+        await host.send(second, submitted: .init(text: "/interaction-status"))
+        try check(host.execution(for: second)?.connection == .connected &&
+                  host.execution(for: second)?.transcript.contains(where: { $0.delivery == .handled }) == true &&
+                  runtimeIDs.count == 2 && runtimeIDs[first] != runtimeIDs[second] &&
+                  a.interactions.contains(request), "B did not execute independently")
+        let other = Task { await host.send(second, submitted: .init(text: "/interaction-wait")) }
+        try await wait { host.execution(for: second)?.interactions.isEmpty == false }
+        await host.stop(second)
+        await other.value
+        try check(a.interactions.contains(request), "Stopping B changed A's request")
+        try check(await a.reply(request, .value("A replied")), "A could not reply after stopping B")
+        await original.value
+        try check(await host.disconnectAll(), "Parallel cleanup failed")
+        return ["sameDirectory":true,"independentInstances":true,"aRepliedAfterStoppingB":true]
+    } catch {
+        for id in host.executionIDs { await host.execution(for: id)?.cancelInteractions() }
+        _ = await host.disconnectAll(force: true)
+        throw error
+    }
 }
 if real {
     await test("workspace/model-configuration-and-effective-readback") {
         await app.select(aSession); try check(await app.activate(aSession), "Configuration session did not connect")
         let options = try await app.configurationOptions(for: aSession)
-        guard let actual = app.active?.session, let provider = actual.provider, let model = actual.modelID, let level = options.thinkingLevels.first else { throw CheckError.failed("Missing model metadata") }
+        guard let actual = app.execution(for: aSession)?.session, let provider = actual.provider, let model = actual.modelID, let level = options.thinkingLevels.first else { throw CheckError.failed("Missing model metadata") }
         await app.saveSelection(.init(provider:provider,modelID:model,thinking:level), for:aSession)
-        try check(app.active?.session?.thinking == level, "Thinking level did not read back")
+        try check(app.execution(for: aSession)?.session?.thinking == level, "Thinking level did not read back")
         await app.saveSelection(.init(provider:"invalid-provider",modelID:"invalid-model"),for:aSession)
-        try check(app.active?.session?.modelID == model && app.active?.failure != nil, "Invalid model changed configuration silently")
-        try check(await app.disconnect(), "Configuration runtime cleanup failed")
+        try check(app.execution(for: aSession)?.session?.modelID == model && app.execution(for: aSession)?.failure != nil, "Invalid model changed configuration silently")
+        try check(await app.disconnectAll(), "Configuration runtime cleanup failed")
         return ["modelCount":options.models.count,"thinkingReadBack":level,"invalidModelRejected":true]
     }
     await test("workspace/real-coding-and-history-recovery") {
@@ -145,27 +192,27 @@ if real {
         try source.write(to:projectA.appendingPathComponent("sum.test.cjs"),atomically:true,encoding:.utf8)
         app.viewed!.controller.draft = "Isolated fixture. Only this directory. Read sum.cjs and sum.test.cjs, fix sum.cjs addition, run '\(paths.node)/node' --test sum.test.cjs. Do not modify tests. Reply briefly."
         await app.send(codingSession)
-        try await wait(180) { app.active?.phase == .idle || app.active?.connection != .connected }
-        try check(app.active?.failure == nil,"Coding task failed")
+        try await wait(180) { app.execution(for: codingSession)?.phase == .idle || app.execution(for: codingSession)?.connection != .connected }
+        try check(app.execution(for: codingSession)?.failure == nil,"Coding task failed")
         let test = Process(); test.executableURL = URL(fileURLWithPath:paths.node + "/node"); test.arguments = ["--test","sum.test.cjs"]; test.currentDirectoryURL = projectA
         test.standardOutput = FileHandle.nullDevice; test.standardError = FileHandle.nullDevice; try test.run(); test.waitUntilExit()
         try check(test.terminationStatus == 0 && String(contentsOf:projectA.appendingPathComponent("sum.test.cjs"),encoding:.utf8) == source,"Independent coding verification failed")
         let id = app.selected!.runtimeSessionID, file = app.selected!.file
         try check(id != nil && file != nil,"Durable runtime reference missing")
-        try check(await app.disconnect(),"Coding process cleanup failed")
+        try check(await app.disconnectAll(),"Coding process cleanup failed")
         let starts = instances.count; app = try workspace(); await app.start(); await app.select(codingSession)
         try check(instances.count == starts && app.viewed!.controller.transcript.contains { $0.tool?.state == .completed },"History restore lost tools or started runtime")
         try check(app.selected!.runtimeSessionID == id,"Local/runtime identity changed")
         return ["independentTestExit":test.terminationStatus,"protectedTestUnchanged":true,"readOnlyRecovery":true,"runtimeSessionID":id!]
     }
-    await test("workspace/browse-running-stop-switch-and-draft-consistency") {
+    await test("workspace/browse-parallel-stop-and-draft-consistency") {
         await app.select(codingSession)
         try "const fs=require('node:fs');fs.writeFileSync('worker.pid',String(process.pid));setInterval(()=>fs.appendFileSync('heartbeat','x'),50);".write(to:projectA.appendingPathComponent("heartbeat.cjs"),atomically:true,encoding:.utf8)
         app.viewed!.controller.draft = "Run only '\(paths.node)/node' heartbeat.cjs in bash, timeout 120 seconds. Wait for completion."
         await app.send(codingSession)
         let heartbeat = projectA.appendingPathComponent("heartbeat")
         try await wait(90) { fm.fileExists(atPath:heartbeat.path) }
-        let starts = instances.count, runtime = app.active!
+        let starts = instances.count, runtime = app.execution(for: codingSession)!
         await app.select(fixtureID)
         let first = try Data(contentsOf:heartbeat); try await Task.sleep(for:.milliseconds(200))
         try check(first != Data(contentsOf:heartbeat) && instances.count == starts && runtime.phase.isActive,"Browsing interrupted active tool")
@@ -173,19 +220,19 @@ if real {
         app.viewed!.controller.draft = "Editor A remains"
         await app.select(bSession); app.viewed!.controller.draft = "/fixture-noop"
         await app.send(bSession)
-        try check(instances.count == starts && app.activeID == codingSession && app.viewed!.controller.draft == "/fixture-noop","Unconfirmed target was sent")
-        await app.send(bSession,stopCurrent:true)
-        try check(app.activeID == bSession && instances.count == starts + 1,"Confirmed switch failed")
+        try check(Set(app.executionIDs) == Set([codingSession, bSession]) && instances.count == starts + 1 && runtime.phase.isActive,
+                  "Parallel send interrupted the running session")
+        try check(await app.disconnect(codingSession),"Original execution did not cleanly close")
         let aRecord = app.state.sessions.first { $0.id == codingSession }!
         try check(aRecord.draft == "Editor A remains" && aRecord.recovered.map(\.text) == ["Keep this queued input after stop"],"Switch lost old drafts")
         let stopped = try Data(contentsOf:heartbeat); try await Task.sleep(for:.milliseconds(250)); try check(stopped == Data(contentsOf:heartbeat),"Old tool survived clean switch")
-        try check(await app.disconnect(),"Target cleanup failed")
+        try check(await app.disconnectAll(),"Target cleanup failed")
         app = try workspace(); await app.start(); await app.select(codingSession)
         try check(app.viewed!.controller.draft == "Editor A remains" && app.viewed!.controller.recoveredDrafts.count == 1,"Stopped drafts did not survive restart")
-        return ["runningHistoryBrowse":true,"explicitSwitchOnly":true,"oldToolStopped":true,"draftsSurvivedRestart":true]
+        return ["runningHistoryBrowse":true,"parallelSend":true,"oldToolStopped":true,"draftsSurvivedRestart":true]
     }
     await test("workspace/relocation-read-only-boundary-and-new-cwd") {
-        try check(await app.disconnect(),"Pre-move cleanup failed")
+        try check(await app.disconnectAll(),"Pre-move cleanup failed")
         let moved = work.appendingPathComponent("Project A moved"); try fm.moveItem(at:projectA,to:moved)
         await app.relocateProject(a,to:moved); await app.select(codingSession)
         let starts = instances.count
@@ -194,10 +241,10 @@ if real {
         await app.createSession(in:a); let fresh = app.selected!.id
         try "require('node:fs').writeFileSync('actual-cwd',process.cwd());".write(to:moved.appendingPathComponent("cwd.cjs"),atomically:true,encoding:.utf8)
         app.viewed!.controller.draft = "Run only '\(paths.node)/node' cwd.cjs in bash. Reply briefly."
-        await app.send(fresh); try await wait(90) { app.active?.phase == .idle || app.active?.connection != .connected }
+        await app.send(fresh); try await wait(90) { app.execution(for: fresh)?.phase == .idle || app.execution(for: fresh)?.connection != .connected }
         let actual = try String(contentsOf:moved.appendingPathComponent("actual-cwd"),encoding:.utf8)
         try check(URL(fileURLWithPath:actual).resolvingSymlinksInPath() == moved.resolvingSymlinksInPath(),"Tool used old cwd")
-        try check(await app.disconnect(),"Moved project cleanup failed")
+        try check(await app.disconnectAll(),"Moved project cleanup failed")
         return ["stableProjectID":true,"oldHistoryNotRewritten":true,"wrongCwdBlocked":true,"newSessionToolCwd":actual]
     }
 }
@@ -218,17 +265,17 @@ for mode in ["timeout","crash"] {
         host.viewed!.controller.draft = "Uncertain input"; await host.send(id)
         if mode == "crash" {
             try await wait { fm.fileExists(atPath:isolated.appendingPathComponent("heartbeat").path) }
-            await runtime!.terminateRuntimeForVerification(); try await wait { host.active?.connection == .disconnected }
+            await runtime!.terminateRuntimeForVerification(); try await wait { host.execution(for: id) == nil }
         }
-        try check(await host.disconnect(force:true),"Fault runtime cleanup failed")
+        try check(await host.disconnectAll(force:true),"Fault runtime cleanup failed")
         host = try make(); await host.start()
-        try check(starts == 1 && host.activeID == nil && host.selected?.submissions.first?.needsReview == true,"Restart hid unknown input or reconnected")
+        try check(starts == 1 && host.executionIDs.isEmpty && host.selected?.submissions.first?.needsReview == true,"Restart hid unknown input or reconnected")
         try check(try String(contentsOf:isolated.appendingPathComponent("prompt-count"),encoding:.utf8) == "x","Prompt automatically replayed")
         await host.send(id); try check(starts == 1,"Unreviewed record did not block sending")
         return ["runtimeStarts":starts,"promptCount":1,"unknownMarked":true,"noAutomaticReplay":true]
     }
 }
-_ = await app.disconnect(force:true)
+_ = await app.disconnectAll(force:true)
 try? fm.removeItem(at:auth)
 try save(["runID":runID,"workspace":work.path,"realModelCalls":real,"results":results],"run.json")
 print("Evidence: \(output.path)")

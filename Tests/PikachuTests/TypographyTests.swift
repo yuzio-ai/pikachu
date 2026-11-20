@@ -1,0 +1,114 @@
+import AppKit
+import OrchestrationCore
+import SwiftUI
+import XCTest
+@testable import Pikachu
+
+@MainActor final class TypographyTests: XCTestCase {
+    func testInterfaceFontSizeDefaultsToStandardAndPersistsRoundTrip() throws {
+        let suiteName = "TypographyTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertEqual(InterfaceFontSize.saved(in: defaults), .standard)
+
+        defaults.set("unexpected-value", forKey: "interface-font-size")
+        XCTAssertEqual(InterfaceFontSize.saved(in: defaults), .standard)
+
+        for size in InterfaceFontSize.allCases {
+            size.save(to: defaults)
+            XCTAssertEqual(InterfaceFontSize.saved(in: defaults), size)
+        }
+    }
+
+    func testInterfaceFontSizeStepBounds() {
+        XCTAssertFalse(InterfaceFontSize.compact.canDecrease)
+        XCTAssertEqual(InterfaceFontSize.compact.decreased(), .compact)
+        XCTAssertTrue(InterfaceFontSize.compact.canIncrease)
+        XCTAssertEqual(InterfaceFontSize.compact.increased(), .standard)
+
+        XCTAssertEqual(InterfaceFontSize.standard.increased(), .large)
+        XCTAssertEqual(InterfaceFontSize.large.increased(), .extraLarge)
+
+        XCTAssertFalse(InterfaceFontSize.extraLarge.canIncrease)
+        XCTAssertEqual(InterfaceFontSize.extraLarge.increased(), .extraLarge)
+        XCTAssertTrue(InterfaceFontSize.extraLarge.canDecrease)
+        XCTAssertEqual(InterfaceFontSize.extraLarge.decreased(), .large)
+    }
+
+    func testTypographyPointSizesScaleMonotonicallyAcrossPresets() {
+        let ordered = InterfaceFontSize.allCases.map(PikachuTypography.init(size:))
+        for role in PikachuTypography.TextRole.allCases {
+            let sizes = ordered.map { $0.pointSize(for: role) }
+            for index in 1..<sizes.count {
+                XCTAssertGreaterThan(sizes[index], sizes[index - 1], "Expected \(role) to grow across presets")
+            }
+            for typography in ordered {
+                XCTAssertEqual(typography.nsFont(role).pointSize, typography.pointSize(for: role), accuracy: 0.01)
+            }
+        }
+
+        XCTAssertEqual(PikachuTypography(size: .compact).pointSize(for: .body), 13)
+        XCTAssertEqual(PikachuTypography(size: .standard).pointSize(for: .body), 14)
+        XCTAssertEqual(PikachuTypography(size: .large).pointSize(for: .body), 15)
+        XCTAssertEqual(PikachuTypography(size: .extraLarge).pointSize(for: .body), 16)
+    }
+
+    func testNativeTranscriptInvalidatesAndRemeasuresHeightsOnFontSizeChange() async throws {
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        defer { window.contentView = nil }
+        let table = try XCTUnwrap(scroll.documentView as? NSTableView)
+
+        let paragraph = Array(repeating: "Pikachu typography scaling verification line.", count: 8).joined(separator: " ")
+        let rows: [TranscriptDisplayRow] = [
+            .item(.init(id: "long-message", kind: .assistant, text: paragraph))
+        ]
+
+        coordinator.update(rows, follow: .constant(false), fontSize: .compact)
+        await settleLayout(scroll)
+        let compactHeight = table.rect(ofRow: 0).height
+
+        coordinator.update(rows, follow: .constant(false), fontSize: .extraLarge)
+        await settleLayout(scroll)
+        let extraLargeHeight = table.rect(ofRow: 0).height
+
+        XCTAssertGreaterThan(extraLargeHeight, compactHeight)
+    }
+
+    func testNativeTranscriptRemeasuresShortRowsWithoutDroppingToEstimateOnFontSizeChange() async throws {
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        defer { window.contentView = nil }
+        let table = try XCTUnwrap(scroll.documentView as? NSTableView)
+
+        let rows: [TranscriptDisplayRow] = [
+            .item(.init(id: "short-message", kind: .assistant, text: "OK"))
+        ]
+
+        coordinator.update(rows, follow: .constant(false), fontSize: .standard)
+        await settleLayout(scroll)
+        let beforeHeight = table.rect(ofRow: 0).height
+        XCTAssertLessThan(beforeHeight, 100)
+
+        coordinator.update(rows, follow: .constant(false), fontSize: .compact)
+        await settleLayout(scroll)
+        let afterHeight = table.rect(ofRow: 0).height
+        XCTAssertLessThan(afterHeight, 100)
+    }
+
+    private func settleLayout(_ view: NSView) async {
+        for _ in 0..<5 {
+            view.layoutSubtreeIfNeeded()
+            await withCheckedContinuation { continuation in
+                DispatchQueue.main.async { continuation.resume() }
+            }
+        }
+    }
+}

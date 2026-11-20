@@ -91,23 +91,23 @@ enum GitRepositoryInspector {
     static func inspectSync(directoryPath: String, now: Date = Date()) -> GitDirectoryState {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: directoryPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return .directoryMissing(directoryPath: directoryPath, reason: "工作目录不存在或已移动。", updatedAt: now)
+            return .directoryMissing(directoryPath: directoryPath, reason: String(localized: "工作目录不存在或已移动。"), updatedAt: now)
         }
 
         let topLevel = runGit(["rev-parse", "--show-toplevel"], cwd: directoryPath)
         if topLevel.exitCode != 0 {
             let err = topLevel.stderrString.lowercased()
             if err.contains("not a git repository") {
-                return .notRepository(directoryPath: directoryPath, reason: "当前目录不是 Git 仓库。", updatedAt: now)
+                return .notRepository(directoryPath: directoryPath, reason: String(localized: "当前目录不是 Git 仓库。"), updatedAt: now)
             }
-            return .failed(directoryPath: directoryPath, reason: topLevel.stderrString.isEmpty ? "无法读取 Git 仓库信息。" : topLevel.stderrString, updatedAt: now)
+            return .failed(directoryPath: directoryPath, reason: topLevel.stderrString.isEmpty ? String(localized: "无法读取 Git 仓库信息。") : topLevel.stderrString, updatedAt: now)
         }
 
         let checkoutRoot = normalizedPath(topLevel.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines))
         let status = runGit(["status", "--porcelain=v2", "-z", "-uall", "--branch"], cwd: checkoutRoot)
         guard status.exitCode == 0 else {
             let detail = status.stderrString.trimmingCharacters(in: .whitespacesAndNewlines)
-            return .failed(directoryPath: directoryPath, reason: detail.isEmpty ? "Git 状态读取失败。" : detail, updatedAt: now)
+            return .failed(directoryPath: directoryPath, reason: detail.isEmpty ? String(localized: "Git 状态读取失败。") : detail, updatedAt: now)
         }
 
         let snapshot = parsePorcelainV2(status.stdout, directoryPath: directoryPath, checkoutRoot: checkoutRoot, updatedAt: now)
@@ -208,17 +208,17 @@ enum GitRepositoryInspector {
 
         let ahead: GitAheadState
         if isDetached {
-            ahead = .unavailable(reason: "当前处于分离 HEAD 状态，无法统计领先提交。")
+            ahead = .unavailable(reason: String(localized: "当前处于分离 HEAD 状态，无法统计领先提交。"))
         } else if !hasCommits {
-            ahead = .unavailable(reason: "当前分支尚无提交记录。")
+            ahead = .unavailable(reason: String(localized: "当前分支尚无提交记录。"))
         } else if let branchUpstream {
             if let aheadCount {
                 ahead = .count(aheadCount, upstream: branchUpstream)
             } else {
-                ahead = .unavailable(reason: "本地缺少上游追踪引用（\(branchUpstream)）。")
+                ahead = .unavailable(reason: String(localized: "本地缺少上游追踪引用（\(branchUpstream)）。"))
             }
         } else {
-            ahead = .unavailable(reason: "当前分支未配置本地 upstream。")
+            ahead = .unavailable(reason: String(localized: "当前分支未配置上游分支。"))
         }
 
         var added: [String] = []
@@ -314,6 +314,108 @@ enum GitRepositoryInspector {
         } catch {
             return GitCommandOutput(exitCode: -1, stdout: Data(), stderr: Data(error.localizedDescription.utf8))
         }
+    }
+}
+
+struct GitWorktree: Identifiable, Sendable, Equatable {
+    let path: String
+    let branch: String?
+    let commit: String?
+    var id: String { path }
+}
+
+enum GitWorktreeError: LocalizedError {
+    case invalidDestination
+    case invalidBranch
+    case invalidBase
+    case commandFailed(String)
+    case notFound(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidDestination: String(localized: "请输入尚未存在的工作树绝对路径。")
+        case .invalidBranch: String(localized: "请输入有效的新分支名称。")
+        case .invalidBase: String(localized: "无法解析基准提交。")
+        case .commandFailed(let detail): String(localized: "无法创建工作树：\(detail)")
+        case .notFound(let path): String(localized: "未能确认新工作树：\(path)")
+        }
+    }
+}
+
+extension GitRepositoryInspector {
+    static func worktrees(in projectPath: String) async -> [GitWorktree]? {
+        await Task.detached(priority: .utility) {
+            guard let commonDirectory = gitPath("--git-common-dir", in: projectPath),
+                  let worktrees = readWorktrees(in: projectPath) else { return nil }
+            return worktrees.filter { isCheckout(at: $0.path, commonDirectory: commonDirectory) }
+        }.value
+    }
+
+    static func isUsableWorktree(_ path: String, in projectPath: String) async -> Bool {
+        await Task.detached(priority: .utility) {
+            let target = URL(fileURLWithPath: path).standardizedFileURL.path
+            guard let commonDirectory = gitPath("--git-common-dir", in: projectPath),
+                  readWorktrees(in: projectPath)?.contains(where: { $0.path == target }) == true else { return false }
+            return isCheckout(at: target, commonDirectory: commonDirectory)
+        }.value
+    }
+
+    private static func isCheckout(at path: String, commonDirectory: String) -> Bool {
+        // A stale registration can still name a path that now leads to another checkout.
+        normalizedPath(path) == path &&
+            gitPath("--show-toplevel", in: path) == path &&
+            gitPath("--git-common-dir", in: path) == commonDirectory
+    }
+
+    private static func gitPath(_ option: String, in directory: String) -> String? {
+        let result = runGit(["rev-parse", "--path-format=absolute", option], cwd: directory)
+        guard result.exitCode == 0, result.stdout.last == 0x0A else { return nil }
+        let path = String(decoding: result.stdout.dropLast(), as: UTF8.self)
+        guard path.hasPrefix("/") else { return nil }
+        return normalizedPath(path)
+    }
+
+    private static func readWorktrees(in projectPath: String) -> [GitWorktree]? {
+        let result = runGit(["worktree", "list", "--porcelain", "-z"], cwd: projectPath)
+        guard result.exitCode == 0 else { return nil }
+        return result.stdoutString.components(separatedBy: "\0\0").compactMap { record in
+            let fields = record.split(separator: "\0")
+            guard let first = fields.first, first.hasPrefix("worktree "),
+                  !fields.contains("bare"), !fields.contains(where: { $0 == "prunable" || $0.hasPrefix("prunable ") }) else { return nil }
+            let registeredPath = String(first.dropFirst("worktree ".count))
+            let path = URL(fileURLWithPath: registeredPath).standardizedFileURL.path
+            let branch = fields.first { $0.hasPrefix("branch refs/heads/") }.map { String($0.dropFirst("branch refs/heads/".count)) }
+            let commit = fields.first { $0.hasPrefix("HEAD ") }.map { String($0.dropFirst("HEAD ".count)) }
+            return GitWorktree(path: path, branch: branch, commit: commit)
+        }
+    }
+
+    static func createWorktree(in projectPath: String, destination: String, branch: String, base: String) async throws -> GitWorktree {
+        try await Task.detached(priority: .utility) {
+            let manager = FileManager.default
+            let target = normalizedPath(destination)
+            guard destination.hasPrefix("/"), !manager.fileExists(atPath: target) else {
+                throw GitWorktreeError.invalidDestination
+            }
+            guard !branch.isEmpty, !branch.hasPrefix("-"),
+                  runGit(["check-ref-format", "refs/heads/\(branch)"], cwd: projectPath).exitCode == 0 else {
+                throw GitWorktreeError.invalidBranch
+            }
+            guard !base.isEmpty else { throw GitWorktreeError.invalidBase }
+            let resolved = runGit(["rev-parse", "--verify", "--end-of-options", "\(base)^{commit}"], cwd: projectPath)
+            guard resolved.exitCode == 0 else { throw GitWorktreeError.invalidBase }
+            let commit = resolved.stdoutString.trimmingCharacters(in: .whitespacesAndNewlines)
+            let result = runGit(["worktree", "add", "-b", branch, "--", target, commit], cwd: projectPath)
+            guard result.exitCode == 0 else {
+                throw GitWorktreeError.commandFailed(result.stderrString.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            guard let created = readWorktrees(in: projectPath)?.first(where: { $0.path == target && $0.branch == branch }),
+                  let commonDirectory = gitPath("--git-common-dir", in: projectPath),
+                  isCheckout(at: target, commonDirectory: commonDirectory) else {
+                throw GitWorktreeError.notFound(target)
+            }
+            return created
+        }.value
     }
 }
 

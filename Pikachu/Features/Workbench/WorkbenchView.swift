@@ -4,137 +4,141 @@ import AgentRuntimeCore
 import OrchestrationCore
 
 struct WorkbenchView: View {
+    private static let minimumSidebarWidth: CGFloat = 220
+
     let workspace: WorkspaceController
     let settings: AppSettings
     let quitRequest: Int
+    let openSettingsRequest: Int
+    let terminate: (_ restarting: Bool, _ onCancel: @escaping () -> Void) -> Void
     @Binding var sidebarVisibility: NavigationSplitViewVisibility
+    var canAutomaticallyPresentInteraction: (() -> Bool)? = nil
+    @Environment(\.appearsActive) private var appearsActive
     @State private var modal: WorkbenchModal?
+    @State private var lastPresentedInteractionID: String?
     @State private var preparingToQuit = false
     @State private var sidebarFilter = SessionSidebarFilter()
-    @State private var choosesSessionProject = false
+    @State private var actionAfterSheet: (() -> Void)?
     @State private var gitStore = GitStatusStore()
 
-    private var isConfigurationModal: Bool {
-        if case .configuration = modal { return true }
-        return false
-    }
+    @State private var detailWidth: CGFloat = 0
+    @State private var workbenchSize: CGSize = .zero
 
     var body: some View {
         NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            SessionSidebar(workspace: workspace, settings: settings, filter: $sidebarFilter,
+            SessionSidebar(workspace: workspace, filter: $sidebarFilter,
                            openProject: openProject, createSession: requestNewSession,
-                           openSettings: presentRuntimeSettings)
-                .navigationSplitViewColumnWidth(min: 205, ideal: 286, max: 340)
+                           openSettings: { presentSettings(.general) })
+                // The native overlay can size the sidebar from its content instead of the column's minimum.
+                .frame(minWidth: Self.minimumSidebarWidth)
+                .navigationSplitViewColumnWidth(min: Self.minimumSidebarWidth, ideal: 292, max: 360)
                 .toolbar(removing: .sidebarToggle)
         } detail: {
             VStack(spacing: 0) {
-                if let activeID = workspace.activeID, activeID != workspace.state.selectedSessionID {
-                    ActiveRunBanner(workspace: workspace, presentInteraction: presentInteraction)
-                }
+                backgroundRuns
                 if let viewed = workspace.viewed {
                     SessionDetail(workspace: workspace, settings: settings, presentation: viewed,
-                                  gitStore: gitStore, isModelSheetOpen: isConfigurationModal,
-                                  configure: presentConfiguration, openSettings: presentRuntimeSettings)
+                                  blocksComposerPanels: modal != nil || actionAfterSheet != nil || preparingToQuit,
+                                  openSettings: { presentSettings(.providers) }, presentConfirmation: presentConfirmation,
+                                  presentToolFailures: presentToolFailures)
                         .id(viewed.id)
                 } else {
-                    ContentUnavailableView {
-                        Label("选择一个项目", systemImage: "folder")
-                    } description: {
-                        Text("打开本地项目后，可创建会话或只读浏览历史。")
-                    } actions: {
+                    FlatEmptyState("选择一个项目", systemImage: "folder",
+                                   description: Text("打开本地项目后，可创建会话或只读浏览历史。")) {
                         Button("打开项目…", systemImage: "folder.badge.plus", action: openProject)
-                            .buttonStyle(.glass)
+                            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                             .disabled(!workspace.canManageProjects)
                     }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 if let message = workspace.storageError {
                     HStack {
+                        Image(systemName: "exclamationmark.circle")
+                            .foregroundStyle(PikachuTheme.errorText)
+                            .accessibilityHidden(true)
                         Text(message)
                         if workspace.initialized { Button("重试保存") { Task { _ = await workspace.flush() } } }
                     }
-                    .buttonStyle(.glass)
-                    .font(.caption).foregroundStyle(.red).padding(12)
-                    .glassEffect(.regular.tint(.red.opacity(0.14)), in: .rect(cornerRadius: 12))
+                    .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                    .pikachuFont(.caption).padding(12)
+                    .flatSurface(PikachuTheme.mutedSurface, radius: 10)
                 }
                 if let error = workspace.error { FeedbackBanner(text: error, warning: true) }
                 if let notice = workspace.notice { FeedbackBanner(text: notice, warning: false) }
-                PendingInteractionBar(workspace: workspace, present: presentInteraction)
             }
-            .background {
-                LinearGradient(
-                    colors: [.indigo.opacity(0.18), .purple.opacity(0.05), PikachuTheme.lightningYellow.opacity(0.14)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-            }
+            .background(PikachuTheme.workspace)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { detailWidth = $0 }
         }
         .background {
-            WorkbenchTitlebar(sidebarVisibility: $sidebarVisibility)
+            WorkbenchTitlebar(sidebarVisibility: $sidebarVisibility, workspace: workspace,
+                              gitStore: gitStore, detailWidth: detailWidth, hasSession: workspace.viewed != nil)
                 .frame(width: 0, height: 0)
         }
+        .onGeometryChange(for: CGSize.self, of: \.size) { workbenchSize = $0 }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if let path = workspace.selectedProject?.path {
+            if let id = workspace.selected?.id, let path = workspace.workingDirectory(for: id) {
                 gitStore.refresh(directory: path, force: true)
             }
+            Task { await settings.notifications.refreshAuthorization() }
+            presentCurrentInteractionIfPossible()
         }
-        .onChange(of: workspace.completedTurnSequence) { _, _ in
-            if let path = workspace.lastCompletedTurnDirectory {
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEndSheetNotification)) { _ in
+            // File pickers are AppKit sheets and are not represented by `modal`.
+            Task { @MainActor in presentCurrentInteractionIfPossible() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            Task { @MainActor in presentCurrentInteractionIfPossible() }
+        }
+        .onChange(of: automaticInteraction?.id, initial: true) { _, _ in
+            presentCurrentInteractionIfPossible()
+        }
+        .onChange(of: appearsActive) { _, active in
+            if active { presentCurrentInteractionIfPossible() }
+        }
+        .onChange(of: workspace.completedTurnsByDirectory) { previous, current in
+            for (path, turns) in current where previous[path] != turns {
                 gitStore.refresh(directory: path, force: true)
             }
         }
         .onChange(of: workspace.newSessionRequest) { requestNewSession() }
         .onChange(of: workspace.openProjectRequest) { openProject() }
-        .confirmationDialog("选择新会话的项目", isPresented: $choosesSessionProject, titleVisibility: .visible) {
-            ForEach(workspace.state.projects) { project in
-                Button(project.name) { createSession(in: project.id) }
-                    .accessibilityIdentifier("new-session-\(project.id)")
-            }
-        }
+        .onChange(of: openSettingsRequest) { presentSettings(.general) }
         .onChange(of: settings.preferences) { _, value in workspace.setPreferences(value) }
-        .onChange(of: workspace.configurationRequest) { _, _ in presentConfiguration() }
-        .onChange(of: quitRequest) { _, _ in
-            // AppKit's default terminate action is blocked while a sheet is open.
-            // Retire the request first, dismiss our sheet, then use the existing
-            // application delegate's confirmation and supervised shutdown path.
-            guard !preparingToQuit else { return }
-            preparingToQuit = true
-            modal = nil
-            Task {
-                await workspace.active?.cancelInteractions()
-                try? await Task.sleep(for: .milliseconds(200))
-                // terminateLater spins AppKit's event loop. Invoke termination
-                // from a run-loop timer, never a Swift task or main-queue block:
-                // either would prevent that nested loop from running cleanup.
-                preparingToQuit = false
-                NSApp.perform(#selector(NSApplication.terminate(_:)), with: nil, afterDelay: 0,
-                              inModes: [.default, .modalPanel, .eventTracking])
-            }
+        .onChange(of: quitRequest) { prepareToQuit(restarting: false) }
+        .onChange(of: shouldKeepPresentedInteraction) { _, keepPresented in
+            if !keepPresented, case .interaction = modal { modal = nil }
         }
-        .onChange(of: workspace.active?.interactions.first?.id) { _, _ in
-            if case .interaction(let request, _, _) = modal, workspace.active?.interactions.contains(where: { $0.id == request.id }) != true { modal = nil }
-            if modal == nil && workspace.activeID == workspace.state.selectedSessionID { presentInteraction() }
-        }
-        .onChange(of: modal?.id) { _, value in
-            if value == nil && workspace.activeID == workspace.state.selectedSessionID { presentInteraction() }
-        }
-        .sheet(item: $modal) { value in
-            switch value {
-            case .configuration(let reference): ConfigurationSheet(workspace: workspace, reference: reference)
-            case .interaction(let request, let controller, let title): InteractionView(request: request, controller: controller, sessionTitle: title).id(request.id)
-            case .runtimeSettings:
-                VStack(spacing: 0) {
-                    RuntimeSettings(workspace: workspace, settings: settings)
-                    Divider()
-                    HStack {
-                        Spacer()
-                        Button("完成") { modal = nil }.buttonStyle(.glass).keyboardShortcut(.cancelAction)
-                    }.padding(12)
+        .sheet(item: $modal, onDismiss: sheetDidDismiss) { value in
+            Group {
+                switch value {
+                case .interaction(let request, let controller, let title):
+                    InteractionView(request: request, controller: controller, sessionTitle: title).id(request.id)
+                case .toolFailures(let failures):
+                    ToolFailureDetailsSheet(failures: failures, close: { modal = nil })
+                case .chooseSessionProject:
+                    projectSelectionSheet
+                case .confirmation(let request):
+                    FlatConfirmation(request: request, cancel: { modal = nil }) { action in
+                        actionAfterSheet = action
+                        modal = nil
+                    }
+                case .settings(let section):
+                    SettingsPanel(workspace: workspace, settings: settings, initialSection: section,
+                                  preferredProjectID: sidebarFilter.projectID ?? workspace.selectedProject?.id,
+                                  availableSize: workbenchSize,
+                                  close: { modal = nil }, restart: { prepareToQuit(restarting: true) })
+                        .presentationSizing(.fitted)
                 }
             }
+            .flatPanelContent()
+            .pikachuTypography(settings.interfaceFontSize)
+            .presentationBackground(PikachuTheme.surface)
         }
     }
+    private func presentToolFailures(_ failures: [TranscriptItem]) {
+        guard modal == nil, actionAfterSheet == nil, !preparingToQuit, !failures.isEmpty else { return }
+        modal = .toolFailures(failures)
+    }
+
     private func openProject() {
         guard !preparingToQuit, modal == nil, workspace.canManageProjects, let url = settings.pickProject() else { return }
         Task {
@@ -149,8 +153,69 @@ struct WorkbenchView: View {
         if let project = sidebarFilter.projectID ?? workspace.selectedProject?.id {
             createSession(in: project)
         } else {
-            choosesSessionProject = true
+            modal = .chooseSessionProject
         }
+    }
+
+    private var projectSelectionSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("选择新会话的项目").pikachuFont(.title3, weight: .semibold)
+                .accessibilityAddTraits(.isHeader)
+            ScrollView {
+                VStack(spacing: 3) {
+                    ForEach(workspace.state.projects) { project in
+                        Button {
+                            actionAfterSheet = { createSession(in: project.id) }
+                            modal = nil
+                        } label: {
+                            FlatMenuRow(title: Text(verbatim: project.name))
+                        }
+                        .help(project.path)
+                        .accessibilityIdentifier("new-session-\(project.id)")
+                    }
+                }
+            }
+            .frame(maxHeight: 260)
+            PikachuDivider()
+            HStack {
+                Spacer()
+                Button("取消", role: .cancel) { modal = nil }
+                    .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .buttonStyle(FlatControlButtonStyle())
+        .padding(20)
+        .frame(width: 380)
+    }
+
+    private func presentConfirmation(_ request: ConfirmationRequest) {
+        guard !preparingToQuit, modal == nil else { return }
+        modal = .confirmation(request)
+    }
+
+    private func prepareToQuit(restarting: Bool) {
+        guard !preparingToQuit else { return }
+        preparingToQuit = true
+        let requestTermination = {
+            terminate(restarting) {
+                preparingToQuit = false
+            }
+        }
+        // AppKit cannot terminate while a workbench sheet is attached.
+        if modal != nil || actionAfterSheet != nil {
+            actionAfterSheet = requestTermination
+            modal = nil
+        } else {
+            requestTermination()
+        }
+    }
+
+    private func sheetDidDismiss() {
+        let action = actionAfterSheet
+        actionAfterSheet = nil
+        if let action { action() }
+        else { presentCurrentInteractionIfPossible() }
     }
     private func createSession(in project: UUID) {
         Task {
@@ -161,18 +226,71 @@ struct WorkbenchView: View {
         }
     }
 
-    private func presentRuntimeSettings() {
+    private func presentSettings(_ section: SettingsSection) {
         guard !preparingToQuit, modal == nil else { return }
-        modal = .runtimeSettings
+        modal = .settings(section)
     }
 
-    private func presentConfiguration() {
-        guard !preparingToQuit, modal == nil, let reference = workspace.selected, !workspace.busy else { return }
-        modal = .configuration(reference)
+    @ViewBuilder private var backgroundRuns: some View {
+        let ids = backgroundExecutionIDs
+        if ids.count > 3 {
+            ScrollView {
+                LazyVStack(spacing: 0) { backgroundRunRows(ids) }
+            }
+            .frame(height: 120)
+        } else {
+            backgroundRunRows(ids)
+        }
     }
-    private func presentInteraction() {
-        guard !preparingToQuit, let controller = workspace.active, let request = controller.interactions.first else { return }
-        let title = workspace.state.sessions.first { $0.id == workspace.activeID }?.title ?? "执行会话"
+
+    private func backgroundRunRows(_ ids: [UUID]) -> some View {
+        ForEach(ids, id: \.self) { id in
+            ActiveRunBanner(workspace: workspace, sessionID: id, presentInteraction: { presentInteraction(for: id) })
+                .frame(maxWidth: WorkbenchReadingColumn.maximumWidth)
+                .padding(.horizontal, WorkbenchReadingColumn.minimumGutter)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var backgroundExecutionIDs: [UUID] {
+        workspace.executionIDs.filter { id in
+            guard id != workspace.selected?.id, let execution = workspace.execution(for: id) else { return false }
+            return execution.connection != .connected || execution.phase.isActive ||
+                !execution.queue.isEmpty || !execution.interactions.isEmpty
+        }
+    }
+
+    private var shouldKeepPresentedInteraction: Bool {
+        guard case .interaction(let request, let controller, _) = modal else { return true }
+        return controller.didExpire(request) ||
+            controller.interactions.contains { $0.id == request.id && $0.instanceID == request.instanceID }
+    }
+
+    private var automaticInteraction: RuntimeInteraction? {
+        guard !preparingToQuit, let id = workspace.viewed?.id,
+              id == workspace.selected?.id, let controller = workspace.execution(for: id),
+              controller.phase != .stopping else { return nil }
+        return controller.interactions.first
+    }
+
+    private var workbenchCanPresentInteraction: Bool {
+        guard appearsActive, NSApp.isActive, NSApp.modalWindow == nil, let window = NSApp.keyWindow else { return false }
+        return window.attachedSheet == nil && window.sheetParent == nil
+    }
+
+    private func presentCurrentInteractionIfPossible() {
+        guard canAutomaticallyPresentInteraction?() ?? workbenchCanPresentInteraction,
+              let request = automaticInteraction, request.id != lastPresentedInteractionID,
+              let id = workspace.viewed?.id else { return }
+        presentInteraction(for: id)
+    }
+
+    private func presentInteraction(for id: UUID) {
+        guard !preparingToQuit, modal == nil, actionAfterSheet == nil, let controller = workspace.execution(for: id),
+              controller.phase != .stopping, let request = controller.interactions.first,
+              request.expiresAt > Date() else { return }
+        let title = workspace.state.sessions.first { $0.id == id }?.displayTitle ?? String(localized: "执行会话")
+        lastPresentedInteractionID = request.id
         modal = .interaction(request, controller, title)
     }
 }
@@ -181,39 +299,13 @@ struct ProjectLocationView: View {
     let project: ProjectRecord
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(project.name).font(.headline)
+            Text(project.name).pikachuFont(.headline)
             Text("工作目录").foregroundStyle(.secondary)
             Text(project.path).textSelection(.enabled)
             Text("运行时可在此目录读取内容、修改文件和执行命令。")
                 .foregroundStyle(.secondary)
-        }.font(.callout).frame(width: 320, alignment: .leading).padding(16)
-    }
-}
-
-private struct RuntimeSettings: View {
-    let workspace: WorkspaceController
-    @Bindable var settings: AppSettings
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("连接设置").font(.headline)
-                TextField("Pi 可执行文件", text: $settings.piPath)
-                    .padding(7).glassEffect(in: .rect(cornerRadius: 8))
-                Button("选择 Pi…") { settings.choosePi() }
-                TextField("Node 所在目录", text: $settings.nodeDirectory)
-                    .padding(7).glassEffect(in: .rect(cornerRadius: 8))
-                TextField("代理（可留空）", text: $settings.proxy)
-                    .padding(7).glassEffect(in: .rect(cornerRadius: 8))
-                Button("添加信任的 Pi 扩展…") { settings.chooseExtension() }
-                ForEach(settings.extensionPaths, id: \.self) { path in
-                    HStack { Text(URL(fileURLWithPath: path).lastPathComponent).lineLimit(1).help(path); Spacer(); Button("移除") { settings.extensionPaths.removeAll { $0 == path } } }.font(.caption)
-                }
-                Text("只有自动模式会加载所选扩展。更改在下次建立执行连接时生效。认证复用 Pi 配置。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.textFieldStyle(.plain).buttonStyle(.glass).padding(16)
-        }
-        .frame(width: 360, height: 390)
-        .disabled(workspace.busy || workspace.active?.commandPending == true)
+        }.pikachuFont(.callout).frame(width: 320, alignment: .leading).padding(16)
+            .flatPanelContent()
     }
 }
 
@@ -221,49 +313,62 @@ struct SessionDetail: View {
     let workspace: WorkspaceController
     let settings: AppSettings
     let presentation: SessionPresentation
-    let gitStore: GitStatusStore
-    let isModelSheetOpen: Bool
-    let configure: () -> Void
+    var blocksComposerPanels = false
     let openSettings: () -> Void
-    @State private var confirmSend = false
-    @State private var pendingPrompt: UserPrompt?
-    @State private var confirmReplaceDraft = false
-    @State private var editCandidate: TranscriptItem?
+    let presentConfirmation: (ConfirmationRequest) -> Void
+    var presentToolFailures: ([TranscriptItem]) -> Void = { _ in }
+    @State private var enteredAsLocalDraft: Bool?
+    @State private var hasShownConversation = false
+    @State private var composerClearance: CGFloat = 0
+    @State private var extensionStatusExpanded = false
 
     var reference: SessionReference? { workspace.state.sessions.first { $0.id == presentation.id } }
+    private var isLocalDraftAtEntry: Bool {
+        guard let reference else { return false }
+        return reference.historyConfirmed != true && reference.file == nil &&
+            reference.submissions.isEmpty && presentation.controller.recoveredDrafts.isEmpty
+    }
+
+    private var starterProject: ProjectRecord? {
+        guard enteredAsLocalDraft ?? isLocalDraftAtEntry,
+              !hasShownConversation, let reference, presentation.controller.transcript.isEmpty,
+              presentation.controller.transcriptTurnStarts.isEmpty,
+              !presentation.loading, presentation.loadError == nil, presentation.executionIssue == nil,
+              presentation.history == nil,
+              !reference.submissions.contains(where: \.needsReview) else { return nil }
+        return workspace.state.projects.first { $0.id == reference.projectID }
+    }
+
     var canSend: Bool {
-        guard workspace.initialized, workspace.storageError == nil, !workspace.busy, !presentation.loading,
+        guard workspace.initialized, workspace.storageError == nil, !workspace.isOperating(on: presentation.id), !presentation.loading,
               presentation.loadError == nil, presentation.executionIssue == nil, presentation.history?.incompleteTail != true,
               reference?.submissions.contains(where: \.needsReview) != true else { return false }
-        if workspace.activeID == presentation.id, presentation.controller.connection == .connected {
+        if workspace.execution(for: presentation.id) != nil, presentation.controller.connection == .connected {
             if reference?.pendingSelection != nil, presentation.controller.phase.isActive || !presentation.controller.queue.isEmpty { return false }
             return presentation.controller.canSend
         }
         return presentation.controller.draftPrompt.hasContent
     }
     var modeDisabled: Bool {
-        workspace.busy || workspace.storageError != nil ||
-            (workspace.activeID == presentation.id &&
-             (presentation.controller.phase.isActive || presentation.controller.commandPending || !presentation.controller.queue.isEmpty))
+        !workspace.canChangeExecutionPolicy(for: presentation.id)
     }
     var currentModel: ComposerModel? {
         if let pending = reference?.pendingSelection {
             return .init(provider: pending.provider, name: reference?.pendingModelName ?? pending.modelID,
-                         thinking: pending.thinking ?? "默认", pending: true)
+                         thinking: pending.thinking ?? String(localized: "默认"), pending: true)
         }
         if let live = presentation.controller.session, let provider = live.provider {
             return .init(provider: provider, name: live.model, thinking: live.thinking, pending: false)
         }
         if let saved = reference?.selection ?? presentation.history?.selection {
             return .init(provider: saved.provider, name: reference?.modelName ?? saved.modelID,
-                         thinking: saved.thinking ?? "默认", pending: false)
+                         thinking: saved.thinking ?? String(localized: "默认"), pending: false)
         }
         return nil
     }
     private func addFiles() {
         let controller = presentation.controller
-        let projectID = reference?.projectID
-        let directory = workspace.state.projects.first { $0.id == projectID }.map { URL(fileURLWithPath: $0.path) }
+        let directory = workspace.workingDirectory(for: presentation.id).map { URL(fileURLWithPath: $0) }
         Task {
             let files = await settings.pickFiles(in: directory)
             for file in files.map(\.standardizedFileURL) where !controller.draftFiles.contains(file) {
@@ -273,17 +378,16 @@ struct SessionDetail: View {
     }
     private func send() {
         let prompt = presentation.controller.draftPrompt
-        if workspace.requiresStopBeforeSend {
-            pendingPrompt = prompt
-            confirmSend = true
-        } else { Task { await workspace.send(presentation.id, submitted: prompt) } }
+        Task { await workspace.send(presentation.id, submitted: prompt) }
     }
     private func handleEditUserMessage(_ item: TranscriptItem) {
         let hasExistingDraft = !presentation.controller.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !presentation.controller.draftFiles.isEmpty
         if hasExistingDraft {
-            editCandidate = item
-            confirmReplaceDraft = true
+            presentConfirmation(ConfirmationRequest(
+                title: "替换当前草稿？", message: "当前输入框已有未发送的草稿，替换为所选消息内容？",
+                confirmTitle: "替换草稿"
+            ) { applyEdit(item) })
         } else {
             applyEdit(item)
         }
@@ -295,75 +399,152 @@ struct SessionDetail: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SessionHeader(workspace: workspace, presentation: presentation, gitStore: gitStore)
+        detailContent
+        .onAppear {
+            if enteredAsLocalDraft == nil { enteredAsLocalDraft = isLocalDraftAtEntry }
+        }
+        .onChange(of: presentation.controller.transcript.isEmpty) { _, empty in
+            if !empty { hasShownConversation = true }
+        }
+        .onChange(of: presentation.controller.extensionStatus.isEmpty) { _, empty in
+            if empty { extensionStatusExpanded = false }
+        }
+    }
+
+    private var detailContent: some View {
+        let starter = starterProject
+        return SessionDetailViewport(isStarter: starter != nil) { viewportHeight in
             VStack(spacing: 0) {
-                if presentation.loading { ProgressView("正在读取历史…").padding(8) }
+                if presentation.loading { FlatProgressView("正在读取历史…").padding(8) }
                 if let error = presentation.loadError {
                     FeedbackBanner(text: error, warning: true)
                     Button("重新读取") { Task { await workspace.refreshHistory(presentation.id) } }
-                        .buttonStyle(.glass).padding(8)
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined)).padding(8)
                 }
-                if presentation.history?.incompleteTail == true { FeedbackBanner(text: "文件尾部尚未写完。已显示完整记录，当前禁止执行；请稍后重新读取。", warning: true) }
+                if presentation.history?.incompleteTail == true { FeedbackBanner(text: String(localized: "文件尾部尚未写完。已显示完整记录，当前禁止执行；请稍后重新读取。"), warning: true) }
                 if let issue = presentation.executionIssue { FeedbackBanner(text: issue, warning: true) }
                 if let warnings = presentation.history?.warnings, !warnings.isEmpty { FeedbackBanner(text: warnings.joined(separator: "\n"), warning: true) }
-                TranscriptView(
-                    items: presentation.controller.transcript,
-                    diagnosticSession: presentation.id.uuidString,
-                    historyLoading: presentation.loading,
-                    showsEmptyState: presentation.loadError == nil && presentation.executionIssue == nil,
-                    onEditUserMessage: handleEditUserMessage
-                ).id(presentation.id)
-                if !presentation.controller.extensionStatus.isEmpty { ExtensionStatusView(controller: presentation.controller) }
+                if let starter {
+                    Text("想在 \(starter.name) 中做什么？")
+                        .pikachuFont(.hero, weight: .medium)
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("session-starter-title")
+                        .padding(.horizontal, WorkbenchReadingColumn.minimumGutter)
+                        .padding(.bottom, 22)
+                } else {
+                    TranscriptView(
+                        items: presentation.controller.transcript,
+                        turnStarts: presentation.controller.transcriptTurnStarts,
+                        diagnosticSession: presentation.id.uuidString,
+                        historyLoading: presentation.loading,
+                        isExecuting: presentation.controller.phase.isActive || !presentation.controller.queue.isEmpty,
+                        queue: presentation.controller.queue,
+                        queueIsKnown: presentation.controller.queueIsKnown,
+                        showsEmptyState: presentation.loadError == nil && presentation.executionIssue == nil,
+                        composerClearance: composerClearance,
+                        onEditUserMessage: handleEditUserMessage
+                    ).id(presentation.id)
+                }
+            }
+            VStack(spacing: 0) {
+                if !presentation.controller.extensionStatus.isEmpty {
+                    ExtensionStatusView(controller: presentation.controller, viewportHeight: viewportHeight,
+                                        expanded: $extensionStatusExpanded)
+                }
                 if let failure = presentation.controller.failure {
                     FeedbackBanner(text: failure.detail, warning: true)
                     if presentation.controller.connection == .disconnected && workspace.storageError == nil &&
                         (failure.kind == .setup || failure.kind == .unsupportedVersion) {
                         Button("打开连接设置…", action: openSettings)
-                            .buttonStyle(.glass).font(.caption).padding(.vertical, 4)
+                            .buttonStyle(FlatControlButtonStyle(treatment: .outlined)).pikachuFont(.caption).padding(.vertical, 4)
                     }
                 }
-                if let notice = presentation.controller.notice { FeedbackBanner(text: notice, warning: false) }
+                if let message = presentation.executionError, message != presentation.controller.failure?.detail {
+                    FeedbackBanner(text: message, warning: true)
+                }
+                if let notice = presentation.controller.noticeExcludingExpiredInteraction { FeedbackBanner(text: notice, warning: false) }
                 if let reference, !reference.submissions.isEmpty { SubmissionReview(workspace: workspace, reference: reference) }
                 ComposerView(
                     controller: presentation.controller,
                     workspace: workspace,
-                    agentMode: reference?.executionMode ?? .automatic,
-                    activeMode: workspace.activeMode,
-                    isViewedSessionActive: workspace.activeID == presentation.id,
+                    executionPolicy: reference?.executionPolicy ?? .init(mode: .automatic),
+                    activePolicy: workspace.runningPolicy(for: presentation.id),
+                    isViewedSessionActive: workspace.execution(for: presentation.id) != nil,
                     isReadOnlyHistory: presentation.executionIssue != nil,
                     modeDisabled: modeDisabled,
                     model: currentModel,
-                    isModelSheetOpen: isModelSheetOpen,
+                    reference: reference,
+                    project: workspace.state.projects.first { $0.id == reference?.projectID },
+                    panelsBlocked: blocksComposerPanels,
                     onPickFiles: addFiles,
                     onMode: { mode in Task { await workspace.setAgentMode(mode, for: presentation.id) } },
-                    onModel: configure,
+                    onApproval: { approval in Task { await workspace.setToolApproval(approval, for: presentation.id) } },
                     onSend: send,
+                    onStop: { Task { await workspace.stop(presentation.id) } },
+                    presentToolFailures: presentToolFailures,
                     sendEnabled: canSend,
-                    focusSignal: workspace.inputFocusRequest
+                    focusSignal: workspace.inputFocusRequest,
+                    isStarter: starter != nil,
+                    pastedImagesDirectory: settings.pastedImagesDirectory
                 )
             }
             .frame(maxWidth: .infinity)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { composerClearance = $0 }
         }
-        .alert("停止当前任务并发送？", isPresented: $confirmSend) {
-            Button("停止当前任务并发送", role: .destructive) {
-                if let prompt = pendingPrompt {
-                    pendingPrompt = nil
-                    Task { await workspace.send(presentation.id, stopCurrent: true, submitted: prompt) }
+    }
+}
+
+/// One scroll container keeps the composer mounted as a draft becomes a conversation.
+struct SessionDetailViewport<Content: View>: View {
+    let isStarter: Bool
+    @ViewBuilder let content: (CGFloat) -> Content
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                SessionDetailLayout(isStarter: isStarter, viewportHeight: geometry.size.height) {
+                    content(geometry.size.height)
                 }
+                .frame(width: geometry.size.width)
             }
-            Button("返回当前任务") { pendingPrompt = nil; if let id = workspace.activeID { Task { await workspace.select(id) } } }
-            Button("取消", role: .cancel) { pendingPrompt = nil }
-        } message: { Text("目标草稿会保留。旧任务停止且受管进程清理确认后，将连接目标会话并发送。") }
-        .alert("替换当前草稿？", isPresented: $confirmReplaceDraft) {
-            Button("替换草稿", role: .destructive) {
-                if let item = editCandidate {
-                    editCandidate = nil
-                    applyEdit(item)
-                }
-            }
-            Button("取消", role: .cancel) { editCandidate = nil }
-        } message: { Text("当前输入框已有未发送的草稿，替换为所选消息内容？") }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
+}
+
+private struct SessionDetailLayout: Layout {
+    let isStarter: Bool
+    let viewportHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 600
+        guard isStarter else { return CGSize(width: width, height: viewportHeight) }
+        let titleHeight = subviews[0].sizeThatFits(.init(width: width, height: nil)).height
+        let composerHeight = subviews[1].sizeThatFits(composerProposal(for: width)).height
+        return CGSize(width: width, height: max(viewportHeight, titleHeight + composerHeight))
+    }
+
+    private func composerProposal(for width: CGFloat) -> ProposedViewSize {
+        ProposedViewSize(width: WorkbenchReadingColumn.width(in: width), height: nil)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let content = subviews[0]
+        let composer = subviews[1]
+        let composerProposal = composerProposal(for: bounds.width)
+        if isStarter {
+            let titleProposal = ProposedViewSize(width: bounds.width, height: nil)
+            let titleHeight = content.sizeThatFits(titleProposal).height
+            let composerHeight = composer.sizeThatFits(composerProposal).height
+            let groupHeight = titleHeight + composerHeight
+            let top = bounds.minY + max(0, viewportHeight * 0.44 - groupHeight / 2)
+            content.place(at: CGPoint(x: bounds.midX, y: top), anchor: .top, proposal: titleProposal)
+            composer.place(at: CGPoint(x: bounds.midX, y: top + titleHeight), anchor: .top, proposal: composerProposal)
+        } else {
+            content.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size))
+            composer.place(at: CGPoint(x: bounds.midX, y: bounds.maxY), anchor: .bottom, proposal: composerProposal)
+        }
     }
 }
 
@@ -372,78 +553,67 @@ struct SessionHeader: View {
     let presentation: SessionPresentation
     let gitStore: GitStatusStore
     @State private var showsProjectLocation = false
+    @State private var showsGitDetails = false
 
     var reference: SessionReference? { workspace.state.sessions.first { $0.id == presentation.id } }
-    var project: ProjectRecord? { workspace.state.projects.first { $0.id == reference?.projectID } }
-    var isViewedActive: Bool { workspace.activeID == presentation.id }
-    var activeController: SessionController? { isViewedActive ? presentation.controller : nil }
+    var project: ProjectRecord? {
+        guard let reference, var project = workspace.state.projects.first(where: { $0.id == reference.projectID }) else { return nil }
+        project.path = reference.workingDirectory(in: project)
+        return project
+    }
+    var activeController: SessionController? { workspace.execution(for: presentation.id) }
 
-    private var connectionStatus: (kind: ConnectionBadgeKind, description: String) {
+    private var connectionStatus: (kind: ConnectionBadgeKind, label: LocalizedStringResource, description: String) {
         if let active = activeController {
             switch active.connection {
             case .disconnected:
                 break
             case .connecting:
-                return (.progress, String(localized: "正在建立连接…"))
+                return (.progress, "连接中", String(localized: "正在建立连接…"))
             case .closing:
-                return (.progress, String(localized: "正在清理受管进程…"))
+                return (.progress, "清理中", String(localized: "正在清理受管进程…"))
             case .blocked:
-                return (.warning, String(localized: "进程清理待核实 · 已阻止继续执行"))
+                return (.error, "已阻止", String(localized: "进程清理待核实 · 已阻止继续执行"))
             case .connected:
+                if active.isStopping { return (.progress, "停止中", String(localized: "已连接 · 正在停止…")) }
                 switch active.phase {
                 case .idle:
-                    return (.connected, String(localized: "已连接 · 就绪"))
+                    if let failure = active.failure { return (.error, "发生错误", failure.detail) }
+                    return (.neutral, "就绪", String(localized: "已连接 · 就绪"))
                 case .running:
-                    return (.connected, String(localized: "已连接 · 正在执行"))
+                    return (.running, "运行中", String(localized: "已连接 · 正在执行"))
                 case .waitingInput:
-                    return (.warning, String(localized: "已连接 · 等待扩展回复"))
+                    if active.interactions.contains(where: { $0.toolApproval != nil }) {
+                        return (.warning, "等待审批", String(localized: "等待工具审批"))
+                    }
+                    return (.warning, "等待回复", String(localized: "已连接 · 等待扩展回复"))
                 case .retrying:
-                    return (.connected, String(localized: "已连接 · 正在重试"))
+                    return (.progress, "重试中", String(localized: "已连接 · 正在重试"))
                 case .compacting:
-                    return (.connected, String(localized: "已连接 · 正在压缩上下文"))
+                    return (.progress, "压缩中", String(localized: "已连接 · 正在压缩上下文"))
                 case .stopping:
-                    return (.progress, String(localized: "已连接 · 正在停止…"))
+                    return (.progress, "停止中", String(localized: "已连接 · 正在停止…"))
                 case .uncertain:
-                    return (.warning, String(localized: "执行结果待核实"))
+                    return (.warning, "待核实", String(localized: "执行结果待核实"))
                 }
             }
         }
         if reference?.submissions.contains(where: \.needsReview) == true {
-            return (.warning, String(localized: "存在发送状态待核实的记录"))
+            return (.warning, "待核实", String(localized: "存在发送状态待核实的记录"))
         }
         if presentation.history?.incompleteTail == true || presentation.loadError != nil {
-            return (.warning, String(localized: "历史读取异常或尾部未写完"))
+            return (.warning, "历史异常", String(localized: "历史读取异常或尾部未写完"))
         }
         if reference?.file == nil {
-            return (.disconnected, String(localized: "未连接 · 独立草稿"))
+            return (.neutral, "草稿", String(localized: "未连接 · 独立草稿"))
         }
-        return (.disconnected, String(localized: "未连接 · 历史浏览"))
-    }
-
-    private var activeStatusLabel: String? {
-        guard let active = activeController else { return nil }
-        switch active.connection {
-        case .disconnected: return nil
-        case .connecting: return String(localized: "正在连接…")
-        case .closing: return String(localized: "正在清理进程…")
-        case .blocked: return String(localized: "进程待核实")
-        case .connected:
-            switch active.phase {
-            case .idle: return nil
-            case .running: return String(localized: "执行中")
-            case .waitingInput: return String(localized: "等待扩展回复")
-            case .retrying: return String(localized: "正在重试")
-            case .compacting: return String(localized: "正在压缩")
-            case .stopping: return String(localized: "正在停止…")
-            case .uncertain: return String(localized: "结果待核实")
-            }
-        }
+        return (.neutral, "历史浏览", String(localized: "未连接 · 历史浏览"))
     }
 
     private var sessionTitle: some View {
-        let title = reference?.title ?? String(localized: "会话")
+        let title = reference?.displayTitle ?? String(localized: "会话")
         return Text(title)
-            .font(.headline.weight(.semibold))
+            .pikachuFont(.headline, weight: .semibold)
             .lineLimit(1)
             .help(title)
             .accessibilityAddTraits(.isHeader)
@@ -451,12 +621,15 @@ struct SessionHeader: View {
 
     private func projectButton(_ project: ProjectRecord) -> some View {
         Button { showsProjectLocation.toggle() } label: {
-            Text(project.name)
-                .font(.headline.weight(.regular))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            HStack(spacing: 6) {
+                ProjectBadge(name: project.name, compact: true)
+                Text(project.name)
+                    .pikachuFont(.headline, weight: .regular)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(FlatControlButtonStyle(isOpen: showsProjectLocation, inset: false))
         .help(project.path)
         .accessibilityLabel("项目 \(project.name)")
         .accessibilityHint("显示工作目录")
@@ -466,18 +639,11 @@ struct SessionHeader: View {
     }
 
     private var identitySection: some View {
-        let status = connectionStatus
-        return HStack(spacing: 8) {
-            ConnectionStatusIcon(kind: status.kind)
-                .help(status.description)
-                .accessibilityElement(children: .ignore)
-                .accessibilityIdentifier("runtime-status")
-                .accessibilityLabel("会话连接状态")
-                .accessibilityValue(status.description)
+        HStack(spacing: 8) {
             if let project {
                 projectButton(project)
                 Text("/")
-                    .font(.headline.weight(.regular))
+                    .pikachuFont(.headline, weight: .regular)
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
@@ -485,92 +651,96 @@ struct SessionHeader: View {
         }
     }
 
-    private var executionActionsSection: some View {
+    private var statusBadge: some View {
+        let status = connectionStatus
+        return HStack(spacing: 5) {
+            Circle()
+                .fill(status.kind.color)
+                .frame(width: 8, height: 8)
+            Text(status.label)
+                .pikachuFont(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(height: 24)
+        .fixedSize(horizontal: true, vertical: false)
+            .contentShape(.rect)
+            .help(status.description)
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("runtime-status")
+            .accessibilityLabel("会话连接状态")
+            .accessibilityValue(status.description)
+    }
+
+    private func executionActionsSection(compact: Bool) -> some View {
         HStack(spacing: 8) {
-            if let label = activeStatusLabel {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(activeController?.connection == .blocked || activeController?.phase == .uncertain || activeController?.phase == .waitingInput ? Color.orange : Color.secondary)
-                    .lineLimit(1)
-                    .fixedSize()
+            if let active = activeController, active.connection != .disconnected,
+               active.connection == .blocked || active.phase == .uncertain {
+                Button(role: .destructive) {
+                    Task { _ = await workspace.disconnect(presentation.id, force: true) }
+                } label: {
+                    Label("结束受管进程", systemImage: "exclamationmark.triangle")
+                        .labelStyle(ToolbarActionLabel(compact: compact))
+                }
+                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                .controlSize(.small)
+                .disabled(workspace.isOperating(on: presentation.id) || active.commandPending)
+                .help("结束受管进程")
+                .accessibilityLabel("结束受管进程")
+                .fixedSize()
             }
-            if let active = activeController, active.connection != .disconnected {
-                if active.connection == .blocked || active.phase == .uncertain {
-                    Button("结束受管进程", role: .destructive) {
-                        Task { _ = await workspace.disconnect(force: true) }
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
-                    .disabled(workspace.busy || active.commandPending)
-                    .fixedSize()
-                } else if active.phase.isActive || !active.queue.isEmpty {
-                    Button("停止", systemImage: "stop") {
-                        Task { await workspace.stop() }
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
-                    .disabled(workspace.busy || !active.canStop)
-                    .help("停止（⌘.）")
-                    .accessibilityIdentifier("stop-run")
-                    .fixedSize()
-                }
-            }
-            Menu {
-                if let active = activeController, active.connection == .connected || active.connection == .connecting {
-                    Button("断开连接") { Task { _ = await workspace.disconnect() } }
-                        .disabled(workspace.busy || active.commandPending)
-                }
-                if let project {
-                    Button("刷新 Git 状态") { gitStore.refresh(directory: project.path, force: true) }
-                    Button("显示工作目录…") { showsProjectLocation = true }
-                }
-            } label: {
+            FlatMenu {
                 Image(systemName: "ellipsis")
                     .frame(width: 24, height: 24)
-                    .contentShape(.rect)
+            } content: { select in
+                if let active = activeController, active.connection == .connected || active.connection == .connecting {
+                    Button { select { Task { _ = await workspace.disconnect(presentation.id) } } } label: {
+                        FlatMenuRow(title: Text("断开连接"))
+                    }
+                    .disabled(workspace.isOperating(on: presentation.id) || active.commandPending)
+                }
+                if let project {
+                    if compact {
+                        Button { select { showsGitDetails = true } } label: {
+                            FlatMenuRow(title: Text("Git 详情…"))
+                        }
+                    }
+                    Button { select { gitStore.refresh(directory: project.path, force: true) } } label: {
+                        FlatMenuRow(title: Text("刷新 Git 状态"))
+                    }
+                    Button { select { showsProjectLocation = true } } label: {
+                        FlatMenuRow(title: Text("显示工作目录…"))
+                    }
+                }
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
             .fixedSize()
             .help("会话操作")
             .accessibilityLabel("会话操作")
+            .popover(isPresented: $showsGitDetails) {
+                if let project {
+                    GitSummaryBar(project: project, gitStore: gitStore, displaysDetails: true)
+                }
+            }
         }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    identitySection
-                        .frame(minWidth: 190, alignment: .leading)
-                    Spacer(minLength: 8)
-                    if let project {
-                        GitSummaryBar(project: project, gitStore: gitStore)
-                            .fixedSize()
-                    }
-                    executionActionsSection
-                        .fixedSize()
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        identitySection
-                        Spacer(minLength: 6)
-                        executionActionsSection
-                            .fixedSize()
-                    }
-                    if let project {
-                        HStack {
-                            GitSummaryBar(project: project, gitStore: gitStore)
-                                .fixedSize()
-                            Spacer(minLength: 0)
-                        }
-                    }
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                identitySection.frame(minWidth: 150)
+                Spacer(minLength: 6)
+                statusBadge
+                if let project { GitSummaryBar(project: project, gitStore: gitStore).fixedSize() }
+                executionActionsSection(compact: false).fixedSize()
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-            Divider()
+            HStack(spacing: 8) {
+                identitySection
+                Spacer(minLength: 4)
+                statusBadge
+                executionActionsSection(compact: true).fixedSize()
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: project?.path) {
             if let path = project?.path {
                 gitStore.refresh(directory: path)
@@ -579,33 +749,31 @@ struct SessionHeader: View {
     }
 }
 
-private enum ConnectionBadgeKind {
-    case connected, disconnected, progress, warning
+private struct ToolbarActionLabel: LabelStyle {
+    let compact: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        if compact {
+            configuration.icon
+        } else {
+            HStack(spacing: 4) {
+                configuration.icon
+                configuration.title
+            }
+        }
+    }
 }
 
-private struct ConnectionStatusIcon: View {
-    let kind: ConnectionBadgeKind
-    var body: some View {
-        Group {
-            switch kind {
-            case .connected:
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-            case .disconnected:
-                Circle()
-                    .stroke(Color.secondary.opacity(0.75), lineWidth: 1.5)
-                    .frame(width: 8, height: 8)
-            case .progress:
-                ProgressView()
-                    .controlSize(.mini)
-                    .frame(width: 12, height: 12)
-            case .warning:
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .frame(width: 12, height: 12)
-            }
+private enum ConnectionBadgeKind {
+    case neutral, running, progress, warning, error
+
+    var color: Color {
+        switch self {
+        case .neutral: .secondary
+        case .running: PikachuTheme.runningText
+        case .progress: PikachuTheme.accentText
+        case .warning: PikachuTheme.warningText
+        case .error: PikachuTheme.errorText
         }
     }
 }
@@ -613,6 +781,7 @@ private struct ConnectionStatusIcon: View {
 private struct GitSummaryBar: View {
     let project: ProjectRecord
     let gitStore: GitStatusStore
+    var displaysDetails = false
     @State private var showsBranchPopover = false
     @State private var showsAheadPopover = false
     @State private var showsChangesPopover = false
@@ -656,6 +825,14 @@ private struct GitSummaryBar: View {
     }
 
     var body: some View {
+        if displaysDetails {
+            summaryPopover
+        } else {
+            controls
+        }
+    }
+
+    private var controls: some View {
         HStack(spacing: 12) {
             Button { showsBranchPopover.toggle() } label: {
                 HStack(spacing: 5) {
@@ -667,7 +844,7 @@ private struct GitSummaryBar: View {
                         .frame(maxWidth: 180, alignment: .leading)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FlatControlButtonStyle(isOpen: showsBranchPopover, inset: false))
             .foregroundStyle(snapshot == nil ? .secondary : .primary)
             .help(branchText)
             .accessibilityLabel("Git 分支")
@@ -676,7 +853,7 @@ private struct GitSummaryBar: View {
                 branchPopover
             }
 
-            Divider().frame(height: 12)
+            PikachuDivider(axis: .vertical).frame(height: 12)
 
             Button { showsAheadPopover.toggle() } label: {
                 HStack(spacing: 4) {
@@ -686,10 +863,10 @@ private struct GitSummaryBar: View {
                         .monospacedDigit()
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FlatControlButtonStyle(isOpen: showsAheadPopover, inset: false))
             .foregroundStyle(.secondary)
-            .help("领先本地 upstream 提交数：\(aheadText)")
-            .accessibilityLabel("领先本地 upstream 提交数")
+            .help("领先本地上游引用的提交数：\(aheadText)")
+            .accessibilityLabel("领先本地上游引用的提交数")
             .accessibilityValue(aheadText)
             .popover(isPresented: $showsAheadPopover) {
                 aheadPopover
@@ -700,14 +877,14 @@ private struct GitSummaryBar: View {
                     FileTextIcon()
                         .foregroundStyle(.secondary)
                     Text(addedText)
-                        .foregroundStyle(snapshot == nil ? Color.secondary : Color.green)
+                        .foregroundStyle(snapshot == nil ? Color.secondary : PikachuTheme.runningText)
                         .monospacedDigit()
                     Text(deletedText)
-                        .foregroundStyle(snapshot == nil ? Color.secondary : Color.red)
+                        .foregroundStyle(snapshot == nil ? Color.secondary : PikachuTheme.errorText)
                         .monospacedDigit()
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(FlatControlButtonStyle(isOpen: showsChangesPopover, inset: false))
             .help("仓库文件变化")
             .accessibilityLabel("仓库文件变化")
             .accessibilityValue(changesAccessibilityValue)
@@ -715,30 +892,57 @@ private struct GitSummaryBar: View {
                 changesPopover
             }
         }
-        .font(.caption)
+        .pikachuFont(.caption)
+    }
+
+    private var summaryPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Git 详情").pikachuFont(.headline)
+            if let snapshot {
+                Text("分支：\(branchText)").textSelection(.enabled)
+                switch snapshot.ahead {
+                case .count(let value, let upstream):
+                    Text("领先 \(upstream) \(value) 个提交")
+                case .unavailable(let reason):
+                    Text(reason).foregroundStyle(.secondary)
+                }
+                let changes = snapshot.changes
+                Text("共 \(changes.totalCount) 个变更文件")
+                Text("新增 \(changes.addedCount) · 删除 \(changes.deletedCount) · 修改 \(changes.modifiedCount) · 重命名 \(changes.renamedCount)")
+                    .foregroundStyle(.secondary)
+                popoverFooter(updatedAt: snapshot.updatedAt)
+            } else {
+                Text(unavailableDetail).foregroundStyle(.secondary)
+                popoverFooter(updatedAt: nil)
+            }
+        }
+        .pikachuFont(.callout)
+        .padding(14)
+        .frame(width: 320, alignment: .leading)
+        .flatPanelContent()
     }
 
     private var branchPopover: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Label("分支信息", systemImage: "arrow.triangle.branch")
-                    .font(.headline)
+                    .pikachuFont(.headline)
                 Spacer()
-                if state.isLoading { ProgressView().controlSize(.mini) }
+                if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
             if let snapshot {
                 switch snapshot.branch {
                 case .branch(let name, let hasCommits):
                     Text("当前分支：\(name)").textSelection(.enabled)
                     if !hasCommits {
-                        Text("仓库尚无提交记录（unborn HEAD）。")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text("当前分支尚无提交记录。")
+                            .pikachuFont(.caption).foregroundStyle(.secondary)
                     }
                 case .detached(let sha):
                     Text("分离 HEAD：\(sha)").textSelection(.enabled)
                 }
-                Text("Checkout：\(snapshot.checkoutRoot)")
-                    .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text("仓库根目录：\(snapshot.checkoutRoot)")
+                    .pikachuFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 popoverFooter(updatedAt: snapshot.updatedAt)
             } else {
                 Text(unavailableDetail)
@@ -746,25 +950,26 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .font(.callout)
+        .pikachuFont(.callout)
         .padding(14)
         .frame(width: 320, alignment: .leading)
+        .flatPanelContent()
     }
 
     private var aheadPopover: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("本地提交领先").font(.headline)
+                Text("本地提交领先").pikachuFont(.headline)
                 Spacer()
-                if state.isLoading { ProgressView().controlSize(.mini) }
+                if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
             if let snapshot {
                 switch snapshot.ahead {
                 case .count(let value, let upstream):
                     Text("领先 \(value) 个提交")
-                        .font(.body.weight(.medium))
+                        .pikachuFont(.body, weight: .medium)
                     Text("上游分支：\(upstream)")
-                        .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                        .pikachuFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 case .unavailable(let reason):
                     Text(reason).foregroundStyle(.secondary)
                 }
@@ -774,52 +979,53 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .font(.callout)
+        .pikachuFont(.callout)
         .padding(14)
         .frame(width: 300, alignment: .leading)
+        .flatPanelContent()
     }
 
     private var changesPopover: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("工作区变更").font(.headline)
+                Text("工作区变更").pikachuFont(.headline)
                 Spacer()
-                if state.isLoading { ProgressView().controlSize(.mini) }
+                if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
             if let snapshot {
                 let c = snapshot.changes
                 Text("共 \(c.totalCount) 个变更文件")
-                    .font(.body.weight(.medium))
+                    .pikachuFont(.body, weight: .medium)
                 HStack(spacing: 12) {
                     Label("新增 \(c.addedCount)", systemImage: "plus.circle")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(PikachuTheme.runningText)
                     Label("删除 \(c.deletedCount)", systemImage: "minus.circle")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(PikachuTheme.errorText)
                     Label("修改 \(c.modifiedCount)", systemImage: "pencil.circle")
                         .foregroundStyle(.secondary)
                     Label("重命名 \(c.renamedCount)", systemImage: "arrow.right.circle")
                         .foregroundStyle(.secondary)
                 }
-                .font(.caption)
+                .pikachuFont(.caption)
                 if c.totalCount > 0 {
-                    Divider()
+                    PikachuDivider()
                     ScrollView {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(c.addedFiles, id: \.self) { file in
-                                Text("+ \(file)").foregroundStyle(.green)
+                                Text("+ \(file)").foregroundStyle(PikachuTheme.runningText)
                             }
                             ForEach(c.deletedFiles, id: \.self) { file in
-                                Text("− \(file)").foregroundStyle(.red)
+                                Text("− \(file)").foregroundStyle(PikachuTheme.errorText)
                             }
                             ForEach(c.modifiedFiles, id: \.self) { file in
-                                Text("M \(file)").foregroundStyle(.secondary)
+                                Text("修改：\(file)").foregroundStyle(.secondary)
                             }
                             ForEach(c.renamedFiles.indices, id: \.self) { i in
                                 let ren = c.renamedFiles[i]
-                                Text("R \(ren.from) → \(ren.to)").foregroundStyle(.secondary)
+                                Text("重命名：\(ren.from) → \(ren.to)").foregroundStyle(.secondary)
                             }
                         }
-                        .font(.system(.caption, design: .monospaced))
+                        .pikachuFont(.caption, design: .monospaced)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                     }
@@ -831,9 +1037,10 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .font(.callout)
+        .pikachuFont(.callout)
         .padding(14)
         .frame(width: 350, alignment: .leading)
+        .flatPanelContent()
     }
 
     private var unavailableDetail: String {
@@ -849,27 +1056,27 @@ private struct GitSummaryBar: View {
 
     @ViewBuilder
     private func popoverFooter(updatedAt: Date?) -> some View {
-        Divider()
+        PikachuDivider()
         if case .loaded(_, let isStale, let error) = state {
             if let error {
                 Text("最近刷新失败：\(error)（显示上次成功记录）")
-                    .font(.caption).foregroundStyle(.orange)
+                    .pikachuFont(.caption).foregroundStyle(PikachuTheme.warningText)
             } else if isStale {
                 Text("状态可能已变化，正在或等待刷新。")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .pikachuFont(.caption).foregroundStyle(.secondary)
             }
         }
         HStack {
             if let updatedAt {
                 Text("更新于 \(TranscriptTimestampFormatter.shortTime(updatedAt))")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .pikachuFont(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             Button("刷新") {
                 gitStore.refresh(directory: project.path, force: true)
             }
-            .buttonStyle(.borderless)
-            .font(.caption.weight(.medium))
+            .buttonStyle(FlatControlButtonStyle())
+            .pikachuFont(.caption, weight: .medium)
             .disabled(state.isLoading)
         }
     }
@@ -877,94 +1084,116 @@ private struct GitSummaryBar: View {
 
 private struct ActiveRunBanner: View {
     let workspace: WorkspaceController
+    let sessionID: UUID
     let presentInteraction: () -> Void
 
-    private var statusText: String {
-        guard let active = workspace.active else { return "" }
+    private func statusText(for active: SessionController, request: RuntimeInteraction?) -> LocalizedStringKey {
         switch active.connection {
-        case .disconnected: return String(localized: "连接已结束")
-        case .connecting: return String(localized: "正在连接")
-        case .closing: return String(localized: "正在清理进程")
-        case .blocked: return String(localized: "进程待核实")
+        case .disconnected: return "连接已结束"
+        case .connecting: return "正在连接"
+        case .closing: return "正在清理进程"
+        case .blocked: return "进程待核实"
         case .connected:
+            if active.phase != .uncertain, let request {
+                return request.kind == .confirm && request.toolApproval != nil ? "等待审批" : "等待回复"
+            }
             switch active.phase {
-            case .idle: return String(localized: "已连接")
-            case .running: return String(localized: "执行中")
-            case .waitingInput: return String(localized: "等待扩展回复")
-            case .retrying: return String(localized: "正在重试")
-            case .compacting: return String(localized: "正在压缩上下文")
-            case .stopping: return String(localized: "正在停止")
-            case .uncertain: return String(localized: "结果待核实")
+            case .idle: return "已连接"
+            case .running: return "后台运行中"
+            case .waitingInput: return "等待扩展回复"
+            case .retrying: return "正在重试"
+            case .compacting: return "正在压缩上下文"
+            case .stopping: return "正在停止"
+            case .uncertain: return "结果待核实"
             }
         }
     }
 
     private var executingName: String? {
-        guard let id = workspace.activeID,
-              let session = workspace.state.sessions.first(where: { $0.id == id }),
-              let project = workspace.state.projects.first(where: { $0.id == session.projectID }) else { return nil }
-        return "\(project.name) / \(session.title)"
+        guard let session = workspace.state.sessions.first(where: { $0.id == sessionID }) else { return nil }
+        guard session.projectID != workspace.selected?.projectID,
+              let project = workspace.state.projects.first(where: { $0.id == session.projectID }) else { return session.displayTitle }
+        return "\(project.name) / \(session.displayTitle)"
     }
 
     var body: some View {
-        if let active = workspace.active, let activeID = workspace.activeID {
+        if let active = workspace.execution(for: sessionID) {
+            let request = active.phase == .stopping ? nil : active.interactions.first
+            let needsRecovery = active.connection == .blocked || active.phase == .uncertain
+            let needsAttention = request != nil || needsRecovery || active.phase == .waitingInput
+            let isRunning = active.connection == .connected && active.phase == .running
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
-                    let isAttention = active.connection == .blocked || active.phase == .uncertain || active.phase == .waitingInput
-                    let isRunning = active.connection == .connected && active.phase == .running
-                    Image(systemName: isAttention ? "exclamationmark.triangle.fill" : (isRunning ? "waveform.path" : "circle.fill"))
-                        .font(.caption)
-                        .foregroundStyle(isAttention ? Color.orange : (isRunning ? Color.green : Color.secondary))
+                    Circle()
+                        .fill(needsAttention ? PikachuTheme.warningText : (isRunning ? PikachuTheme.runningText : Color.secondary))
+                        .frame(width: 6, height: 6)
                         .accessibilityHidden(true)
-                    Text(statusText)
+                    Text(statusText(for: active, request: request))
                         .fontWeight(.medium)
-                        .accessibilityIdentifier("active-run-status")
-                    if let executingName {
-                        Text("·").foregroundStyle(.secondary).accessibilityHidden(true)
-                        Text(executingName)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .help(executingName)
-                    }
-                    Spacer(minLength: 8)
-                    if !active.interactions.isEmpty {
-                        Button("处理交互", action: presentInteraction)
-                    }
-                    Button("返回执行会话") {
-                        Task { await workspace.select(activeID) }
-                    }
-                    if active.connection == .blocked || active.phase == .uncertain {
-                        Button("结束受管进程", role: .destructive) {
-                            Task { _ = await workspace.disconnect(force: true) }
-                        }
-                        .disabled(workspace.busy || active.commandPending)
-                    } else {
-                        Button("停止", systemImage: "stop") {
-                            Task { await workspace.stop() }
-                        }
-                        .disabled(workspace.busy || !active.canStop)
-                        .help("停止（⌘.）")
-                        .accessibilityIdentifier("stop-run")
-                        Menu {
-                            Button("断开连接") { Task { _ = await workspace.disconnect() } }
-                                .disabled(workspace.busy || active.commandPending)
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
+                        .foregroundStyle(needsAttention ? PikachuTheme.warningText : Color.secondary)
                         .fixedSize()
-                        .accessibilityLabel("连接操作")
+                        .accessibilityIdentifier("active-run-status")
+                    Button {
+                        Task { await workspace.select(sessionID) }
+                    } label: {
+                        HStack(spacing: 4) {
+                            if let executingName {
+                                Text(executingName).lineLimit(1)
+                            } else {
+                                Text("返回执行会话")
+                            }
+                            Image(systemName: "arrow.up.right")
+                                .pikachuFont(.caption2, weight: .medium)
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
                     }
+                    .help(Text(executingName ?? String(localized: "返回执行会话")))
+                    .accessibilityHint("返回执行会话")
+                    .accessibilityIdentifier("open-background-session")
+                    Spacer(minLength: 4)
+                    if request != nil {
+                        Button("去处理", action: presentInteraction)
+                            .buttonStyle(FlatControlButtonStyle(treatment: .prominent))
+                            .fixedSize()
+                            .accessibilityIdentifier("handle-background-interaction")
+                    }
+                    FlatMenu(width: 168) {
+                        Image(systemName: "ellipsis").frame(width: 24, height: 24)
+                    } content: { select in
+                        if needsRecovery {
+                            Button(role: .destructive) {
+                                select { Task { _ = await workspace.disconnect(sessionID, force: true) } }
+                            } label: {
+                                FlatMenuRow(title: Text("结束受管进程"))
+                            }
+                            .disabled(workspace.isOperating(on: sessionID) || active.commandPending)
+                        } else {
+                            Button(role: .destructive) {
+                                select { Task { await workspace.stop(sessionID) } }
+                            } label: {
+                                FlatMenuRow(title: Text("停止此会话"))
+                            }
+                            .disabled(!workspace.canStop(sessionID))
+                            .accessibilityIdentifier("stop-run")
+                            Button { select { Task { _ = await workspace.disconnect(sessionID) } } } label: {
+                                FlatMenuRow(title: Text("断开连接"))
+                            }
+                            .disabled(workspace.isOperating(on: sessionID) || active.commandPending)
+                        }
+                    }
+                    .fixedSize()
+                    .help("会话操作")
+                    .accessibilityLabel("会话操作")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(FlatControlButtonStyle())
                 .controlSize(.small)
-                .font(.caption)
+                .pikachuFont(.caption)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                Divider()
+                .padding(.vertical, 4)
+                PikachuDivider()
             }
-            .background(.ultraThinMaterial)
+            .background(needsAttention ? PikachuTheme.warningSurface : Color.clear)
         }
     }
 }
@@ -975,23 +1204,28 @@ struct SubmissionReview: View {
     var unresolved: [SubmissionRecord] { reference.submissions.filter { $0.delivery == .unknown } }
     var body: some View {
         if !unresolved.isEmpty {
-            DisclosureGroup("发送状态待核实（\(unresolved.count)）") {
+            DisclosureGroup {
                 ForEach(unresolved) { submission in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(submission.acknowledged ? "运行时曾接受该输入；完成情况未核实。" : "可能已发送，也可能尚未发送。")
                         if !submission.text.isEmpty { Text(submission.text).lineLimit(4).textSelection(.enabled) }
-                        if let files = submission.files { Text(files.map(\.lastPathComponent).joined(separator: "、")).lineLimit(2) }
-                        Text("关联标识：\(submission.id.uuidString)").font(.caption2)
+                        if let files = submission.files { Text(files.map(\.lastPathComponent).joined(separator: String(localized: "、"))).lineLimit(2) }
+                        Text("关联标识：\(submission.id.uuidString)").pikachuFont(.caption2)
                         if submission.needsReview { Button("已核对，解除发送限制") { Task { await workspace.reviewSubmission(submission.id, in: reference.id) } } }
                         else {
                             Button("放回草稿") { Task { await workspace.restoreReviewedSubmission(submission.id, in: reference.id) } }
-                                .disabled(workspace.busy || workspace.storageError != nil)
+                                .disabled(workspace.isOperating(on: reference.id) || workspace.storageError != nil)
                         }
                     }.padding(6)
                 }
+            } label: {
+                Text("发送状态待核实（\(unresolved.count)）")
+                    .foregroundStyle(PikachuTheme.warningText)
             }
-            .buttonStyle(.glass).font(.caption).foregroundStyle(.orange)
-            .padding(8).glassEffect(.regular.tint(.orange.opacity(0.16)), in: .rect(cornerRadius: 9))
+            .disclosureGroupStyle(FlatDisclosureStyle())
+            .buttonStyle(FlatControlButtonStyle(treatment: .outlined)).pikachuFont(.caption)
+            .foregroundStyle(PikachuTheme.warningText)
+            .padding(8).flatSurface(PikachuTheme.mutedSurface, radius: 9)
             .padding(.horizontal, 24).padding(.vertical, 4)
         }
     }
@@ -1003,9 +1237,10 @@ struct FeedbackBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: warning ? "exclamationmark.triangle" : "info.circle")
-            Text(text).font(.callout).textSelection(.enabled); Spacer(minLength: 0)
-        }.foregroundStyle(warning ? Color.orange : Color.secondary).padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular.tint(warning ? .orange.opacity(0.18) : nil), in: .rect(cornerRadius: 10))
+                .foregroundStyle(warning ? PikachuTheme.warningText : Color.secondary)
+            Text(text).pikachuFont(.callout).textSelection(.enabled); Spacer(minLength: 0)
+        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .flatSurface(PikachuTheme.mutedSurface, radius: 10)
             .padding(.horizontal, 12).padding(.vertical, 4)
             .accessibilityElement(children: .ignore).accessibilityLabel(text)
     }

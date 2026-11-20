@@ -29,6 +29,40 @@ public struct RuntimeUsage: Sendable, Equatable {
     }
 }
 public enum InteractionKind: String, Sendable { case select, confirm, input, editor }
+public struct RuntimeToolApproval: Sendable, Equatable {
+    public struct Replacement: Decodable, Sendable, Equatable {
+        public let oldText: String
+        public let newText: String
+    }
+    public enum Inspection: String, Sendable {
+        case read, grep, find, ls
+    }
+    public struct Argument: Sendable, Equatable {
+        public let name: String
+        public let value: String
+
+        public init(name: String, value: String) {
+            self.name = name
+            self.value = value
+        }
+    }
+
+    public enum Operation: Sendable, Equatable {
+        case command(text: String, timeoutSeconds: Double?)
+        case write(path: String, content: String)
+        case edit(path: String, replacements: [Replacement])
+        case inspect(Inspection, arguments: [Argument])
+    }
+
+    public let workingDirectory: String
+    public let operation: Operation
+
+    public init(workingDirectory: String, operation: Operation) {
+        self.workingDirectory = workingDirectory
+        self.operation = operation
+    }
+}
+
 public struct RuntimeInteraction: Identifiable, Sendable, Equatable {
     public var id: String { instanceID.uuidString + ":" + requestID }
     public let instanceID: UUID
@@ -40,9 +74,11 @@ public struct RuntimeInteraction: Identifiable, Sendable, Equatable {
     public let placeholder: String
     public let prefill: String
     public let expiresAt: Date
-    public init(instanceID: UUID, requestID: String, kind: InteractionKind, title: String, message: String = "", options: [String] = [], placeholder: String = "", prefill: String = "", expiresAt: Date = Date().addingTimeInterval(300)) {
+    public let toolApproval: RuntimeToolApproval?
+    public init(instanceID: UUID, requestID: String, kind: InteractionKind, title: String, message: String = "", options: [String] = [], placeholder: String = "", prefill: String = "", expiresAt: Date = Date().addingTimeInterval(300), toolApproval: RuntimeToolApproval? = nil) {
         self.instanceID = instanceID; self.requestID = requestID; self.kind = kind; self.title = title; self.message = message
         self.options = options; self.placeholder = placeholder; self.prefill = prefill; self.expiresAt = expiresAt
+        self.toolApproval = toolApproval
     }
 }
 public enum InteractionResponse: Sendable, Equatable { case value(String), confirmed(Bool), cancelled }

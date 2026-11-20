@@ -14,7 +14,7 @@ struct PiUsageMapper {
         return Int(result)
     }
     static func live(_ stats: Record, model: Record?, coverage: UsageAccumulator?) throws -> RuntimeUsage {
-        guard let id = stats["sessionId"] as? String else { throw RuntimeFailure(.protocolError, "统计缺少会话标识。") }
+        guard let id = stats["sessionId"] as? String else { throw RuntimeFailure(.protocolError, String(localized: "统计缺少会话标识。", bundle: #bundle)) }
         let raw = stats["tokens"] as? Record ?? [:]
         let tokens = TokenUsage(input: integer(raw["input"]), output: integer(raw["output"]), cacheRead: integer(raw["cacheRead"]), cacheWrite: integer(raw["cacheWrite"]), total: integer(raw["total"]), inputIsUncached: true)
         let rates = model?["cost"] as? Record
@@ -27,17 +27,17 @@ struct PiUsageMapper {
             if context?.window == 0 { context = nil }
         }
         return .init(sessionID: id, tokens: tokens, estimatedCostUSD: cost, context: context,
-                     note: cost == nil ? "当前模型或部分历史未提供可用单价 / 费用；估算不可用。" : "费用为 Pi 的美元估算，不代表服务商余额。")
+                     note: cost == nil ? String(localized: "当前模型或部分历史未提供可用单价 / 费用；估算不可用。", bundle: #bundle) : String(localized: "费用为 Pi 的美元估算，不代表服务商余额。", bundle: #bundle))
     }
     static func coverage(_ file: URL) throws -> UsageAccumulator {
         let handle = try FileHandle(forReadingFrom: file); defer { try? handle.close() }
         var decoder = JSONLDecoder(), result = UsageAccumulator(), bytes = 0
         while let data = try handle.read(upToCount: 65_536), !data.isEmpty {
             bytes += data.count
-            guard bytes <= 128 * 1_024 * 1_024 else { throw RuntimeFailure(.protocolError, "统计历史超过读取上限。") }
+            guard bytes <= 128 * 1_024 * 1_024 else { throw RuntimeFailure(.protocolError, String(localized: "统计历史超过读取上限。", bundle: #bundle)) }
             for entry in try decoder.feed(data) { result.add(entry) }
         }
-        guard decoder.pending.isEmpty else { throw RuntimeFailure(.protocolError, "统计历史尾部尚未写完整。") }
+        guard decoder.pending.isEmpty else { throw RuntimeFailure(.protocolError, String(localized: "统计历史尾部尚未写完整。", bundle: #bundle)) }
         return result
     }
 }
@@ -76,6 +76,6 @@ struct UsageAccumulator {
         func value(_ key: String) -> Int? { missing.contains(key) ? nil : sums[key] }
         return .init(sessionID: id, tokens: .init(input: value("input"), output: value("output"), cacheRead: value("cacheRead"), cacheWrite: value("cacheWrite"), total: value("total"), inputIsUncached: true),
                      estimatedCostUSD: !missingCost && counted > 0 && cost > 0 ? cost : nil,
-                     note: "历史累计统计包含其他分支与压缩用量；当前上下文占用需连接后查询。费用为美元估算，缺失不计作零。")
+                     note: String(localized: "历史累计统计包含其他分支与压缩用量；当前上下文占用需连接后查询。费用为美元估算，缺失不计作零。", bundle: #bundle))
     }
 }

@@ -5,7 +5,7 @@ import OrchestrationCore
 struct UsagePresentationSnapshot {
     let summaryRatio: Double?
     let summaryText: String
-    let compactSummaryText: String?
+    let isContextPending: Bool
     let isOverCapacity: Bool
     let isStale: Bool
     let percentText: String
@@ -27,23 +27,18 @@ struct UsagePresentationSnapshot {
             self.summaryRatio = min(1.0, max(0.0, ratio))
             self.isOverCapacity = tokens > window
             let pct = context?.percent ?? (ratio * 100)
-            self.percentText = "\(pct.formatted(.number.precision(.fractionLength(0...1))))%"
+            let formattedPercent = "\(pct.formatted(.number.precision(.fractionLength(0...1))))%"
+            self.percentText = formattedPercent
+            self.isContextPending = false
             self.summaryText = "\(Self.formatCompact(tokens)) / \(Self.formatCompact(window))"
-            self.compactSummaryText = "\(Self.formatCompact(tokens))/\(Self.formatCompact(window))"
             self.detailFractionText = "\(Self.formatDetail(tokens)) / \(Self.formatDetail(window))"
         } else {
             self.summaryRatio = nil
             self.isOverCapacity = false
-            if isCompacting || (isConnected && (isLoading || isStale || window != nil)) {
-                let pending = String(localized: "待更新")
-                self.percentText = pending
-                self.summaryText = pending
-                self.compactSummaryText = pending
-            } else {
-                self.percentText = String(localized: "不可用")
-                self.summaryText = String(localized: "不可用")
-                self.compactSummaryText = nil
-            }
+            self.isContextPending = isCompacting || (isConnected && (isLoading || isStale || window != nil))
+            let status = isContextPending ? String(localized: "待更新") : String(localized: "不可用")
+            self.percentText = status
+            self.summaryText = status
             if let window, window > 0 {
                 self.detailFractionText = "— / \(Self.formatDetail(window))"
             } else {
@@ -114,8 +109,7 @@ struct UsagePresentationSnapshot {
 
 struct UsageView: View {
     let controller: SessionController
-    @Bindable var workspace: WorkspaceController
-    var compactNumbers = false
+    @Binding var isPresented: Bool
     @State private var breakdownExpanded = true
 
     private var snapshot: UsagePresentationSnapshot {
@@ -133,44 +127,37 @@ struct UsageView: View {
         if let ratio = snapshot.summaryRatio, let context = controller.usage?.context,
            let tokens = context.tokens, let window = context.window {
             let pct = context.percent ?? (ratio * 100)
-            parts.append("已用 \(pct.formatted(.number.precision(.fractionLength(0...1))))%")
+            parts.append(String(localized: "已用 \(pct.formatted(.number.precision(.fractionLength(0...1))))%"))
             parts.append("\(tokens.formatted()) / \(window.formatted()) Token")
         } else {
             parts.append(snapshot.summaryText)
         }
         if let observed = controller.usage?.observedAt {
-            parts.append("最近更新 \(TranscriptTimestampFormatter.fullTimeWithZone(observed))")
+            parts.append(String(localized: "最近更新 \(TranscriptTimestampFormatter.fullTimeWithZone(observed))"))
         }
-        return parts.joined(separator: "，")
+        return parts.joined(separator: String(localized: "，"))
     }
 
     var body: some View {
         Button {
-            workspace.usageExpanded.toggle()
+            isPresented.toggle()
         } label: {
-            HStack(spacing: 6) {
-                ContextProgressTrack(
-                    ratio: snapshot.summaryRatio,
-                    isHighlighted: workspace.usageExpanded,
-                    isOverCapacity: snapshot.isOverCapacity
-                )
-                .frame(width: 44, height: 5)
-                if let compactSummary = snapshot.compactSummaryText {
-                    Text(compactNumbers ? compactSummary : snapshot.summaryText)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-            }
+            ContextProgressTrack(
+                ratio: snapshot.summaryRatio,
+                isHighlighted: isPresented,
+                isOverCapacity: snapshot.isOverCapacity
+            )
+            .frame(width: 44, height: 5)
         }
-        .buttonStyle(ComposerControlButtonStyle(isOpen: workspace.usageExpanded))
+        .buttonStyle(FlatControlButtonStyle(isOpen: isPresented))
         .fixedSize()
-        .help("查看上下文与会话用量（⇧⌘U）")
+        .help(snapshot.isContextPending ? String(localized: "待更新") : String(localized: "查看上下文与会话用量（⇧⌘U）"))
         .accessibilityLabel("上下文与会话用量")
         .accessibilityValue(accessibilityValueText)
         .accessibilityIdentifier("session-usage")
-        .popover(isPresented: $workspace.usageExpanded, arrowEdge: .bottom) {
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             details.lineLimit(nil).padding(16).frame(width: 360)
+                .flatPanelContent()
         }
     }
 
@@ -179,15 +166,15 @@ struct UsageView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     HStack(spacing: 6) {
-                        Text("上下文已用").font(.headline)
+                        Text("上下文已用").pikachuFont(.headline)
                         Text(snapshot.percentText)
-                            .font(.headline)
+                            .pikachuFont(.headline)
                             .monospacedDigit()
-                            .foregroundStyle(snapshot.isOverCapacity ? Color.orange : Color.primary)
+                            .foregroundStyle(snapshot.isOverCapacity ? PikachuTheme.warningText : Color.primary)
                     }
                     Spacer()
                     Text(snapshot.detailFractionText)
-                        .font(.callout)
+                        .pikachuFont(.callout)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
@@ -204,12 +191,12 @@ struct UsageView: View {
                         Text("尚无上下文记录")
                     }
                     if snapshot.isOverCapacity {
-                        Text("· 已超出窗口容量").foregroundStyle(.orange)
+                        Text("· 已超出窗口容量").foregroundStyle(PikachuTheme.warningText)
                     } else if controller.usageStale && controller.connection == .connected {
-                        Text("· 待更新").foregroundStyle(.orange)
+                        Text("· 待更新").foregroundStyle(PikachuTheme.warningText)
                     }
                 }
-                .font(.caption)
+                .pikachuFont(.caption)
                 .foregroundStyle(.secondary)
             }
 
@@ -221,43 +208,41 @@ struct UsageView: View {
                         Image(systemName: "cylinder.split.1x2")
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
-                        Text("累计 Token")
+                        Text("累计词元")
                             .fontWeight(.medium)
                         Spacer()
                         Text(snapshot.totalTokensText)
-                            .font(.headline)
+                            .pikachuFont(.headline)
                             .monospacedDigit()
                         Spacer()
                         if let hit = snapshot.cacheHitRateText {
                             Text(hit)
-                                .font(.caption)
+                                .pikachuFont(.caption)
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
                         Image(systemName: breakdownExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption2)
+                            .pikachuFont(.caption2)
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
-                    .background(.quaternary.opacity(0.45), in: .rect(cornerRadius: 8))
-                    .contentShape(.rect(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false))
 
                 if breakdownExpanded {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("用量明细")
-                            .font(.caption.weight(.semibold))
+                            .pikachuFont(.caption, weight: .semibold)
                         if let usage = controller.usage {
                             UsageDetailRow(title: "缓存读取", value: usage.tokens.cacheRead)
                             UsageDetailRow(title: snapshot.inputTitle, value: usage.tokens.input)
                             UsageDetailRow(title: "缓存写入", value: usage.tokens.cacheWrite)
                             UsageDetailRow(title: "输出", value: usage.tokens.output)
                         } else {
-                            Text(controller.usageNotice ?? "统计尚不可用；缺失数据未计为零。")
-                                .font(.caption)
+                            Text(controller.usageNotice ?? String(localized: "统计尚不可用；缺失数据未计为零。"))
+                                .pikachuFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -265,43 +250,42 @@ struct UsageView: View {
                 }
             }
 
-            Divider()
+            PikachuDivider()
 
             HStack {
-                Text("API 费用（估算）")
+                Text("模型调用费用（估算）")
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(snapshot.costText)
                     .monospacedDigit()
                     .foregroundStyle(controller.usage?.estimatedCostUSD == nil ? .secondary : .primary)
             }
-            .font(.callout)
+            .pikachuFont(.callout)
 
             if let note = controller.usage?.note {
                 Text(note)
-                    .font(.caption)
+                    .pikachuFont(.caption)
                     .foregroundStyle(.secondary)
             }
             if controller.usage != nil, let notice = controller.usageNotice {
                 Text(notice)
-                    .font(.caption)
+                    .pikachuFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
             HStack {
                 if controller.connection != .connected {
                     Text("历史查看不启动运行时")
-                        .font(.caption)
+                        .pikachuFont(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 if controller.usageLoading {
-                    ProgressView().controlSize(.mini)
+                    FlatProgressView().controlSize(.mini)
                 }
                 Button("刷新统计") { Task { await controller.refreshUsage() } }
-                    .buttonStyle(.borderless)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(controller.connection == .connected && !controller.usageLoading ? Color.accentColor : Color.secondary)
+                    .buttonStyle(FlatControlButtonStyle())
+                    .pikachuFont(.callout, weight: .medium)
                     .disabled(controller.connection != .connected || controller.usageLoading)
             }
         }
@@ -320,10 +304,10 @@ private struct ContextProgressTrack: View {
             let width = proxy.size.width
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.primary.opacity(0.12))
+                    .fill(PikachuTheme.border)
                 if let ratio {
                     Capsule()
-                        .fill(isOverCapacity ? Color.orange : (isHighlighted ? Color.accentColor : Color.primary.opacity(0.62)))
+                        .fill(isOverCapacity ? PikachuTheme.warningText : (isHighlighted ? PikachuTheme.accentText : Color.secondary))
                         .frame(width: max(ratio > 0 ? 3 : 0, width * CGFloat(ratio)))
                 }
             }
@@ -340,9 +324,9 @@ private struct UsageDetailRow: View {
             Text(title)
                 .foregroundStyle(.secondary)
             Spacer()
-            Text(value.map { $0.formatted() } ?? "未知")
+            Text(value.map { $0.formatted() } ?? String(localized: "未知"))
                 .monospacedDigit()
         }
-        .font(.callout)
+        .pikachuFont(.callout)
     }
 }

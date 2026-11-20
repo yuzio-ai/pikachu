@@ -6,8 +6,29 @@ public enum SendMode: String, Sendable, Codable, CaseIterable, Identifiable {
     public var id: Self { self }
 }
 public enum AgentMode: String, Sendable, Codable, CaseIterable, Identifiable {
-    case interactive, plan, automatic
+    case plan, interactive, automatic
     public var id: Self { self }
+    public var availableApprovals: [ToolApprovalPolicy] {
+        switch self {
+        case .interactive: [.everyCall, .mutations, .never]
+        case .plan: [.everyCall, .never]
+        case .automatic: [.never]
+        }
+    }
+    public var defaultApproval: ToolApprovalPolicy { self == .interactive ? .mutations : .never }
+}
+public enum ToolApprovalPolicy: String, Sendable, Codable, Identifiable {
+    case everyCall, mutations, never
+    public var id: Self { self }
+}
+public struct AgentExecutionPolicy: Sendable, Equatable {
+    public let mode: AgentMode
+    public let approval: ToolApprovalPolicy
+
+    public init(mode: AgentMode, approval: ToolApprovalPolicy? = nil) {
+        self.mode = mode
+        self.approval = approval.flatMap { mode.availableApprovals.contains($0) ? $0 : nil } ?? mode.defaultApproval
+    }
 }
 public enum PromptDisposition: String, Sendable { case started, queued, handled }
 public struct UserPrompt: Sendable {
@@ -92,7 +113,7 @@ public enum AgentEvent: Sendable {
     case batch([AgentEvent])
     case phase(ExecutionPhase)
     case runStarted
-    case userMessageTimestamp(Int64)
+    case userMessageTimestamp(Int64, text: String? = nil)
     case assistantStarted(UUID)
     case assistantTimestamp(UUID, Int64)
     case textDelta(UUID, Int, String)
@@ -130,10 +151,10 @@ public protocol AgentRuntime: Sendable {
 }
 
 public extension AgentRuntime {
-    func configurationOptions() async throws -> RuntimeConfigurationOptions { throw RuntimeFailure(.setup, "此运行时不支持模型配置。") }
-    func applyConfiguration(_ selection: RuntimeSelection) async throws -> RuntimeSession { throw RuntimeFailure(.setup, "此运行时不支持模型配置。") }
-    func currentSession() async throws -> RuntimeSession { throw RuntimeFailure(.setup, "此运行时不支持状态读取。") }
-    func usage() async throws -> RuntimeUsage { throw RuntimeFailure(.setup, "此运行时未提供统计。") }
-    func respond(to request: RuntimeInteraction, with response: InteractionResponse) async throws { throw RuntimeFailure(.unsupportedInteraction, "此运行时不支持交互回复。") }
+    func configurationOptions() async throws -> RuntimeConfigurationOptions { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模型配置。", bundle: #bundle)) }
+    func applyConfiguration(_ selection: RuntimeSelection) async throws -> RuntimeSession { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模型配置。", bundle: #bundle)) }
+    func currentSession() async throws -> RuntimeSession { throw RuntimeFailure(.setup, String(localized: "此运行时不支持状态读取。", bundle: #bundle)) }
+    func usage() async throws -> RuntimeUsage { throw RuntimeFailure(.setup, String(localized: "此运行时未提供统计。", bundle: #bundle)) }
+    func respond(to request: RuntimeInteraction, with response: InteractionResponse) async throws { throw RuntimeFailure(.unsupportedInteraction, String(localized: "此运行时不支持交互回复。", bundle: #bundle)) }
     func cancelInteractions() async {}
 }

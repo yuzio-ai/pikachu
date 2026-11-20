@@ -30,6 +30,16 @@ struct SidebarQuotaSummary {
         guard windows.count == 1, let window = windows.first, !window.isStale(at: date) else { return nil }
         return window.value
     }
+
+    func showsLowQuotaWarning(at date: Date) -> Bool {
+        guard windows.count == 1, let window = windows.first,
+              window.observedAt <= date,
+              window.resetAt != nil || window.expiresAt != nil,
+              !window.isStale(at: date),
+              let remaining = window.remaining, let limit = window.limit,
+              limit > 0, remaining >= 0 else { return false }
+        return remaining <= limit / 10
+    }
 }
 
 struct SidebarQuotaButton: View {
@@ -40,33 +50,37 @@ struct SidebarQuotaButton: View {
         let now = Date.now
         let deadlines = windows.flatMap { [$0.resetAt, $0.expiresAt].compactMap { $0 } }.filter { $0 > now }
         TimelineView(.explicit(Array(Set([now] + deadlines)).sorted())) { timeline in
-            let value = SidebarQuotaSummary(windows: windows).value(at: timeline.date)
+            let summary = SidebarQuotaSummary(windows: windows)
+            let value = summary.value(at: timeline.date)
+            let warns = summary.showsLowQuotaWarning(at: timeline.date)
+            let symbol = warns ? "exclamationmark.triangle" : "gauge.with.dots.needle.33percent"
             Button { showsDetails.toggle() } label: {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 4) {
-                        Image(systemName: "gauge.with.dots.needle.33percent")
+                        Image(systemName: symbol)
                         Text("额度")
                         if let value { Text(value).monospacedDigit() }
                     }
                     .fixedSize()
                     if let value {
                         HStack(spacing: 3) {
-                            Image(systemName: "gauge.with.dots.needle.33percent")
+                            Image(systemName: symbol)
                             Text(value).monospacedDigit()
                         }
                         .fixedSize()
                     }
-                    Image(systemName: "gauge.with.dots.needle.33percent")
+                    Image(systemName: symbol)
                 }
-                .font(.caption)
+                .pikachuFont(.caption)
+                .foregroundStyle(warns ? PikachuTheme.warningText : PikachuTheme.secondaryText)
                 .padding(.horizontal, 6)
                 .frame(height: 26)
             }
-            .buttonStyle(.borderless)
-            .background(.quaternary.opacity(0.38), in: .rect(cornerRadius: 6))
+            .buttonStyle(FlatControlButtonStyle(isOpen: showsDetails, inset: false))
             .help("账户额度")
             .accessibilityLabel("账户额度")
-            .accessibilityValue(value ?? (windows.isEmpty ? String(localized: "暂不可用") : String(localized: "查看明细")))
+            .accessibilityValue(warns ? String(localized: "额度偏低：\(value ?? "")") :
+                value ?? (windows.isEmpty ? String(localized: "暂不可用") : String(localized: "查看明细")))
             .accessibilityIdentifier("account-quota")
             .popover(isPresented: $showsDetails, arrowEdge: .bottom) {
                 SidebarQuotaDetails(windows: windows, date: timeline.date)
@@ -81,13 +95,13 @@ private struct SidebarQuotaDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("账户额度").font(.headline)
+            Text("账户额度").pikachuFont(.headline)
             if windows.isEmpty {
                 Text("没有可用的账户额度数据。").foregroundStyle(.secondary)
             }
             ForEach(windows) { window in
-                Divider()
-                Text("\(window.provider) · \(window.account)").font(.subheadline.weight(.medium))
+                PikachuDivider()
+                Text("\(window.provider) · \(window.account)").pikachuFont(.subheadline, weight: .medium)
                 Text(window.period).foregroundStyle(.secondary)
                 Text("剩余：\(window.value ?? String(localized: "未知"))")
                 if window.isStale(at: date) { Text("待更新").foregroundStyle(.secondary) }
@@ -98,8 +112,9 @@ private struct SidebarQuotaDetails: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .font(.callout)
+        .pikachuFont(.callout)
         .padding(14)
         .frame(width: 274, alignment: .leading)
+        .flatPanelContent()
     }
 }

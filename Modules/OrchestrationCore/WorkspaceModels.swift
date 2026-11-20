@@ -91,11 +91,13 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
     public var file: URL?
     public var historyConfirmed: Bool? = false
     public var title: String
+    var attachmentTitleFilename: String?
     public var lastViewed: Date
     public var draft: String
     public var draftFiles: [URL]?
     public var mode: SendMode
     public var agentMode: AgentMode?
+    var approvalPolicies: [AgentMode: ToolApprovalPolicy]?
     public var recovered: [PendingPrompt]
     public var submissions: [SubmissionRecord]
     public var wasExecuting: Bool
@@ -109,7 +111,15 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
     var reminderDueAt: Date?
     public var recordedTurns: [RecordedTurnRecord]?
     public var recordedMessages: [RecordedMessageRecord]?
+    public internal(set) var worktreePath: String?
+    var boundWorkingDirectory: String?
     public internal(set) var historicalModel: RuntimeSelection?
+    public var hasBoundWorkingDirectory: Bool {
+        boundWorkingDirectory != nil || file != nil || recordedMessages?.isEmpty == false
+    }
+    public func workingDirectory(in project: ProjectRecord) -> String {
+        boundWorkingDirectory ?? worktreePath ?? project.path
+    }
     public var sidebarStatus: SessionProcessingStatus { processingStatus ?? .open }
     public var activity: SessionActivity { sidebarActivity ?? .init(date: lastViewed, isEstimate: true) }
     public func reminderState(at date: Date) -> SessionReminderState {
@@ -117,6 +127,19 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
         return reminderDueAt > date ? .snoozed(until: reminderDueAt) : .due
     }
     public var executionMode: AgentMode { agentMode ?? .automatic }
+    public var executionPolicy: AgentExecutionPolicy {
+        .init(mode: executionMode, approval: approvalPolicies?[executionMode])
+    }
+    public var displayTitle: String {
+        if let attachmentTitleFilename {
+            return String(localized: "查看 \(attachmentTitleFilename)", bundle: #bundle)
+        }
+        switch title {
+        case "新会话": return String(localized: "新会话", bundle: #bundle)
+        case "历史会话": return String(localized: "历史会话", bundle: #bundle)
+        default: return title
+        }
+    }
     public init(id: UUID = UUID(), projectID: UUID, title: String = "新会话") {
         self.id = id; self.projectID = projectID; runtimeID = "pi"; self.title = title; lastViewed = Date()
         draft = ""; mode = .steer; recovered = []; submissions = []; wasExecuting = false
@@ -127,12 +150,28 @@ public struct WorkspacePreferences: Codable, Sendable, Equatable {
     public var nodeDirectory: String
     public var proxy: String
     public var extensionPaths: [String]?
-    public init(piPath: String = "", nodeDirectory: String = "", proxy: String = "", extensionPaths: [String] = []) {
+    public var toolSearchPaths: [String]?
+    public init(piPath: String = "", nodeDirectory: String = "", proxy: String = "", extensionPaths: [String] = [],
+                toolSearchPaths: [String] = []) {
         self.piPath = piPath; self.nodeDirectory = nodeDirectory
-        self.extensionPaths = extensionPaths
+        self.extensionPaths = extensionPaths; self.toolSearchPaths = toolSearchPaths
         // Proxy credentials are configuration secrets, not workspace metadata.
         let parts = URLComponents(string: proxy)
         self.proxy = parts?.user == nil && parts?.password == nil ? proxy : ""
+    }
+}
+public struct WorkspaceModelPreferences: Codable, Sendable, Equatable {
+    public var defaultModel: RuntimeModel?
+    public var favorites: [RuntimeModel] = []
+    public var hiddenModelIDs: Set<String> = []
+    public init() {}
+
+    public func pickerModels(from catalogue: [RuntimeModel], keeping modelIDs: Set<String>, showAll: Bool) -> [RuntimeModel] {
+        let visible = catalogue.filter { !hiddenModelIDs.contains($0.id) || modelIDs.contains($0.id) }
+        guard !showAll else { return visible }
+        let favoriteIDs = Set(favorites.map(\.id)).subtracting(hiddenModelIDs)
+        guard visible.contains(where: { favoriteIDs.contains($0.id) }) else { return visible }
+        return visible.filter { favoriteIDs.contains($0.id) || modelIDs.contains($0.id) }
     }
 }
 public struct WorkspaceSnapshot: Codable, Sendable {
@@ -142,6 +181,8 @@ public struct WorkspaceSnapshot: Codable, Sendable {
     public var sessions: [SessionReference] = []
     public var selectedSessionID: UUID?
     public var preferences = WorkspacePreferences()
+    public var modelPreferences: WorkspaceModelPreferences?
+    public var trustedPiConfigDirectories: Set<String>?
     public init() {}
 }
 public protocol WorkspaceStore: Sendable {
