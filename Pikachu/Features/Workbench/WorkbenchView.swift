@@ -45,7 +45,10 @@ struct WorkbenchView: View {
                 } else {
                     FlatEmptyState("选择一个项目", systemImage: "folder",
                                    description: Text("打开本地项目后，可创建会话或只读浏览历史。")) {
-                        Button("打开项目…", systemImage: "folder.badge.plus", action: openProject)
+                        Button(action: openProject) {
+                            Label("打开项目…", systemImage: "folder.badge.plus")
+                                .pikachuFont(.callout)
+                        }
                             .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
                             .disabled(!workspace.canManageProjects)
                     }
@@ -170,7 +173,7 @@ struct WorkbenchView: View {
                             actionAfterSheet = { createSession(in: project.id) }
                             modal = nil
                         } label: {
-                            FlatMenuRow(title: Text(verbatim: project.name))
+                            FlatMenuRow(title: Text(verbatim: project.displayName))
                         }
                         .help(project.path)
                         .accessibilityIdentifier("new-session-\(project.id)")
@@ -300,14 +303,14 @@ struct WorkbenchView: View {
 struct ProjectLocationView: View {
     let project: ProjectRecord
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(project.name).pikachuFont(.headline)
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
+            Text(verbatim: project.displayName).anchoredCardTitle()
             Text("工作目录").foregroundStyle(.secondary)
             Text(project.path).textSelection(.enabled)
             Text("运行时可在此目录读取内容、修改文件和执行命令。")
                 .foregroundStyle(.secondary)
-        }.pikachuFont(.callout).frame(width: 320, alignment: .leading).padding(16)
-            .flatPanelContent()
+        }
+        .anchoredPopoverCard(width: 344)
     }
 }
 
@@ -427,7 +430,7 @@ struct SessionDetail: View {
                 if let issue = presentation.executionIssue { FeedbackBanner(text: issue, warning: true) }
                 if let warnings = presentation.history?.warnings, !warnings.isEmpty { FeedbackBanner(text: warnings.joined(separator: "\n"), warning: true) }
                 if let starter {
-                    Text("想在 \(starter.name) 中做什么？")
+                    Text("想在 \(starter.displayName) 中做什么？")
                         .pikachuFont(.hero, weight: .medium)
                         .multilineTextAlignment(.center)
                         .accessibilityAddTraits(.isHeader)
@@ -611,20 +614,11 @@ struct SessionHeader: View {
         return (.neutral, "历史浏览", String(localized: "未连接 · 历史浏览"))
     }
 
-    private var sessionTitle: some View {
-        let title = reference?.displayTitle ?? String(localized: "会话")
-        return Text(title)
-            .pikachuFont(.headline, weight: .semibold)
-            .lineLimit(1)
-            .help(title)
-            .accessibilityAddTraits(.isHeader)
-    }
-
     private func projectButton(_ project: ProjectRecord) -> some View {
         Button { showsProjectLocation.toggle() } label: {
             HStack(spacing: 6) {
-                ProjectBadge(name: project.name, compact: true)
-                Text(project.name)
+                ProjectBadge(project: project, compact: true)
+                Text(verbatim: project.displayName)
                     .pikachuFont(.headline, weight: .regular)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -632,7 +626,7 @@ struct SessionHeader: View {
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: showsProjectLocation, inset: false))
         .help(project.path)
-        .accessibilityLabel("项目 \(project.name)")
+        .accessibilityLabel("项目 \(project.displayName)")
         .accessibilityHint("显示工作目录")
         .popover(isPresented: $showsProjectLocation) {
             ProjectLocationView(project: project)
@@ -648,7 +642,14 @@ struct SessionHeader: View {
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
-            sessionTitle
+            if let reference {
+                SessionTitleControl(workspace: workspace, session: reference)
+                    .id(reference.id)
+            } else {
+                Text("会话")
+                    .pikachuFont(.headline, weight: .semibold)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
     }
 
@@ -683,44 +684,32 @@ struct SessionHeader: View {
                     Label("结束受管进程", systemImage: "exclamationmark.triangle")
                         .labelStyle(ToolbarActionLabel(compact: compact))
                 }
-                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+                .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: !compact))
                 .controlSize(.small)
                 .disabled(workspace.isOperating(on: presentation.id) || active.commandPending)
                 .help("结束受管进程")
                 .accessibilityLabel("结束受管进程")
                 .fixedSize()
             }
-            FlatMenu {
-                Image(systemName: "ellipsis")
-                    .frame(width: 24, height: 24)
-            } content: { select in
-                if let active = activeController, active.connection == .connected || active.connection == .connecting {
-                    Button { select { Task { _ = await workspace.disconnect(presentation.id) } } } label: {
-                        FlatMenuRow(title: Text("断开连接"))
+            if let project {
+                if compact {
+                    Button { showsGitDetails.toggle() } label: {
+                        IconButtonLabel(systemName: "info.circle")
                     }
-                    .disabled(workspace.isOperating(on: presentation.id) || active.commandPending)
-                }
-                if let project {
-                    if compact {
-                        Button { select { showsGitDetails = true } } label: {
-                            FlatMenuRow(title: Text("Git 详情…"))
-                        }
-                    }
-                    Button { select { gitStore.refresh(directory: project.path, force: true) } } label: {
-                        FlatMenuRow(title: Text("刷新 Git 状态"))
-                    }
-                    Button { select { showsProjectLocation = true } } label: {
-                        FlatMenuRow(title: Text("显示工作目录…"))
+                    .buttonStyle(FlatControlButtonStyle(isOpen: showsGitDetails, inset: false))
+                    .help("Git 详情")
+                    .accessibilityLabel("Git 详情")
+                    .popover(isPresented: $showsGitDetails) {
+                        GitSummaryBar(project: project, gitStore: gitStore, displaysDetails: true)
                     }
                 }
-            }
-            .fixedSize()
-            .help("会话操作")
-            .accessibilityLabel("会话操作")
-            .popover(isPresented: $showsGitDetails) {
-                if let project {
-                    GitSummaryBar(project: project, gitStore: gitStore, displaysDetails: true)
+                Button { gitStore.refresh(directory: project.path, force: true) } label: {
+                    IconButtonLabel(systemName: "arrow.clockwise")
                 }
+                .buttonStyle(FlatControlButtonStyle(inset: false))
+                .help("刷新 Git 状态")
+                .accessibilityLabel("刷新 Git 状态")
+                .accessibilityIdentifier("refresh-git-status")
             }
         }
     }
@@ -750,15 +739,162 @@ struct SessionHeader: View {
     }
 }
 
+private struct SessionTitleControl: View {
+    let workspace: WorkspaceController
+    let session: SessionReference
+    @State private var isHovered = false
+    @State private var isMenuOpen = false
+    @State private var isEditing = false
+    @State private var draftTitle = ""
+    @State private var isSaving = false
+    @State private var saveFailed = false
+    @FocusState private var isTitleFocused: Bool
+
+    var body: some View {
+        Button {
+            if !isMenuOpen { isEditing = false }
+            isMenuOpen.toggle()
+        } label: {
+            HStack(spacing: 4) {
+                Text(verbatim: session.displayTitle)
+                    .pikachuFont(.headline, weight: .semibold)
+                    .lineLimit(1)
+                FlatDisclosureChevron(.down)
+                    .opacity(isHovered || isMenuOpen ? 1 : 0)
+            }
+            .padding(.horizontal, 4)
+            .frame(height: 24)
+        }
+        .buttonStyle(FlatControlButtonStyle(isOpen: isMenuOpen, inset: false))
+        .onHover { isHovered = $0 }
+        .help(session.displayTitle)
+        .accessibilityHint(Text("会话操作"))
+        .accessibilityIdentifier("session-title-menu")
+        .popover(isPresented: $isMenuOpen, arrowEdge: .bottom) {
+            Group {
+                if isEditing {
+                    renameEditor
+                } else {
+                    FlatMenuPanel(width: 190) { menuActions }
+                }
+            }
+            .onExitCommand { isMenuOpen = false }
+        }
+    }
+
+    @ViewBuilder private var menuActions: some View {
+        if session.sidebarStatus == .open {
+            let blocked = workspace.settleBlockReason(for: session)
+            Button {
+                select { Task { await workspace.markSessionSettled(session.id) } }
+            } label: {
+                FlatMenuRow(title: Text("标记已处理"))
+            }
+            .disabled(blocked != nil)
+            .help(blocked.map { String(localized: $0) } ?? "")
+
+            DisclosureGroup("暂缓提醒") {
+                SessionReminderMenuActions(workspace: workspace, sessionID: session.id,
+                                           state: session.reminderState(at: .now), select: select)
+                    .padding(.leading, 10)
+            }
+            .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: .trailing))
+            .padding(.horizontal, 8)
+            .disabled(!workspace.initialized || workspace.storageError != nil)
+        } else {
+            Button {
+                select { Task { await workspace.reopenSession(session.id) } }
+            } label: {
+                FlatMenuRow(title: Text("移回待处理"))
+            }
+            .disabled(!workspace.initialized || workspace.storageError != nil)
+        }
+        PikachuDivider()
+        Button(action: beginEditing) {
+            FlatMenuRow(title: Text("修改会话名称"))
+        }
+        .disabled(isSaving)
+        if let active = workspace.execution(for: session.id),
+           active.connection == .connected || active.connection == .connecting {
+            PikachuDivider()
+            Button {
+                select { Task { _ = await workspace.disconnect(session.id) } }
+            } label: {
+                FlatMenuRow(title: Text("断开连接"))
+            }
+            .disabled(workspace.isOperating(on: session.id) || active.commandPending)
+        }
+    }
+
+    private func select(_ action: () -> Void) {
+        isMenuOpen = false
+        action()
+    }
+
+    private var renameEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("修改会话名称").pikachuFont(.headline)
+            TextField("会话名称", text: $draftTitle)
+                .textFieldStyle(.roundedBorder)
+                .focused($isTitleFocused)
+                .disabled(isSaving)
+                .onSubmit(save)
+                .onAppear { isTitleFocused = true }
+            if saveFailed {
+                Text("会话名称未保存，请重试。")
+                    .pikachuFont(.caption)
+                    .foregroundStyle(PikachuTheme.errorText)
+            }
+            HStack {
+                Spacer()
+                Button("取消") { isMenuOpen = false }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
+                Button("保存", action: save)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave)
+            }
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+
+    private var canSave: Bool {
+        !isSaving && !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func beginEditing() {
+        guard !isSaving, !isEditing else { return }
+        draftTitle = session.displayTitle
+        saveFailed = false
+        isEditing = true
+    }
+
+    private func save() {
+        guard canSave else { return }
+        let proposedTitle = draftTitle
+        isSaving = true
+        saveFailed = false
+        Task {
+            let saved = await workspace.renameSession(session.id, to: proposedTitle)
+            isSaving = false
+            saveFailed = !saved
+            if saved { isMenuOpen = false }
+            else if isMenuOpen && isEditing { isTitleFocused = true }
+        }
+    }
+}
+
 private struct ToolbarActionLabel: LabelStyle {
     let compact: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         if compact {
-            configuration.icon
+            configuration.icon.pikachuFont(.callout)
+                .frame(width: IconButtonLabel.side, height: IconButtonLabel.side)
         } else {
             HStack(spacing: 4) {
-                configuration.icon
+                configuration.icon.pikachuFont(.callout)
                 configuration.title
             }
         }
@@ -812,14 +948,6 @@ private struct GitSummaryBar: View {
         snapshot?.ahead.displayText ?? "—"
     }
 
-    private var addedText: String {
-        snapshot.map { "+\($0.changes.addedCount)" } ?? "—"
-    }
-
-    private var deletedText: String {
-        snapshot.map { "−\($0.changes.deletedCount)" } ?? "—"
-    }
-
     private var changesAccessibilityValue: String {
         guard let snapshot else { return String(localized: "变更文件数未知") }
         return String(localized: "新增 \(snapshot.changes.addedCount) 个文件，删除 \(snapshot.changes.deletedCount) 个文件，共 \(snapshot.changes.totalCount) 个变更文件")
@@ -836,9 +964,13 @@ private struct GitSummaryBar: View {
     private var controls: some View {
         HStack(spacing: 12) {
             Button { showsBranchPopover.toggle() } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     GitBranchIcon()
                         .foregroundStyle(.secondary)
+                    if snapshot != nil {
+                        Text("分支 ·")
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
                     Text(branchText)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -860,7 +992,7 @@ private struct GitSummaryBar: View {
                 HStack(spacing: 4) {
                     GitCommitIcon()
                         .foregroundStyle(.secondary)
-                    Text(aheadText)
+                    Text("领先提交 · \(aheadText)")
                         .monospacedDigit()
                 }
             }
@@ -874,20 +1006,16 @@ private struct GitSummaryBar: View {
             }
 
             Button { showsChangesPopover.toggle() } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     FileTextIcon()
                         .foregroundStyle(.secondary)
-                    Text(addedText)
-                        .foregroundStyle(snapshot == nil ? Color.secondary : PikachuTheme.runningText)
-                        .monospacedDigit()
-                    Text(deletedText)
-                        .foregroundStyle(snapshot == nil ? Color.secondary : PikachuTheme.errorText)
+                    Text("变更文件 · \(snapshot?.changes.totalCount.formatted() ?? "—")")
                         .monospacedDigit()
                 }
             }
             .buttonStyle(FlatControlButtonStyle(isOpen: showsChangesPopover, inset: false))
-            .help("仓库文件变化")
-            .accessibilityLabel("仓库文件变化")
+            .help("变更文件")
+            .accessibilityLabel("变更文件")
             .accessibilityValue(changesAccessibilityValue)
             .popover(isPresented: $showsChangesPopover) {
                 changesPopover
@@ -897,8 +1025,8 @@ private struct GitSummaryBar: View {
     }
 
     private var summaryPopover: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Git 详情").pikachuFont(.headline)
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
+            Text("Git 详情").anchoredCardTitle()
             if let snapshot {
                 Text("分支：\(branchText)").textSelection(.enabled)
                 switch snapshot.ahead {
@@ -917,17 +1045,19 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .pikachuFont(.callout)
-        .padding(14)
-        .frame(width: 320, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 320)
     }
 
     private var branchPopover: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
             HStack {
-                Label("分支信息", systemImage: "arrow.triangle.branch")
-                    .pikachuFont(.headline)
+                Label {
+                    Text("分支信息").anchoredCardTitle()
+                } icon: {
+                    Image(systemName: "arrow.triangle.branch")
+                        .pikachuFont(.caption)
+                        .accessibilityHidden(true)
+                }
                 Spacer()
                 if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
@@ -951,16 +1081,13 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .pikachuFont(.callout)
-        .padding(14)
-        .frame(width: 320, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 320)
     }
 
     private var aheadPopover: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
             HStack {
-                Text("本地提交领先").pikachuFont(.headline)
+                Text("本地提交领先").anchoredCardTitle()
                 Spacer()
                 if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
@@ -980,16 +1107,13 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .pikachuFont(.callout)
-        .padding(14)
-        .frame(width: 300, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 300)
     }
 
     private var changesPopover: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
             HStack {
-                Text("工作区变更").pikachuFont(.headline)
+                Text("变更文件").anchoredCardTitle()
                 Spacer()
                 if state.isLoading { FlatProgressView().controlSize(.mini) }
             }
@@ -1038,10 +1162,7 @@ private struct GitSummaryBar: View {
                 popoverFooter(updatedAt: nil)
             }
         }
-        .pikachuFont(.callout)
-        .padding(14)
-        .frame(width: 350, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 350)
     }
 
     private var unavailableDetail: String {
@@ -1114,7 +1235,7 @@ private struct ActiveRunBanner: View {
         guard let session = workspace.state.sessions.first(where: { $0.id == sessionID }) else { return nil }
         guard session.projectID != workspace.selected?.projectID,
               let project = workspace.state.projects.first(where: { $0.id == session.projectID }) else { return session.displayTitle }
-        return "\(project.name) / \(session.displayTitle)"
+        return "\(project.displayName) / \(session.displayTitle)"
     }
 
     var body: some View {
@@ -1144,7 +1265,7 @@ private struct ActiveRunBanner: View {
                                 Text("返回执行会话")
                             }
                             Image(systemName: "arrow.up.right")
-                                .pikachuFont(.caption2, weight: .medium)
+                                .pikachuFont(.caption, weight: .medium)
                                 .foregroundStyle(.secondary)
                                 .accessibilityHidden(true)
                         }
@@ -1160,7 +1281,7 @@ private struct ActiveRunBanner: View {
                             .accessibilityIdentifier("handle-background-interaction")
                     }
                     FlatMenu(width: 168) {
-                        Image(systemName: "ellipsis").frame(width: 24, height: 24)
+                        IconButtonLabel(systemName: "ellipsis")
                     } content: { select in
                         if needsRecovery {
                             Button(role: .destructive) {
@@ -1194,7 +1315,7 @@ private struct ActiveRunBanner: View {
                 .padding(.vertical, 4)
                 PikachuDivider()
             }
-            .background(needsAttention ? PikachuTheme.warningSurface : Color.clear)
+            .background(needsAttention ? PikachuTheme.warningSurface : Color.clear, ignoresSafeAreaEdges: [])
         }
     }
 }
@@ -1238,6 +1359,7 @@ struct FeedbackBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: warning ? "exclamationmark.triangle" : "info.circle")
+                .pikachuFont(.caption)
                 .foregroundStyle(warning ? PikachuTheme.warningText : Color.secondary)
             Text(text).pikachuFont(.callout).textSelection(.enabled); Spacer(minLength: 0)
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)

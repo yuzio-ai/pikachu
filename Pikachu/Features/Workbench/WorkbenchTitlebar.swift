@@ -209,10 +209,10 @@ struct WorkbenchTitlebar: NSViewRepresentable {
                 toggleHost = toggle
                 toggle.sizingOptions = []
                 NSLayoutConstraint.activate([
-                    toggle.widthAnchor.constraint(equalToConstant: 26),
-                    toggle.heightAnchor.constraint(equalToConstant: 26)
+                    toggle.widthAnchor.constraint(equalToConstant: IconButtonLabel.side),
+                    toggle.heightAnchor.constraint(equalToConstant: IconButtonLabel.side)
                 ])
-                toggle.frame.size = .init(width: 26, height: 26)
+                toggle.frame.size = .init(width: IconButtonLabel.side, height: IconButtonLabel.side)
                 item.view = toggle
                 item.isBordered = false
                 return item
@@ -256,9 +256,7 @@ private struct SidebarToggleButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "sidebar.left")
-                .pikachuFont(.callout)
-                .frame(width: 26, height: 26)
+            IconButtonLabel(systemName: "sidebar.left")
         }
         .buttonStyle(FlatControlButtonStyle(inset: false))
         .pikachuTypography(fontSize)

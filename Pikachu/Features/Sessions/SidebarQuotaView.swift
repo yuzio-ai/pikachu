@@ -61,20 +61,23 @@ struct SidebarQuotaButton: View {
                         Text("额度")
                         if let value { Text(value).monospacedDigit() }
                     }
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: IconButtonLabel.side)
                     .fixedSize()
                     if let value {
                         HStack(spacing: 3) {
                             Image(systemName: symbol)
                             Text(value).monospacedDigit()
                         }
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: IconButtonLabel.side)
                         .fixedSize()
                     }
-                    Image(systemName: symbol)
+                    IconButtonLabel(systemName: symbol)
                 }
                 .pikachuFont(.caption)
                 .foregroundStyle(warns ? PikachuTheme.warningText : PikachuTheme.secondaryText)
-                .padding(.horizontal, 6)
-                .frame(height: 26)
+                .frame(height: IconButtonLabel.side)
             }
             .buttonStyle(FlatControlButtonStyle(isOpen: showsDetails, inset: false))
             .help("账户额度")
@@ -94,8 +97,8 @@ private struct SidebarQuotaDetails: View {
     let date: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text("账户额度").pikachuFont(.headline)
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
+            Text("账户额度").anchoredCardTitle()
             if windows.isEmpty {
                 Text("没有可用的账户额度数据。").foregroundStyle(.secondary)
             }
@@ -112,9 +115,6 @@ private struct SidebarQuotaDetails: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .pikachuFont(.callout)
-        .padding(14)
-        .frame(width: 274, alignment: .leading)
-        .flatPanelContent()
+        .anchoredPopoverCard(width: 274)
     }
 }

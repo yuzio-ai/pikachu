@@ -109,12 +109,122 @@
         }
       }
     },
+    "%lld 处替换" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replacement"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replacements"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld 小时 %lld 分 %lld 秒" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld hr %lld min %lld sec"
+          }
+        }
+      }
+    },
+    "%lld 条命令" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld command"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld commands"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 次搜索" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld search"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld searches"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 次编辑" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld edit"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld edits"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld 次读取" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld read"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld reads"
+                }
+              }
+            }
           }
         }
       }
@@ -137,16 +247,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "%lld 项失败" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld failed"
           }
         }
       }
@@ -225,6 +325,16 @@
         }
       }
     },
+    "Agent：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent: %@"
+          }
+        }
+      }
+    },
     "Git 分支" : {
       "localizations" : {
         "en" : {
@@ -256,6 +366,7 @@
       }
     },
     "Git 详情…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -638,16 +749,6 @@
         }
       }
     },
-    "仓库文件变化" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Repository Changes"
-          }
-        }
-      }
-    },
     "仓库根目录：%@" : {
       "localizations" : {
         "en" : {
@@ -684,6 +785,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Task Completed"
+          }
+        }
+      }
+    },
+    "任务已完成，尚未查看" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Task complete, not yet viewed"
           }
         }
       }
@@ -728,6 +839,26 @@
         }
       }
     },
+    "会话名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session name"
+          }
+        }
+      }
+    },
+    "会话名称未保存，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session name wasn’t saved. Please try again."
+          }
+        }
+      }
+    },
     "会话操作" : {
       "localizations" : {
         "en" : {
@@ -758,9 +889,6 @@
           }
         }
       }
-    },
-    "你" : {
-
     },
     "侧栏筛选与显示" : {
       "localizations" : {
@@ -812,6 +940,16 @@
         }
       }
     },
+    "修改" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modified"
+          }
+        }
+      }
+    },
     "修改 %lld" : {
       "localizations" : {
         "en" : {
@@ -832,6 +970,16 @@
         }
       }
     },
+    "修改会话名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename Session"
+          }
+        }
+      }
+    },
     "修改内容" : {
       "localizations" : {
         "en" : {
@@ -848,6 +996,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Before"
+          }
+        }
+      }
+    },
+    "修改前后" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes"
           }
         }
       }
@@ -968,6 +1126,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop This Session"
+          }
+        }
+      }
+    },
+    "允许" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow"
           }
         }
       }
@@ -1161,6 +1329,26 @@
         }
       }
     },
+    "全部展开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand All"
+          }
+        }
+      }
+    },
+    "全部收起" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse All"
+          }
+        }
+      }
+    },
     "全部项目" : {
       "localizations" : {
         "en" : {
@@ -1234,6 +1422,38 @@
         }
       }
     },
+    "关闭输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "其他 %lld 项" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld other"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld others"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "其他模型" : {
       "localizations" : {
         "en" : {
@@ -1272,6 +1492,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minimal"
+          }
+        }
+      }
+    },
+    "最多 %lld 条匹配" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld match"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld matches"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "最多 %lld 行" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld line"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Up to %lld lines"
+                }
+              }
+            }
           }
         }
       }
@@ -1316,6 +1580,16 @@
         }
       }
     },
+    "分支 ·" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Branch ·"
+          }
+        }
+      }
+    },
     "分支：%@" : {
       "localizations" : {
         "en" : {
@@ -1356,6 +1630,9 @@
         }
       }
     },
+    "切换工作台全屏" : {
+
+    },
     "切换执行模式" : {
       "localizations" : {
         "en" : {
@@ -1387,12 +1664,32 @@
         }
       }
     },
+    "删除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted"
+          }
+        }
+      }
+    },
     "删除 %lld" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleted %lld"
+          }
+        }
+      }
+    },
+    "删除 %lld 行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed %lld lines"
           }
         }
       }
@@ -1487,9 +1784,6 @@
         }
       }
     },
-    "助手" : {
-
-    },
     "即时生效，也可使用 ⌘+ / ⌘- 调整。" : {
       "localizations" : {
         "en" : {
@@ -1546,6 +1840,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Compacting"
+          }
+        }
+      }
+    },
+    "原始参数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw parameters"
+          }
+        }
+      }
+    },
+    "原始参数过长，仅显示开头。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw parameters are too long. Only the beginning is shown."
           }
         }
       }
@@ -1721,6 +2035,26 @@
         }
       }
     },
+    "变更文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed Files"
+          }
+        }
+      }
+    },
+    "变更文件 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed Files · %@"
+          }
+        }
+      }
+    },
     "变更文件数未知" : {
       "localizations" : {
         "en" : {
@@ -1811,6 +2145,16 @@
         }
       }
     },
+    "命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command"
+          }
+        }
+      }
+    },
     "回到最新" : {
       "localizations" : {
         "en" : {
@@ -1837,6 +2181,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reply deadline: %@"
+          }
+        }
+      }
+    },
+    "在 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in %@"
           }
         }
       }
@@ -1912,6 +2266,16 @@
         }
       }
     },
+    "复制助手回复" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy assistant reply"
+          }
+        }
+      }
+    },
     "复制命令" : {
       "localizations" : {
         "en" : {
@@ -1922,8 +2286,15 @@
         }
       }
     },
-    "复制整个会话" : {
-
+    "复制输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy output"
+          }
+        }
+      }
     },
     "失败" : {
       "localizations" : {
@@ -1931,6 +2302,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Failed"
+          }
+        }
+      }
+    },
+    "失败 %lld 项" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld failed"
           }
         }
       }
@@ -1962,6 +2343,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Done"
+          }
+        }
+      }
+    },
+    "完整输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full output"
           }
         }
       }
@@ -2039,7 +2430,19 @@
         }
       }
     },
+    "工作区 %lld 个变更文件" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worktree · %lld changed files"
+          }
+        }
+      }
+    },
     "工作区变更" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2170,6 +2573,16 @@
         }
       }
     },
+    "工具输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool output"
+          }
+        }
+      }
+    },
     "已中断" : {
       "localizations" : {
         "en" : {
@@ -2200,6 +2613,26 @@
         }
       }
     },
+    "已保留的工具输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retained tool output"
+          }
+        }
+      }
+    },
+    "已保留输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retained output"
+          }
+        }
+      }
+    },
     "已停止" : {
       "localizations" : {
         "en" : {
@@ -2211,6 +2644,7 @@
       }
     },
     "已停止 · 时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2221,6 +2655,7 @@
       }
     },
     "已停止 · 结束于 %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2231,11 +2666,22 @@
       }
     },
     "已停止，结束时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stopped, end time unknown"
+          }
+        }
+      }
+    },
+    "已关闭" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
           }
         }
       }
@@ -2318,6 +2764,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "已开启" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
           }
         }
       }
@@ -2697,6 +3153,7 @@
       }
     },
     "待核实 · 时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2890,6 +3347,7 @@
       }
     },
     "执行失败 · 时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2900,6 +3358,7 @@
       }
     },
     "执行失败 · 结束于 %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2910,6 +3369,7 @@
       }
     },
     "执行失败，结束时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2919,7 +3379,11 @@
         }
       }
     },
+    "执行完成" : {
+
+    },
     "执行完成时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2940,6 +3404,7 @@
       }
     },
     "执行状态待核实 · 结束于 %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2950,6 +3415,7 @@
       }
     },
     "执行状态待核实，时间未知" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3229,6 +3695,16 @@
         }
       }
     },
+    "搜索" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
     "搜索会话" : {
       "localizations" : {
         "en" : {
@@ -3255,6 +3731,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search models…"
+          }
+        }
+      }
+    },
+    "搜索模式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search pattern"
+          }
+        }
+      }
+    },
+    "搜索范围" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search scope"
           }
         }
       }
@@ -3329,12 +3825,32 @@
         }
       }
     },
+    "文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        }
+      }
+    },
     "文件尾部尚未写完。已显示完整记录，当前禁止执行；请稍后重新读取。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The session file is still being written. Complete records are shown and execution is blocked. Reload it later."
+          }
+        }
+      }
+    },
+    "文件筛选" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File filter"
           }
         }
       }
@@ -3389,6 +3905,16 @@
         }
       }
     },
+    "新增" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        }
+      }
+    },
     "新增 %lld" : {
       "localizations" : {
         "en" : {
@@ -3415,6 +3941,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Added %lld, deleted %lld, total changed: %lld"
+          }
+        }
+      }
+    },
+    "新增 %lld 行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added %lld lines"
           }
         }
       }
@@ -3576,6 +4112,26 @@
         }
       }
     },
+    "无行尾换行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No line ending"
+          }
+        }
+      }
+    },
+    "无输出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No output"
+          }
+        }
+      }
+    },
     "无需审批" : {
       "localizations" : {
         "en" : {
@@ -3647,6 +4203,7 @@
       }
     },
     "显示工作目录…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3752,6 +4309,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Replace Draft"
+          }
+        }
+      }
+    },
+    "有 %lld 处修改超出差异预览上限。" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replacement exceeds the diff preview limit."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld replacements exceed the diff preview limit."
+                }
+              }
+            }
           }
         }
       }
@@ -3906,6 +4485,16 @@
         }
       }
     },
+    "本轮 %lld 个文件变更" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This turn · %lld changed files"
+          }
+        }
+      }
+    },
     "权限" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3944,6 +4533,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "View context and session usage (⇧⌘U)"
+          }
+        }
+      }
+    },
+    "查看修改 · %lld 处" : {
+      "comment" : "Disclosure label followed by the number of edits in this approval.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "View changes · %lld edit"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "View changes · %lld edits"
+                }
+              }
+            }
           }
         }
       }
@@ -4563,6 +5175,16 @@
         }
       }
     },
+    "第 %lld 行起" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From line %lld"
+          }
+        }
+      }
+    },
     "等待交付：补充 %lld · 后续 %lld" : {
       "localizations" : {
         "en" : {
@@ -4634,6 +5256,7 @@
       }
     },
     "结束于 %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4649,6 +5272,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "End Managed Processes"
+          }
+        }
+      }
+    },
+    "结束时间未知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End time unknown"
           }
         }
       }
@@ -4794,6 +5427,16 @@
         }
       }
     },
+    "自动换行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wrap lines"
+          }
+        }
+      }
+    },
     "草稿" : {
       "localizations" : {
         "en" : {
@@ -4810,6 +5453,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Drafts Not Saved"
+          }
+        }
+      }
+    },
+    "行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lines"
           }
         }
       }
@@ -4915,6 +5568,16 @@
         }
       }
     },
+    "请求的修改" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requested changes"
+          }
+        }
+      }
+    },
     "请输入尚未存在的工作树绝对路径。" : {
       "localizations" : {
         "en" : {
@@ -4931,6 +5594,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter a valid name for the new branch."
+          }
+        }
+      }
+    },
+    "读取" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read"
           }
         }
       }
@@ -5139,6 +5812,7 @@
       }
     },
     "近似时间，%@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5208,6 +5882,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Return to Active Session"
+          }
+        }
+      }
+    },
+    "这处修改没有可显示的差异。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No diff available for this replacement."
           }
         }
       }
@@ -5373,6 +6057,16 @@
         }
       }
     },
+    "部分展开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partially expanded"
+          }
+        }
+      }
+    },
     "配置将在下次连接并发送时生效，可在模式菜单调整。" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5390,6 +6084,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Configuration Directory"
+          }
+        }
+      }
+    },
+    "重命名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renamed"
           }
         }
       }
@@ -5530,9 +6234,6 @@
         }
       }
     },
-    "附件：%@" : {
-
-    },
     "隐藏侧栏" : {
       "localizations" : {
         "en" : {
@@ -5654,6 +6355,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "领先提交 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commits Ahead · %@"
           }
         }
       }

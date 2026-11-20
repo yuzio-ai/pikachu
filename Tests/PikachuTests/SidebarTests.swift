@@ -5,6 +5,17 @@ import AgentRuntimeCore
 @testable import Pikachu
 
 final class SidebarTests: XCTestCase {
+    func testHoverPanelStaysBesideRowAndInsideScreen() {
+        let screen = CGRect(x: 100, y: 50, width: 800, height: 500)
+        let size = CGSize(width: 244, height: 120)
+        let middleRow = CGRect(x: 110, y: 360, width: 220, height: 50)
+        XCTAssertEqual(SidebarHoverPanelPlacement.frame(for: size, beside: middleRow, within: screen),
+                       CGRect(x: 338, y: 290, width: 244, height: 120))
+        let lowerRightRow = CGRect(x: 650, y: 56, width: 220, height: 50)
+        XCTAssertEqual(SidebarHoverPanelPlacement.frame(for: size, beside: lowerRightRow, within: screen),
+                       CGRect(x: 398, y: 58, width: 244, height: 120))
+    }
+
     @MainActor func testSidebarStatusPrefersPendingApprovalThenRunningThenDraft() async {
         let runtime = FakeRuntime()
         let controller = SessionController()
@@ -33,6 +44,25 @@ final class SidebarTests: XCTestCase {
         XCTAssertEqual(status(), .draft)
         XCTAssertEqual(SidebarSessionStatus.resolve(execution: nil, needsReview: true, hasDraft: true), .review)
         _ = await controller.disconnect(force: true)
+    }
+
+    func testCardIndicatorPrioritizesActionThenRunningThenUnread() {
+        func indicators(_ status: SidebarSessionStatus? = nil, review: Bool = false,
+                        draft: Bool = false, unread: Bool = false, reminder: SessionReminderState = .none) -> [SidebarCardIndicator] {
+            SidebarCardIndicator.ordered(execution: status, needsReview: review, hasDraft: draft,
+                                         unread: unread, reminder: reminder)
+        }
+
+        XCTAssertEqual(indicators(.awaitingApproval, review: true, draft: true, unread: true, reminder: .due),
+                       [.status(.awaitingApproval), .status(.review), .reminderDue, .unreadCompletion, .status(.draft)])
+        XCTAssertEqual(indicators(.running, review: true, unread: true), [.status(.review), .status(.running), .unreadCompletion])
+        XCTAssertEqual(indicators(.running, unread: true, reminder: .due), [.reminderDue, .status(.running), .unreadCompletion])
+        XCTAssertEqual(indicators(.running, draft: true, unread: true), [.status(.running), .unreadCompletion, .status(.draft)])
+        let deadline = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(indicators(.compacting, draft: true, unread: true, reminder: .snoozed(until: deadline)),
+                       [.unreadCompletion, .status(.compacting), .status(.draft), .reminderSnoozed(deadline)])
+        XCTAssertEqual(indicators(.review, review: true), [.status(.review)])
+        XCTAssertTrue(indicators().isEmpty)
     }
 
     func testFilterAndCollapsedGroupsOnlyExposeTheEligibleSelection() {

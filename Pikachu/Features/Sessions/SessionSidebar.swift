@@ -163,6 +163,7 @@ private struct SessionSidebarControls: View {
                         filter.query = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
+                            .pikachuFont(.caption)
                     }
                     .buttonStyle(FlatControlButtonStyle(inset: false))
                     .help("清除搜索")
@@ -193,15 +194,14 @@ private struct SessionSidebarControls: View {
 
     private var projectMenu: some View {
         FlatMenu(width: 250) {
-            Image(systemName: filter.projectID == nil ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+            IconButtonLabel(systemName: filter.projectID == nil ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                 .foregroundStyle(filter.projectID == nil ? PikachuTheme.secondaryText : PikachuTheme.accentText)
-                .frame(width: 23, height: 26)
         } content: { select in
             ScrollView {
                 VStack(alignment: .leading, spacing: 3) {
                     projectFilterRow(Text("全部项目"), projectID: nil, select: select)
                     ForEach(workspace.state.projects) { project in
-                        projectFilterRow(Text(verbatim: project.name), projectID: project.id, select: select)
+                        projectFilterRow(Text(verbatim: project.displayName), projectID: project.id, select: select)
                             .help(project.path)
                     }
                 }
@@ -216,7 +216,7 @@ private struct SessionSidebarControls: View {
         .fixedSize()
         .help("侧栏筛选与显示")
         .accessibilityLabel("侧栏筛选与显示")
-        .accessibilityValue(workspace.state.projects.first { $0.id == filter.projectID }?.name ?? String(localized: "全部项目"))
+        .accessibilityValue(workspace.state.projects.first { $0.id == filter.projectID }?.displayName ?? String(localized: "全部项目"))
         .accessibilityIdentifier("filter-sessions")
     }
 
@@ -273,7 +273,7 @@ private struct SessionSidebarList: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         if !openRows.isEmpty {
-                            LazyVStack(spacing: 5) {
+                            LazyVStack(spacing: 8) {
                                 ForEach(openRows) { row in
                                     SidebarSessionCard(workspace: workspace, session: row.session, project: row.project,
                                                        selected: row.id == selected, focus: $focus)
@@ -286,7 +286,7 @@ private struct SessionSidebarList: View {
                                 .foregroundStyle(PikachuTheme.secondaryText)
                                 .padding(.vertical, 9)
                         }
-                        Spacer(minLength: openRows.isEmpty || count == 0 ? 12 : 20)
+                        Spacer(minLength: !openRows.isEmpty && count > 0 ? 24 : 12)
                         SettledSidebarSection(workspace: workspace, rows: settledRows, selected: selected, count: count,
                                               expanded: expanded, nextCount: SidebarSettledBatches.remainingInNextBatch(total: count, limit: limit),
                                               focus: $focus) {
@@ -356,7 +356,7 @@ private struct SettledSidebarSection: View {
     let showMore: () -> Void
 
     var body: some View {
-        LazyVStack(spacing: 3) {
+        LazyVStack(spacing: 4) {
             SettledSidebarHeader(count: count, expanded: expanded, toggle: toggleExpansion)
                 .id(SessionProcessingStatus.settled)
             ForEach(rows) { row in
@@ -392,11 +392,10 @@ private struct SettledSidebarHeader: View {
                                              comment: "Short sidebar heading for settled sessions"))
                     .fontWeight(.medium)
                 Spacer(minLength: 4)
-                Text(count, format: .number).monospacedDigit()
-                Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                    .pikachuFont(.caption2)
-                    .frame(width: 12)
-                    .accessibilityHidden(true)
+                Text(count, format: .number)
+                    .monospacedDigit()
+                    .foregroundStyle(PikachuTheme.tertiaryText)
+                FlatDisclosureChevron(expanded: expanded)
             }
             .pikachuFont(.callout)
             .foregroundStyle(PikachuTheme.secondaryText)
@@ -429,13 +428,14 @@ enum SidebarSessionStatus: String {
         }
     }
 
-    var color: Color {
+    var needsAction: Bool {
         switch self {
-        case .running: PikachuTheme.runningText
-        case .awaitingApproval: PikachuTheme.warningText
-        default: PikachuTheme.secondaryText
+        case .awaitingApproval, .awaitingInput, .review: true
+        default: false
         }
     }
+
+    var isRunning: Bool { self == .running || self == .retrying }
 
     @MainActor static func resolve(execution: SessionController?, needsReview: Bool, hasDraft: Bool) -> Self? {
         if let execution {
@@ -458,6 +458,62 @@ enum SidebarSessionStatus: String {
     }
 }
 
+enum SidebarCardIndicator: Equatable {
+    case status(SidebarSessionStatus), unreadCompletion, reminderDue, reminderSnoozed(Date)
+
+    var label: String {
+        switch self {
+        case .status(let status): String(localized: status.label)
+        case .unreadCompletion: String(localized: "任务已完成，尚未查看")
+        case .reminderDue: String(localized: "提醒已到期")
+        case .reminderSnoozed(let date): String(localized: "暂缓至 \(date.formatted(date: .abbreviated, time: .shortened))")
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .status(let status) where status.needsAction: PikachuTheme.warningText
+        case .reminderDue: PikachuTheme.warningText
+        case .status(let status) where status.isRunning: PikachuTheme.runningText
+        case .unreadCompletion: PikachuTheme.infoText
+        case .status(.draft): PikachuTheme.draftText
+        default: PikachuTheme.secondaryText
+        }
+    }
+
+    var dotColor: Color {
+        switch self {
+        case .status(let status) where status.needsAction: PikachuTheme.sidebarWarningDot
+        case .reminderDue: PikachuTheme.sidebarWarningDot
+        case .status(let status) where status.isRunning: PikachuTheme.sidebarRunningDot
+        case .unreadCompletion: PikachuTheme.sidebarUnreadDot
+        default: color
+        }
+    }
+
+    var inlineLabel: String? {
+        switch self {
+        case .status(.awaitingApproval), .status(.awaitingInput): label
+        default: nil
+        }
+    }
+
+    // The first entry is the card's only dot; all entries remain available in the details.
+    static func ordered(execution: SidebarSessionStatus?, needsReview: Bool, hasDraft: Bool,
+                        unread: Bool, reminder: SessionReminderState) -> [Self] {
+        var indicators: [Self] = []
+        if let execution, execution.needsAction { indicators.append(.status(execution)) }
+        if needsReview, execution != .review { indicators.append(.status(.review)) }
+        if reminder == .due { indicators.append(.reminderDue) }
+        if let execution, execution.isRunning { indicators.append(.status(execution)) }
+        if unread { indicators.append(.unreadCompletion) }
+        if let execution, !execution.needsAction && !execution.isRunning { indicators.append(.status(execution)) }
+        if hasDraft, execution != .draft { indicators.append(.status(.draft)) }
+        if case .snoozed(let date) = reminder { indicators.append(.reminderSnoozed(date)) }
+        return indicators
+    }
+}
+
 private struct SidebarSessionCard: View {
     @Environment(\.pikachuTypography) private var typography
     let workspace: WorkspaceController
@@ -468,27 +524,21 @@ private struct SidebarSessionCard: View {
     @State private var isHovered = false
     @State private var reminderPresented = false
     private var timeWidth: CGFloat { typography.sidebarTimeWidth }
-    private let actionWidth: CGFloat = 24
-
-    private var status: SidebarSessionStatus? {
-        SidebarSessionStatus.resolve(execution: workspace.execution(for: session.id),
-                                     needsReview: session.submissions.contains(where: \.needsReview),
-                                     hasDraft: workspace.hasDraft(session))
-    }
+    private var actionSlotWidth: CGFloat { 2 * IconButtonLabel.side + 3 }
+    private let horizontalInset: CGFloat = 8
+    private let openVerticalInset: CGFloat = 7
 
     private var showsActions: Bool {
         isHovered || focus.wrappedValue?.sessionID == session.id || reminderPresented
     }
 
-    private func statusLabel(for status: SidebarSessionStatus) -> some View {
-        Text(status.label)
-            .pikachuFont(.caption2)
-            .foregroundStyle(status.color)
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .frame(maxWidth: 68, alignment: .trailing)
-            .fixedSize()
-            .accessibilityIdentifier(status == .running ? "session-running" : "session-status-\(status.rawValue)")
+    private func indicators(reminder: SessionReminderState) -> [SidebarCardIndicator] {
+        let isOpen = session.sidebarStatus == .open
+        return SidebarCardIndicator.ordered(
+            execution: isOpen ? SidebarSessionStatus.resolve(execution: workspace.execution(for: session.id),
+                                                            needsReview: false, hasDraft: false) : nil,
+            needsReview: isOpen && session.submissions.contains(where: \.needsReview),
+            hasDraft: isOpen && workspace.hasDraft(session), unread: session.hasUnreadCompletion, reminder: reminder)
     }
 
     private var model: (provider: String?, name: String?) {
@@ -501,14 +551,58 @@ private struct SidebarSessionCard: View {
 
     private var modelHelp: String {
         let model = model
-        return [model.provider, model.name ?? String(localized: "模型未知")].compactMap { $0 }.joined(separator: " · ")
+        let providerName = model.provider?.lowercased() == "openai" ? "OpenAI" : model.provider
+        return [providerName, model.name ?? String(localized: "模型未知")].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    private var agentHelp: String {
+        let agentName = switch session.runtimeID {
+        case "pi": "Pi Coding Agent"
+        case "": String(localized: "未知")
+        default: session.runtimeID
+        }
+        return String(localized: "Agent：\(agentName)")
+    }
+
+    private var agentIcon: some View {
+        Group {
+            if session.runtimeID == "pi" {
+                Image("PiAgentLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 17, height: 17)
+            } else {
+                Image(systemName: "terminal")
+                    .font(.system(size: 11))
+                    .frame(width: 13, height: 13)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var modelAndAgentIcons: some View {
+        HStack(spacing: 5) {
+            ProviderLogo(provider: model.provider ?? "")
+            agentIcon
+        }
+        .foregroundStyle(PikachuTheme.tertiaryText)
     }
 
     var body: some View {
+        let now = Date.now
+        let reminder = session.reminderState(at: now)
+        let dates: [Date] = if case .snoozed(let deadline) = reminder { [now, deadline] } else { [now] }
+        TimelineView(.explicit(dates)) { context in
+            card(reminder: session.reminderState(at: context.date))
+        }
+    }
+
+    private func card(reminder: SessionReminderState) -> some View {
         let shape = RoundedRectangle(cornerRadius: 8)
-        Group {
+        let indicators = indicators(reminder: reminder)
+        return Group {
             if session.sidebarStatus == .open {
-                selectionButton
+                selectionButton(indicators: indicators)
                     .accessibilityActions {
                         if workspace.initialized && workspace.storageError == nil {
                             Button("暂缓提醒") { reminderPresented = true }
@@ -518,149 +612,202 @@ private struct SidebarSessionCard: View {
                         }
                     }
                     .overlay(alignment: .topTrailing) {
-                        HStack(spacing: 4) {
-                            actions
-                            if let status {
-                                statusLabel(for: status).hidden().allowsHitTesting(false).accessibilityHidden(true)
-                            }
-                            Color.clear.frame(width: timeWidth, height: 24).allowsHitTesting(false)
-                        }
-                        .padding(.top, 4).padding(.trailing, 8)
+                        actions(reminder: reminder)
+                            .frame(width: actionSlotWidth, alignment: .trailing)
+                            .padding(.top, openVerticalInset).padding(.trailing, horizontalInset)
                     }
             } else {
-                selectionButton
+                selectionButton(indicators: indicators)
                     .accessibilityAction(named: Text("移回待处理")) { move(to: .open) }
                     .overlay(alignment: .trailing) {
-                        HStack(spacing: 7) {
-                            Button {
-                                move(to: .open)
-                            } label: {
-                                Image(systemName: "arrow.uturn.backward")
-                                    .foregroundStyle(PikachuTheme.tertiaryText)
-                                    .frame(width: actionWidth, height: 24)
-                            }
-                            .buttonStyle(FlatControlButtonStyle(inset: false))
-                            .focused(focus, equals: .reopen(session.id))
-                            .disabled(!showsActions)
-                            .opacity(showsActions ? 1 : 0)
-                            .allowsHitTesting(showsActions)
-                            .accessibilityHidden(!showsActions)
-                            .help("移回待处理")
-                            .accessibilityLabel("移回待处理")
-                            Color.clear.frame(width: timeWidth, height: 24).allowsHitTesting(false)
+                        Button {
+                            move(to: .open)
+                        } label: {
+                            IconButtonLabel(systemName: "arrow.uturn.backward")
+                                .foregroundStyle(PikachuTheme.secondaryText)
                         }
-                        .padding(.trailing, 8)
+                        .buttonStyle(FlatControlButtonStyle(inset: false))
+                        .focused(focus, equals: .reopen(session.id))
+                        .disabled(!showsActions)
+                        .opacity(showsActions ? 1 : 0)
+                        .allowsHitTesting(showsActions)
+                        .accessibilityHidden(!showsActions)
+                        .help("移回待处理")
+                        .accessibilityLabel("移回待处理")
+                        .padding(.trailing, horizontalInset)
                     }
             }
         }
         .background(cardFill, in: shape)
         .overlay {
-            if focus.wrappedValue == .session(session.id) {
-                shape.strokeBorder(PikachuTheme.focusBorder, lineWidth: 1)
+            let focused = focus.wrappedValue == .session(session.id)
+            if focused || selected {
+                shape.strokeBorder(focused ? PikachuTheme.focusBorder : PikachuTheme.border, lineWidth: 1)
                     .allowsHitTesting(false)
             }
+        }
+        .background {
+            SidebarHoverPanel(active: isHovered && !reminderPresented, content: hoverCard(indicators: indicators))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .onHover { isHovered = $0 }
     }
 
     private var cardFill: Color {
-        if selected { return PikachuTheme.selected }
-        if isHovered { return PikachuTheme.hover }
+        if selected { return PikachuTheme.sidebarRowSelected }
+        if isHovered || reminderPresented { return PikachuTheme.sidebarRowHover }
         return .clear
     }
 
-    private var selectionButton: some View {
+    private func selectionButton(indicators: [SidebarCardIndicator]) -> some View {
         Button {
             DiagnosticMetrics.shared.record("history-select", tag: session.id.uuidString)
-            Task { await workspace.select(session.id) }
+            Task { await workspace.openSessionForReview(session.id) }
         } label: {
             Group {
                 if session.sidebarStatus == .open {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 4) {
-                            ViewThatFits(in: .horizontal) {
-                                HStack(spacing: 5) {
-                                    projectBadge
-                                    Text(project.name).pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
-                                }
-                                .fixedSize(horizontal: true, vertical: false)
-                                projectBadge
+                            HStack(spacing: 5) {
+                                projectBadge.fixedSize()
+                                Text(verbatim: project.displayName)
+                                    .pikachuFont(.caption)
+                                    .foregroundStyle(PikachuTheme.secondaryText)
+                                    .lineLimit(1)
                             }
                             Spacer(minLength: 0)
-                            Color.clear.frame(width: actionWidth * 2 + 3, height: 18)
-                            if let status { statusLabel(for: status) }
-                            activityTime
+                            activitySlot
                         }
-                        .frame(minHeight: 24)
+                        .frame(minHeight: IconButtonLabel.side)
                         HStack(spacing: 5) {
-                            Text(session.displayTitle).pikachuFont(.callout, weight: selected ? .semibold : .medium).lineLimit(1)
+                            statusDot(indicators.first)
+                            Text(session.displayTitle).pikachuFont(.callout, weight: selected ? .medium : .regular).lineLimit(1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            ProviderLogo(provider: model.provider ?? "")
-                                .foregroundStyle(PikachuTheme.secondaryText)
-                                .help(modelHelp)
+                            if let indicator = indicators.first, let label = indicator.inlineLabel {
+                                Text(label)
+                                    .pikachuFont(.caption2, weight: .medium)
+                                    .foregroundStyle(indicator.color)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .accessibilityHidden(true)
+                            }
+                            modelAndAgentIcons
                         }
                     }
                 } else {
                     HStack(spacing: 7) {
                         projectBadge
+                        statusDot(indicators.first)
                         Text(session.displayTitle).pikachuFont(.callout, weight: selected ? .medium : .regular).lineLimit(1)
+                            .foregroundStyle(selected || isHovered ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Color.clear.frame(width: actionWidth, height: 18)
-                        activityTime
+                        modelAndAgentIcons
+                        activitySlot
                     }
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, session.sidebarStatus == .open ? 4 : 3)
-            .frame(minHeight: session.sidebarStatus == .settled ? 24 : nil)
+            .padding(.horizontal, horizontalInset)
+            .padding(.vertical, session.sidebarStatus == .open ? openVerticalInset : 5)
+            .frame(minHeight: session.sidebarStatus == .settled ? 30 : nil)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .focused(focus, equals: .session(session.id))
-        .help("\(project.name) · \(session.displayTitle)")
-        .accessibilityLabel("\(project.name)，\(session.displayTitle)")
-        .accessibilityValue(accessibilityDetails)
+        .accessibilityLabel("\(project.displayName)，\(session.displayTitle)")
+        .accessibilityValue((indicators.map(\.label) + [fullActivityTime, modelHelp, agentHelp])
+            .joined(separator: String(localized: "，")))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityIdentifier("session-\(session.id)")
     }
 
-    private var accessibilityDetails: String {
+    @ViewBuilder private func statusDot(_ indicator: SidebarCardIndicator?) -> some View {
+        if let indicator {
+            Circle()
+                .fill(indicator.dotColor)
+                .frame(width: 7, height: 7)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var fullActivityTime: String {
         let time = session.activity.date.formatted(date: .abbreviated, time: .shortened)
-        let timeLabel = session.activity.isEstimate ? String(localized: "近似时间，\(time)") : time
-        guard session.sidebarStatus == .open else { return timeLabel }
-        return [status.map { String(localized: $0.label) }, timeLabel, modelHelp].compactMap { $0 }.joined(separator: String(localized: "，"))
+        return session.activity.isEstimate ? String(localized: "近似时间：\(time)") : time
+    }
+
+    private func hoverCard(indicators: [SidebarCardIndicator]) -> some View {
+        VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
+            Text(verbatim: session.displayTitle)
+                .anchoredCardTitle()
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                ProjectBadge(project: project, compact: true)
+                Text(verbatim: project.displayName)
+            }
+            HStack(spacing: 6) {
+                ProviderLogo(provider: model.provider ?? "")
+                Text(verbatim: modelHelp)
+            }
+            HStack(spacing: 6) {
+                agentIcon
+                Text(verbatim: agentHelp)
+            }
+            ForEach(indicators.indices, id: \.self) { index in
+                let indicator = indicators[index]
+                Label(indicator.label, systemImage: "circle.fill")
+                    .foregroundStyle(indicator.color)
+            }
+            Label(fullActivityTime, systemImage: "clock")
+        }
+        .pikachuFont(.caption)
+        .foregroundStyle(PikachuTheme.secondaryText)
+        .lineLimit(1)
+        .frame(width: 220, alignment: .leading)
+        .padding(AnchoredCardStyle.inset)
+        .flatSurface(radius: AnchoredCardStyle.cornerRadius)
+        .environment(\.pikachuTypography, typography)
+        .accessibilityHidden(true)
     }
 
     private var projectBadge: some View {
-        ProjectBadge(name: project.name, compact: session.sidebarStatus == .settled)
-            .help("\(project.name) · \(project.path)")
+        let isSettled = session.sidebarStatus == .settled
+        return ProjectBadge(project: project, compact: isSettled, muted: isSettled && !isHovered && !selected)
+    }
+
+    private var activitySlot: some View {
+        let isOpen = session.sidebarStatus == .open
+        // Reserve the action width only while the buttons are visible.
+        let slotWidth = isOpen ? (showsActions ? actionSlotWidth : nil) : timeWidth
+        return activityTime
+            .frame(width: slotWidth, alignment: .trailing)
+            .opacity(showsActions ? 0 : 1)
+            .accessibilityHidden(true)
     }
 
     private var activityTime: some View {
         let activity = session.activity
         let date = activity.date
         let format: Date.FormatStyle = Calendar.current.isDateInToday(date) ? .dateTime.hour().minute() : .dateTime.month().day()
-        let fullTime = date.formatted(date: .abbreviated, time: .shortened)
         return Text(date, format: format)
             .pikachuFont(.caption2)
             .foregroundStyle(PikachuTheme.tertiaryText)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .frame(width: timeWidth, alignment: .trailing)
-            .help(activity.isEstimate ? String(localized: "近似时间：\(fullTime)") : fullTime)
+            .frame(maxWidth: timeWidth, alignment: .trailing)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
-    private var actions: some View {
+    private func actions(reminder: SessionReminderState) -> some View {
         let blocked = workspace.settleBlockReason(for: session)
         return HStack(spacing: 3) {
-            SidebarReminderMenu(workspace: workspace, session: session, width: actionWidth, showsAction: showsActions,
+            SidebarReminderMenu(workspace: workspace, sessionID: session.id, state: reminder, showsAction: showsActions,
                                 isPresented: $reminderPresented, focus: focus)
             Button {
                 move(to: .settled)
             } label: {
-                Image(systemName: "checkmark.circle")
+                IconButtonLabel(systemName: "checkmark.circle")
                     .foregroundStyle(PikachuTheme.secondaryText)
-                    .frame(width: actionWidth, height: 24)
             }
             .buttonStyle(FlatControlButtonStyle(inset: false))
             .focused(focus, equals: .settle(session.id))
@@ -687,96 +834,93 @@ private struct SidebarSessionCard: View {
 
 struct ProjectBadge: View {
     @Environment(\.pikachuTypography) private var typography
-    let name: String
+    let project: ProjectRecord
     var compact = false
+    var muted = false
 
     var body: some View {
         let regularSize = typography.projectBadgeSize
         let width = compact ? typography.projectBadgeCompactSize : regularSize.width
         let height = compact ? typography.projectBadgeCompactSize : regularSize.height
-        Text(String(name.prefix(2)))
+        Text(verbatim: project.name.prefix(2).uppercased())
             .pikachuFont(.badge, weight: .semibold)
             .lineLimit(1)
             .minimumScaleFactor(0.65)
             .frame(width: width, height: height)
-            .foregroundStyle(compact ? PikachuTheme.tertiaryText : PikachuTheme.accentText)
-            .background(PikachuTheme.selected, in: .rect(cornerRadius: 4))
+            .foregroundStyle(tint)
+            .background(tint.opacity(0.14), in: .rect(cornerRadius: 4))
             .accessibilityHidden(true)
+    }
+
+    private var tint: Color {
+        muted ? PikachuTheme.tertiaryText : PikachuTheme.projectTint(id: project.id)
     }
 }
 
 private struct SidebarReminderMenu: View {
     let workspace: WorkspaceController
-    let session: SessionReference
-    let width: CGFloat
+    let sessionID: UUID
+    let state: SessionReminderState
     let showsAction: Bool
     @Binding var isPresented: Bool
     let focus: FocusState<SidebarFocus?>.Binding
 
     var body: some View {
-        let now = Date.now
-        if case .snoozed(let date) = session.reminderState(at: now) {
-            TimelineView(.explicit([now, date])) { menu(for: session.reminderState(at: $0.date)) }
-        } else {
-            menu(for: session.reminderState(at: now))
-        }
-    }
-
-    private func menu(for state: SessionReminderState) -> some View {
         let presentation = switch state {
         case .none: ("bell", String(localized: "暂缓提醒"))
-        case .snoozed(let date): ("bell.slash", String(localized: "暂缓至 \(date.formatted(date: .abbreviated, time: .shortened))"))
-        case .due: ("bell.badge.fill", String(localized: "提醒已到期"))
+        case .snoozed(let date): ("bell.slash", SidebarCardIndicator.reminderSnoozed(date).label)
+        case .due: ("bell.badge.fill", SidebarCardIndicator.reminderDue.label)
         }
         let visible = showsAction
         return FlatMenu(width: 166, presentation: $isPresented) {
-            Image(systemName: presentation.0)
+            IconButtonLabel(systemName: presentation.0)
                 .foregroundStyle(state == .none ? PikachuTheme.secondaryText : PikachuTheme.warningText)
-                .frame(width: width, height: 24)
                 .background(state == .none ? Color.clear : PikachuTheme.warningSurface, in: .rect(cornerRadius: 5))
         } content: { select in
-            Button { select { setDeadline(Date.now.addingTimeInterval(3600)) } } label: {
-                FlatMenuRow(title: Text("1 小时后"))
-            }
-            Button {
-                select {
-                    let calendar = Calendar.current
-                    if let tomorrow = calendar.date(byAdding: .day, value: 1, to: .now),
-                       let morning = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) {
-                        setDeadline(morning)
-                    }
-                }
-            } label: {
-                FlatMenuRow(title: Text("明天 09:00"))
-            }
-            if state != .none {
-                PikachuDivider()
-                Button { select { setDeadline(nil) } } label: {
-                    FlatMenuRow(title: Text(state == .due ? "取消提醒" : "取消暂缓"))
-                }
-            }
+            SessionReminderMenuActions(workspace: workspace, sessionID: sessionID, state: state, select: select)
         }
         .fixedSize()
-        .focused(focus, equals: .remind(session.id))
+        .focused(focus, equals: .remind(sessionID))
         .disabled(!visible || !workspace.initialized || workspace.storageError != nil)
         .opacity(visible ? 1 : 0)
         .allowsHitTesting(visible)
         .accessibilityHidden(!visible)
         .help(presentation.1)
         .accessibilityLabel(presentation.1)
-        .overlay {
-            if !visible && state != .none {
-                Circle()
-                    .fill(PikachuTheme.warningText)
-                    .frame(width: 6, height: 6)
-                    .help(presentation.1)
-                    .accessibilityLabel(presentation.1)
+    }
+}
+
+struct SessionReminderMenuActions: View {
+    let workspace: WorkspaceController
+    let sessionID: UUID
+    let state: SessionReminderState
+    let select: (@escaping () -> Void) -> Void
+
+    var body: some View {
+        Button { select { setDeadline(Date.now.addingTimeInterval(3600)) } } label: {
+            FlatMenuRow(title: Text("1 小时后"))
+        }
+        Button {
+            select {
+                let calendar = Calendar.current
+                if let tomorrow = calendar.date(byAdding: .day, value: 1, to: .now),
+                   let morning = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) {
+                    setDeadline(morning)
+                }
+            }
+        } label: {
+            FlatMenuRow(title: Text("明天 09:00"))
+        }
+        if state != .none {
+            PikachuDivider()
+            Button { select { setDeadline(nil) } } label: {
+                FlatMenuRow(title: Text(state == .due ? "取消提醒" : "取消暂缓"))
             }
         }
     }
 
     private func setDeadline(_ deadline: Date?) {
-        Task { await workspace.setSessionReminder(session.id, until: deadline) }
+        Task { await workspace.setSessionReminder(sessionID, until: deadline) }
     }
 }
 
@@ -816,10 +960,8 @@ private struct SidebarIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .pikachuFont(.callout)
+            IconButtonLabel(systemName: symbol)
                 .foregroundStyle(PikachuTheme.secondaryText)
-                .frame(width: 25, height: 26)
         }
         .buttonStyle(FlatControlButtonStyle(inset: false))
         .help(Text(title))

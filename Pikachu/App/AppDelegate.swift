@@ -85,6 +85,11 @@ import UserNotifications
         revealWorkbench(in: NSApp)
     }
 
+    func toggleWorkbenchFullScreen() {
+        guard let window = workbenchWindow, window.isKeyWindow, window.attachedSheet == nil else { return }
+        window.toggleFullScreen(nil)
+    }
+
     func attachWorkbenchWindow(_ window: NSWindow) {
         workbenchWindow = window
         if pendingReveal {

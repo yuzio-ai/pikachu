@@ -69,6 +69,10 @@ import OrchestrationCore
                 .keyboardShortcut("0", modifiers: .command)
                 .disabled(settings.interfaceFontSize == .standard)
             }
+            CommandGroup(after: .windowSize) {
+                Button("切换工作台全屏") { delegate.toggleWorkbenchFullScreen() }
+                    .keyboardShortcut("f", modifiers: [.control, .command])
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("设置…") { openSettingsRequest += 1 }
                     .keyboardShortcut(",", modifiers: .command)
