@@ -1,5 +1,28 @@
 import SwiftUI
 
+struct ToolCallIcon: View {
+    var tool: String? = nil
+
+    private var assetName: String {
+        switch tool {
+        case "read", "pikachu_read": "ToolCallFile"
+        case "grep", "pikachu_grep": "ToolCallFileSearch"
+        case "edit", "pikachu_edit": "ToolCallFileCode"
+        case "bash", "pikachu_bash": "ToolCallTerminal"
+        default: "ToolCallCodeSparkle"
+        }
+    }
+
+    var body: some View {
+        Image(assetName)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 19, height: 19)
+            .accessibilityHidden(true)
+    }
+}
+
 struct GitBranchIcon: View {
     var body: some View {
         Canvas { context, size in
