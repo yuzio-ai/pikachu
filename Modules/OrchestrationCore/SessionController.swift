@@ -121,7 +121,16 @@ public struct TranscriptToolSummary: Equatable {
     public private(set) var queue = RuntimeQueue()
     public private(set) var queueIsKnown = true
     public private(set) var recoveredDrafts: [PendingPrompt] = []
-    public private(set) var failure: RuntimeFailure?
+    public private(set) var failure: RuntimeFailure? {
+        didSet { failedModelInput = nil }
+    }
+    private var failedModelInput: TranscriptItem?
+    public var retryableModelPrompt: UserPrompt? {
+        guard connection == .connected, phase == .idle, !commandPending,
+              queueIsKnown, queue.isEmpty, interactions.isEmpty,
+              failedModelInput?.delivery == .accepted else { return nil }
+        return failedModelInput?.submission
+    }
     public private(set) var notice: String?
     private var regularPending = false
     private var stopPending = false
@@ -549,6 +558,7 @@ public struct TranscriptToolSummary: Equatable {
             }
             return
         }
+        failedModelInput = nil
         let turn = TurnRecord(id: UUID(), status: .running, startedAt: clock.now(), monotonicStart: clock.monotonicNow())
         turn.anchorUserTimestampMs = user?.messageTimestampMs
         activeTurn = turn
@@ -750,6 +760,9 @@ public struct TranscriptToolSummary: Equatable {
         } else {
             turn.endedAt = nil
             turn.durationSeconds = nil
+        }
+        if status == .failed, failure?.kind == .model {
+            failedModelInput = activeTurnUser
         }
         activeTurn = nil
         activeTurnUser = nil

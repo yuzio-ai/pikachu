@@ -338,6 +338,22 @@ private final class ControlledRuntime: AgentRuntime, @unchecked Sendable {
         }
     }
 
+    func testConfirmedModelFailureOffersOriginalInputForRetry() async {
+        let runtime = ControlledRuntime(), store = SessionController()
+        await store.connect(runtime)
+        let input = UserPrompt(text: "Original task", mode: .steer)
+        await store.sendDraft(input)
+        func receive(_ event: AgentEvent) { store.receive(.init(instanceID: runtime.instanceID, event: event)) }
+        receive(.failure(.init(.model, "Rate limited")))
+        XCTAssertNil(store.retryableModelPrompt)
+        receive(.settled(aborted: false))
+        XCTAssertEqual(store.retryableModelPrompt?.id, input.id)
+        XCTAssertEqual(store.retryableModelPrompt?.text, input.text)
+        receive(.phase(.running))
+        XCTAssertNil(store.retryableModelPrompt)
+        _ = await store.disconnect()
+    }
+
     func testMapperPartialToolResultReplacesPreviousSnapshot() {
         var mapper = PiEventMapper()
         _ = mapper.map(["type":"tool_execution_start","toolCallId":"id","toolName":"bash","args":["command":"echo hi"]])
