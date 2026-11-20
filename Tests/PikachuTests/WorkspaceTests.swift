@@ -277,26 +277,88 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         let runtime = WorkspaceTestRuntime()
         let workspace = WorkspaceController(store: MemoryWorkspaceStore(), reader: PiHistoryReader(roots: [])) { _, _ in runtime }
         var received: [TurnRecord] = []
-        workspace.onLiveTurnFinished = { received.append($0) }
+        var notificationSessions: [UUID] = []
+        workspace.onLiveTurnFinished = { id, turn in
+            notificationSessions.append(id)
+            received.append(turn)
+        }
         await workspace.start()
-        _ = await workspace.addProject(root)
+        let projectID = await workspace.addProject(root)
         XCTAssertTrue(received.isEmpty)
 
         let session = try XCTUnwrap(workspace.state.selectedSessionID)
         let activated = await workspace.activate(session)
         XCTAssertTrue(activated)
         let controller = try XCTUnwrap(workspace.execution(for: session))
+        let project = try XCTUnwrap(projectID)
+        let other = await workspace.createSession(in: project)
+        XCTAssertEqual(workspace.state.selectedSessionID, other)
         for aborted in [false, true] {
             controller.receive(.init(instanceID: runtime.instanceID, event: .phase(.running)))
             let finished = RuntimeEnvelope(instanceID: runtime.instanceID, event: .settled(aborted: aborted))
             controller.receive(finished)
             controller.receive(finished)
         }
+        XCTAssertEqual(notificationSessions, [session, session])
         XCTAssertEqual(received.map(\.status), [.completed, .stopped])
         XCTAssertEqual(Set(received.map(\.id)).count, 2)
         XCTAssertTrue(received.allSatisfy { $0.endedAt != nil })
         XCTAssertEqual(workspace.state.sessions.first?.recordedTurns?.map(\.id), received.map(\.id))
         _ = await workspace.disconnectAll()
+    }
+
+    func testSidebarCompletionStaysUnreadUntilCardOpens() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = WorkspaceTestRuntime()
+        let store = MemoryWorkspaceStore()
+        let reader = PiHistoryReader(roots: [])
+        let workspace = WorkspaceController(store: store, reader: reader) { _, _ in runtime }
+        await workspace.start()
+        let projectID = await workspace.addProject(root)
+        let id = try XCTUnwrap(workspace.selected?.id)
+        let activated = await workspace.activate(id)
+        XCTAssertTrue(activated)
+        let controller = try XCTUnwrap(workspace.execution(for: id))
+
+        func finish(aborted: Bool) {
+            controller.receive(.init(instanceID: runtime.instanceID, event: .phase(.running)))
+            controller.receive(.init(instanceID: runtime.instanceID, event: .settled(aborted: aborted)))
+        }
+
+        finish(aborted: true)
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, false)
+        finish(aborted: false)
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, true)
+        let firstCompletion = try XCTUnwrap(workspace.selected?.recordedTurns?.last?.id)
+        await workspace.openSessionForReview(id) // Clicking an already selected card also acknowledges it.
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, false)
+
+        let group = try XCTUnwrap(projectID)
+        let other = await workspace.createSession(in: group)
+        XCTAssertNotEqual(workspace.state.selectedSessionID, id)
+        finish(aborted: false)
+        XCTAssertEqual(workspace.state.sessions.first(where: { $0.id == id })?.hasUnreadCompletion, true)
+        XCTAssertEqual(workspace.state.sessions.first(where: { $0.id == other })?.hasUnreadCompletion, false)
+        await workspace.select(id) // Restoring a selection is not an explicit card open.
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, true)
+        await workspace.openSessionForReview(id, acknowledging: firstCompletion)
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, true, "An old notification must not clear a newer completion")
+        await workspace.openSessionForReview(id, acknowledging: nil)
+        XCTAssertEqual(workspace.selected?.hasUnreadCompletion, true, "An approval must not clear a completion")
+        _ = await workspace.disconnectAll()
+        let saved = await workspace.flush()
+        XCTAssertTrue(saved)
+
+        let reopened = WorkspaceController(store: store, reader: reader) { _, _ in FakeRuntime() }
+        await reopened.start()
+        XCTAssertEqual(reopened.selected?.hasUnreadCompletion, true)
+        await reopened.openSessionForReview(id)
+        XCTAssertEqual(reopened.selected?.hasUnreadCompletion, false)
+        let acknowledged = await reopened.flush()
+        XCTAssertTrue(acknowledged)
+        let persisted = await store.load()
+        XCTAssertEqual(persisted.sessions.first(where: { $0.id == id })?.hasUnreadCompletion, false)
     }
 
     func testLegacySidebarFieldsDecodeAndMigrationPreservesInterruptedWork() async throws {
@@ -327,6 +389,7 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
         await workspace.start()
         XCTAssertEqual(workspace.state.sessions.map(\.sidebarStatus), [.settled, .open, .open, .open])
+        XCTAssertFalse(workspace.state.sessions.contains(where: \.hasUnreadCompletion))
         XCTAssertEqual(workspace.state.sessions.first?.activity.date, legacyTime)
         XCTAssertEqual(workspace.state.sessions.first?.activity.isEstimate, true)
         XCTAssertEqual(workspace.state.sessions.last?.submissions.first?.needsReview, true)
@@ -787,6 +850,62 @@ private actor DelayedProjectConfigStore: WorkspaceStore {
         await workspace.select(second); XCTAssertEqual(workspace.viewed!.controller.draft, "second draft")
         _ = await workspace.disconnectAll()
     }
+    func testRenamePersistsForTargetSessionAndTakesPriorityOverAutomaticTitle() async throws {
+        let store = MemoryWorkspaceStore()
+        let reader = PiHistoryReader(roots: [])
+        let workspace = WorkspaceController(store: store, reader: reader) { _, _ in FakeRuntime() }
+        await workspace.start()
+        let added = await workspace.addProject(try directory())
+        let project = try XCTUnwrap(added)
+        let first = try XCTUnwrap(workspace.selected)
+        let created = await workspace.createSession(in: project)
+        let second = try XCTUnwrap(created)
+        let secondTitle = try XCTUnwrap(workspace.selected?.displayTitle)
+
+        let renamed = await workspace.renameSession(first.id, to: "  Release notes \n")
+        XCTAssertTrue(renamed)
+        XCTAssertEqual(workspace.state.sessions.first { $0.id == first.id }?.displayTitle, "Release notes")
+        XCTAssertEqual(workspace.selected?.id, second)
+        XCTAssertEqual(workspace.selected?.displayTitle, secondTitle)
+        XCTAssertTrue(workspace.executionIDs.isEmpty)
+
+        let snapshot = await store.load()
+        let decoded = try JSONDecoder().decode(WorkspaceSnapshot.self, from: JSONEncoder().encode(snapshot))
+        let reopened = WorkspaceController(store: MemoryWorkspaceStore(decoded), reader: reader) { _, _ in FakeRuntime() }
+        await reopened.start()
+        await reopened.select(first.id)
+        XCTAssertEqual(reopened.selected?.displayTitle, "Release notes")
+        await reopened.send(first.id, submitted: UserPrompt(text: "/handled"))
+        XCTAssertEqual(reopened.selected?.title, "/handled")
+        XCTAssertEqual(reopened.selected?.displayTitle, "Release notes")
+        _ = await reopened.disconnectAll()
+    }
+
+    func testRenameRejectsBlankTitleAndDoesNotPublishOnSaveFailure() async throws {
+        let store = MemoryWorkspaceStore()
+        let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
+        await workspace.start()
+        _ = await workspace.addProject(try directory())
+        let original = try XCTUnwrap(workspace.selected)
+
+        let blank = await workspace.renameSession(original.id, to: " \t\n")
+        XCTAssertFalse(blank)
+        XCTAssertEqual(workspace.selected?.displayTitle, original.displayTitle)
+        XCTAssertNil(workspace.storageError)
+
+        await store.setFailure(true)
+        let failed = await workspace.renameSession(original.id, to: "Renamed")
+        XCTAssertFalse(failed)
+        XCTAssertEqual(workspace.selected?.displayTitle, original.displayTitle)
+        XCTAssertNotNil(workspace.storageError)
+
+        await store.setFailure(false)
+        let retried = await workspace.renameSession(original.id, to: "Renamed")
+        XCTAssertTrue(retried)
+        XCTAssertEqual(workspace.selected?.displayTitle, "Renamed")
+        XCTAssertNil(workspace.storageError)
+    }
+
     func testFlushPersistsDraftEditedBeforeChangingSelection() async throws {
         let store = MemoryWorkspaceStore()
         let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in WorkspaceTestRuntime() }

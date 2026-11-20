@@ -26,6 +26,43 @@ enum InterfaceLanguage: String, CaseIterable {
     }
 }
 
+enum TaskNotificationDestination: Equatable, Sendable {
+    case session(UUID, turnID: UUID?), legacyTurn(UUID)
+
+    private static let sessionKey = "sessionID"
+
+    static func payload(sessionID: UUID) -> [String: String] {
+        [sessionKey: sessionID.uuidString]
+    }
+
+    init?(actionIdentifier: String, requestIdentifier: String, userInfo: [AnyHashable: Any]) {
+        guard actionIdentifier == UNNotificationDefaultActionIdentifier else { return nil }
+        if let value = userInfo[Self.sessionKey] {
+            guard let raw = value as? String, let id = UUID(uuidString: raw) else { return nil }
+            self = .session(id, turnID: UUID(uuidString: requestIdentifier))
+        } else if let id = UUID(uuidString: requestIdentifier) {
+            // Previously delivered completion notifications used the turn ID as their only identifier.
+            self = .legacyTurn(id)
+        } else {
+            return nil
+        }
+    }
+
+    var turnID: UUID? {
+        switch self {
+        case .session(_, let turnID): turnID
+        case .legacyTurn(let id): id
+        }
+    }
+
+    func sessionID(in sessions: [SessionReference]) -> UUID? {
+        switch self {
+        case .session(let id, _): sessions.first(where: { $0.id == id })?.id
+        case .legacyTurn(let id): sessions.first(where: { $0.recordedTurns?.contains(where: { $0.id == id }) == true })?.id
+        }
+    }
+}
+
 @MainActor @Observable final class TaskNotifications {
     private static let preference = "task-end-notifications-enabled"
     private let center = UNUserNotificationCenter.current()
@@ -72,32 +109,34 @@ enum InterfaceLanguage: String, CaseIterable {
         }
     }
 
-    func post(_ turn: TurnRecord) {
+    func post(_ turn: TurnRecord, sessionID: UUID) {
         guard turn.endedAt != nil else { return }
         switch turn.status {
         case .completed:
-            post(id: turn.id.uuidString, title: String(localized: "任务已完成"),
+            post(id: turn.id.uuidString, sessionID: sessionID, title: String(localized: "任务已完成"),
                  body: String(localized: "返回 Pikachu 查看任务结果。"))
         case .failed:
-            post(id: turn.id.uuidString, title: String(localized: "任务执行失败"),
+            post(id: turn.id.uuidString, sessionID: sessionID, title: String(localized: "任务执行失败"),
                  body: String(localized: "返回 Pikachu 查看失败详情。"))
         case .running, .stopped, .uncertain: break
         }
     }
 
-    func postApproval(_ approval: RuntimeInteraction, from controller: SessionController) {
-        post(id: "approval:\(approval.id)", title: String(localized: "等待工具审批"),
+    func postApproval(_ approval: RuntimeInteraction, sessionID: UUID, from controller: SessionController) {
+        post(id: "approval:\(approval.id)", sessionID: sessionID, title: String(localized: "等待工具审批"),
              body: String(localized: "工具调用已暂停，请返回 Pikachu 审批。")) { [weak controller] in
             guard let controller, !controller.isStopping, approval.expiresAt > .now else { return false }
             return controller.interactions.contains { $0.id == approval.id }
         }
     }
 
-    private func post(id: String, title: String, body: String, isRelevant: @escaping @MainActor () -> Bool = { true }) {
+    private func post(id: String, sessionID: UUID, title: String, body: String,
+                      isRelevant: @escaping @MainActor () -> Bool = { true }) {
         guard enabled, !NSApp.isActive, isRelevant() else { return }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
+        content.userInfo = TaskNotificationDestination.payload(sessionID: sessionID)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         Task {
             let status = await center.notificationSettings().authorizationStatus

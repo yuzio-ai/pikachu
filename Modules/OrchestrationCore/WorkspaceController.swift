@@ -55,8 +55,8 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     public var newSessionRequest = 0
     public var openProjectRequest = 0
     public private(set) var completedTurnsByDirectory: [String: Int] = [:]
-    @ObservationIgnored public var onLiveTurnFinished: (@MainActor (TurnRecord) -> Void)?
-    @ObservationIgnored public var onLiveApprovalRequested: (@MainActor (RuntimeInteraction, SessionController) -> Void)?
+    @ObservationIgnored public var onLiveTurnFinished: (@MainActor (UUID, TurnRecord) -> Void)?
+    @ObservationIgnored public var onLiveApprovalRequested: (@MainActor (UUID, RuntimeInteraction, SessionController) -> Void)?
     public func focusInput() { inputFocusRequest += 1 }
     @ObservationIgnored private let store: any WorkspaceStore
     @ObservationIgnored private let reader: any RuntimeHistoryReader
@@ -278,6 +278,20 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         viewed = presentation(id); scheduleSave()
         await refreshHistory(id)
         trimHistoryCache(keeping: id)
+    }
+    public func openSessionForReview(_ id: UUID) async {
+        let completion = state.sessions.first(where: { $0.id == id })?.unreadCompletionTurnID
+        await openSessionForReview(id, acknowledging: completion)
+    }
+
+    /// A notification may refer to an older turn or to an approval, not to the latest completion.
+    public func openSessionForReview(_ id: UUID, acknowledging completion: UUID?) async {
+        await select(id)
+        // Do not acknowledge a newer completion that arrived during the history read.
+        guard let completion, state.selectedSessionID == id, let viewed, !viewed.loading, viewed.loadError == nil,
+              let index = state.sessions.firstIndex(where: { $0.id == id && $0.unreadCompletionTurnID == completion }) else { return }
+        state.sessions[index].unreadCompletionTurnID = nil
+        scheduleSave()
     }
     public func refreshHistory(_ id: UUID) async {
         guard let reference = state.sessions.first(where: { $0.id == id }) else { return }
@@ -918,6 +932,15 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         synchronize(id)
         return await flush()
     }
+    public func renameSession(_ id: UUID, to proposedTitle: String) async -> Bool {
+        let title = proposedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isShuttingDown, !title.isEmpty, state.sessions.contains(where: { $0.id == id }) else { return false }
+        return await saveSnapshot { snapshot in
+            guard let index = snapshot.sessions.firstIndex(where: { $0.id == id }) else { return }
+            snapshot.sessions[index].customTitle = title
+        }
+    }
+
     public func setPreferences(_ preferences: WorkspacePreferences) { state.preferences = preferences; scheduleSave() }
     @discardableResult public func flush() async -> Bool {
         await saveSnapshot()
@@ -1006,7 +1029,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         }
         view.controller.onApprovalRequested = { [weak self, weak controller = view.controller] request in
             guard let controller else { return }
-            self?.onLiveApprovalRequested?(request, controller)
+            self?.onLiveApprovalRequested?(id, request, controller)
         }
         view.controller.onTurnFinished = { [weak self] turn in
             guard let self, let i = self.state.sessions.firstIndex(where: { $0.id == id }) else { return }
@@ -1025,13 +1048,18 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             var turns = self.state.sessions[i].recordedTurns ?? []
             let existing = turns.firstIndex(where: { $0.id == record.id })
             if let existing { turns[existing] = record }
-            else { turns.append(record) }
+            else {
+                turns.append(record)
+                if record.status == .completed {
+                    self.state.sessions[i].unreadCompletionTurnID = record.id
+                }
+            }
             self.state.sessions[i].recordedTurns = turns
             if let path = self.workingDirectory(for: id) {
                 self.completedTurnsByDirectory[path, default: 0] += 1
             }
             self.scheduleSave()
-            if existing == nil { self.onLiveTurnFinished?(turn) }
+            if existing == nil { self.onLiveTurnFinished?(id, turn) }
         }
         view.controller.onUserMessageTimestamp = { [weak self] promptID, timestampMs in
             guard let self, let promptID, let i = self.state.sessions.firstIndex(where: { $0.id == id }) else { return }

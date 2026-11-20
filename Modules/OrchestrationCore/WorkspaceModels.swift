@@ -7,6 +7,11 @@ public struct ProjectRecord: Codable, Sendable, Identifiable, Equatable {
     public var path: String
     public var previousPaths: [String]
     public var lastViewed: Date
+
+    public var displayName: String {
+        name.prefix(1).uppercased() + name.dropFirst()
+    }
+
     public init(id: UUID = UUID(), path: String) {
         self.id = id; self.path = path; name = URL(fileURLWithPath: path).lastPathComponent
         previousPaths = []; lastViewed = Date()
@@ -93,6 +98,7 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
     public var file: URL?
     public var historyConfirmed: Bool? = false
     public var title: String
+    var customTitle: String?
     var attachmentTitleFilename: String?
     public var lastViewed: Date
     public var draft: String
@@ -111,6 +117,7 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
     var processingStatus: SessionProcessingStatus?
     var sidebarActivity: SessionActivity?
     var reminderDueAt: Date?
+    var unreadCompletionTurnID: UUID?
     public var recordedTurns: [RecordedTurnRecord]?
     public var recordedMessages: [RecordedMessageRecord]?
     public internal(set) var worktreePath: String?
@@ -123,6 +130,7 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
         boundWorkingDirectory ?? worktreePath ?? project.path
     }
     public var sidebarStatus: SessionProcessingStatus { processingStatus ?? .open }
+    public var hasUnreadCompletion: Bool { unreadCompletionTurnID != nil }
     public var activity: SessionActivity { sidebarActivity ?? .init(date: lastViewed, isEstimate: true) }
     public func reminderState(at date: Date) -> SessionReminderState {
         guard let reminderDueAt, sidebarStatus == .open else { return .none }
@@ -133,6 +141,7 @@ public struct SessionReference: Codable, Sendable, Identifiable, Equatable {
         .init(mode: executionMode, approval: approvalPolicies?[executionMode])
     }
     public var displayTitle: String {
+        if let customTitle { return customTitle }
         if let attachmentTitleFilename {
             return String(localized: "查看 \(attachmentTitleFilename)", bundle: #bundle)
         }

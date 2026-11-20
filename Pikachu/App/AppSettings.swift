@@ -135,11 +135,11 @@ import WorkspacePersistence
             workspace.setPreferences(migrated)
             _ = await workspace.flush()
         }
-        workspace.onLiveTurnFinished = { [weak notifications] turn in
-            notifications?.post(turn)
+        workspace.onLiveTurnFinished = { [weak notifications] sessionID, turn in
+            notifications?.post(turn, sessionID: sessionID)
         }
-        workspace.onLiveApprovalRequested = { [weak notifications] request, controller in
-            notifications?.postApproval(request, from: controller)
+        workspace.onLiveApprovalRequested = { [weak notifications] sessionID, request, controller in
+            notifications?.postApproval(request, sessionID: sessionID, from: controller)
         }
         if let initialWorkspace, workspace.initialized { _ = await workspace.addProject(initialWorkspace) }
         return workspace

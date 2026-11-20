@@ -3,8 +3,9 @@ import Observation
 import OrchestrationCore
 import OSLog
 import SwiftUI
+import UserNotifications
 
-@MainActor @Observable final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor @Observable final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private static let logger = Logger(subsystem: "ai.yuzio.pikachu", category: "WorkspaceStartup")
     private static let revealRequest = Notification.Name("ai.yuzio.pikachu.reveal-workbench")
     private static let revealTarget = String(ProcessInfo.processInfo.processIdentifier)
@@ -16,6 +17,7 @@ import SwiftUI
     @ObservationIgnored private var workspaceLock: WorkspaceLaunchLock?
     @ObservationIgnored private weak var workbenchWindow: NSWindow?
     @ObservationIgnored private var pendingReveal = false
+    @ObservationIgnored private var pendingNotificationDestination: TaskNotificationDestination?
     @ObservationIgnored private var approved = false
     @ObservationIgnored private var terminating = false
     @ObservationIgnored private var terminationRequest: (restarting: Bool, onCancel: () -> Void)?
@@ -37,9 +39,16 @@ import SwiftUI
             switch acquisition {
             case .acquired(let lock):
                 workspaceLock = lock
+                // Register before launch completes so a notification can open the app from a cold start.
+                UNUserNotificationCenter.current().delegate = self
                 Task {
-                    do { workspace = try await settings.bootstrap(with: lock) }
-                    catch { reportStartupError(error) }
+                    do {
+                        workspace = try await settings.bootstrap(with: lock)
+                        if let destination = pendingNotificationDestination {
+                            pendingNotificationDestination = nil
+                            await openNotificationDestination(destination)
+                        }
+                    } catch { reportStartupError(error) }
                 }
             case .heldBy(let pid):
                 if let owner = NSRunningApplication(processIdentifier: pid) {
@@ -54,6 +63,26 @@ import SwiftUI
         } catch {
             reportStartupError(error)
         }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let request = response.notification.request
+        guard let destination = TaskNotificationDestination(actionIdentifier: response.actionIdentifier,
+                                                            requestIdentifier: request.identifier,
+                                                            userInfo: request.content.userInfo) else { return }
+        await openNotificationDestination(destination)
+    }
+
+    private func openNotificationDestination(_ destination: TaskNotificationDestination) async {
+        guard !terminating, !approved else { return }
+        if let workspace {
+            if let id = destination.sessionID(in: workspace.state.sessions) {
+                await workspace.openSessionForReview(id, acknowledging: destination.turnID)
+            }
+        } else if startupError == nil {
+            pendingNotificationDestination = destination
+        }
+        revealWorkbench(in: NSApp)
     }
 
     func attachWorkbenchWindow(_ window: NSWindow) {
