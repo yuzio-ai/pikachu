@@ -783,24 +783,21 @@ private struct SidebarSessionCard: View {
                 .anchoredCardTitle()
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 6) {
+            hoverDetailRow(Text(verbatim: project.displayName)) {
                 ProjectBadge(project: project, compact: true)
-                Text(verbatim: project.displayName)
             }
-            HStack(spacing: 6) {
+            hoverDetailRow(Text(verbatim: modelHelp)) {
                 ProviderLogo(provider: model.provider ?? "")
-                Text(verbatim: modelHelp)
             }
-            HStack(spacing: 6) {
+            hoverDetailRow(Text(verbatim: agentHelp)) {
                 agentIcon
-                Text(verbatim: agentHelp)
             }
             ForEach(indicators.indices, id: \.self) { index in
                 let indicator = indicators[index]
-                Label(indicator.label, systemImage: "circle.fill")
+                hoverDetailRow(Text(indicator.label)) { Image(systemName: "circle.fill") }
                     .foregroundStyle(indicator.color)
             }
-            Label(fullActivityTime, systemImage: "clock")
+            hoverDetailRow(Text(verbatim: fullActivityTime)) { Image(systemName: "clock") }
         }
         .pikachuFont(.caption)
         .foregroundStyle(PikachuTheme.secondaryText)
@@ -808,6 +805,13 @@ private struct SidebarSessionCard: View {
         .frame(width: 220, alignment: .leading)
         .anchoredPreviewCard()
         .environment(\.pikachuTypography, typography)
+    }
+
+    private func hoverDetailRow<Icon: View>(_ title: Text, @ViewBuilder icon: () -> Icon) -> some View {
+        HStack(spacing: 6) {
+            icon().frame(width: typography.projectBadgeCompactSize)
+            title
+        }
     }
 
     private var projectBadge: some View {
