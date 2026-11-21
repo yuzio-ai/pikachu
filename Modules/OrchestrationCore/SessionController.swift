@@ -488,8 +488,6 @@ public struct TranscriptToolSummary: Equatable {
         notice == Self.expiredInteractionNotice ? nil : notice
     }
 
-    public func clearNotice() { notice = nil }
-
     private static var expiredInteractionNotice: String {
         String(localized: "扩展交互已过期，未提交过期回复。", bundle: #bundle)
     }

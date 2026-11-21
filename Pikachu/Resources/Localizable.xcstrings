@@ -1,9 +1,7 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
-    "" : {
-
-    },
+    "" : {},
     "，" : {
       "comment" : "Separator between transcript status phrases read by VoiceOver",
       "localizations" : {
@@ -431,17 +429,6 @@
         }
       }
     },
-    "Git 详情…" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Git Details…"
-          }
-        }
-      }
-    },
     "macOS 已关闭 Pikachu 的通知。" : {
       "localizations" : {
         "en" : {
@@ -662,17 +649,6 @@
         }
       }
     },
-    "不写入" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don’t Write"
-          }
-        }
-      }
-    },
     "不可用" : {
       "localizations" : {
         "en" : {
@@ -683,34 +659,12 @@
         }
       }
     },
-    "不编辑" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don’t Edit"
-          }
-        }
-      }
-    },
     "不足 1 秒" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Less than 1 second"
-          }
-        }
-      }
-    },
-    "不运行" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don’t Run"
           }
         }
       }
@@ -757,17 +711,6 @@
         }
       }
     },
-    "交互" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interactive"
-          }
-        }
-      }
-    },
     "交互执行" : {
       "localizations" : {
         "en" : {
@@ -778,34 +721,12 @@
         }
       }
     },
-    "仅允许一次" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow Once"
-          }
-        }
-      }
-    },
     "仅对新建会话生效，不影响已有会话。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Applies only to new sessions. Existing sessions are unchanged."
-          }
-        }
-      }
-    },
-    "仅提供读取及搜索工具。适用范围为工具能力。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tools can only read and search. This applies to tool capabilities."
           }
         }
       }
@@ -826,28 +747,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Favorites Only"
-          }
-        }
-      }
-    },
-    "仅读工具" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-Only Tools"
-          }
-        }
-      }
-    },
-    "仅运行一次" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run Once"
           }
         }
       }
@@ -1253,34 +1152,12 @@
         }
       }
     },
-    "允许写入" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow Write"
-          }
-        }
-      }
-    },
     "允许写入文件？" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Write this file?"
-          }
-        }
-      }
-    },
-    "允许列出目录" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow Directory Listing"
           }
         }
       }
@@ -1305,89 +1182,12 @@
         }
       }
     },
-    "允许本次写入" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow This Write"
-          }
-        }
-      }
-    },
-    "允许本次搜索" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow This Search"
-          }
-        }
-      }
-    },
-    "允许本次查找" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow This Lookup"
-          }
-        }
-      }
-    },
-    "允许本次编辑" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow This Edit"
-          }
-        }
-      }
-    },
-    "允许本次读取" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow This Read"
-          }
-        }
-      }
-    },
-    "允许本次运行" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run This Command Once"
-          }
-        }
-      }
-    },
     "允许查找文件？" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Find files?"
-          }
-        }
-      }
-    },
-    "允许编辑" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow Edit"
           }
         }
       }
@@ -1573,17 +1373,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Other Models"
-          }
-        }
-      }
-    },
-    "内置编辑、写入和命令工具逐项确认。读取和搜索可用。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Built-in edit, write, and command tools require individual approval. Reading and searching are available."
           }
         }
       }
@@ -1775,26 +1564,13 @@
         }
       }
     },
-    "切换工作台全屏" : {
-
-    },
+    "切换工作台全屏" : {},
     "切换执行模式" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Change Execution Mode"
-          }
-        }
-      }
-    },
-    "切换执行模式（影响工具权限）" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change execution mode (affects tool permissions)"
           }
         }
       }
@@ -2169,17 +1945,6 @@
         }
       }
     },
-    "受信任的 Pi 扩展" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trusted Pi Extensions"
-          }
-        }
-      }
-    },
     "受信任的扩展" : {
       "localizations" : {
         "en" : {
@@ -2410,17 +2175,6 @@
         }
       }
     },
-    "处理交互" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respond"
-          }
-        }
-      }
-    },
     "复制" : {
       "localizations" : {
         "en" : {
@@ -2521,17 +2275,6 @@
         }
       }
     },
-    "完成" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        }
-      }
-    },
     "完整输出" : {
       "localizations" : {
         "en" : {
@@ -2623,37 +2366,13 @@
         }
       }
     },
-    "工作区" : {
-
-    },
+    "工作区" : {},
     "工作区 · %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Workspace · %@"
-          }
-        }
-      }
-    },
-    "工作区 %lld 个变更文件" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Worktree · %lld changed files"
-          }
-        }
-      }
-    },
-    "工作区变更" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Working Tree Changes"
           }
         }
       }
@@ -2734,17 +2453,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tool Search Directories"
-          }
-        }
-      }
-    },
-    "工具权限" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tool Permissions"
           }
         }
       }
@@ -2845,39 +2553,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stopped"
-          }
-        }
-      }
-    },
-    "已停止 · 时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopped · Time Unknown"
-          }
-        }
-      }
-    },
-    "已停止 · 结束于 %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopped · Ended %@"
-          }
-        }
-      }
-    },
-    "已停止，结束时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopped, end time unknown"
           }
         }
       }
@@ -3307,17 +2982,6 @@
         }
       }
     },
-    "当前空闲连接仍为「%@」；下次发送将重连并应用新权限。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The idle connection is still using “%@”. Sending again will reconnect and apply the new permissions."
-          }
-        }
-      }
-    },
     "当前输入框已有未发送的草稿，替换为所选消息内容？" : {
       "localizations" : {
         "en" : {
@@ -3374,17 +3038,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unconfirmed"
-          }
-        }
-      }
-    },
-    "待核实 · 时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unconfirmed · Time Unknown"
           }
         }
       }
@@ -3549,29 +3202,6 @@
         }
       }
     },
-    "执行会话有 %lld 个扩展请求等待回复。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld extension request in the active session is waiting for a response."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld extension requests in the active session are waiting for a response."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "执行失败" : {
       "localizations" : {
         "en" : {
@@ -3582,81 +3212,13 @@
         }
       }
     },
-    "执行失败 · 时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run Failed · Time Unknown"
-          }
-        }
-      }
-    },
-    "执行失败 · 结束于 %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run Failed · Ended %@"
-          }
-        }
-      }
-    },
-    "执行失败，结束时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run failed, end time unknown"
-          }
-        }
-      }
-    },
-    "执行完成" : {
-
-    },
-    "执行完成时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Completion Time Unknown"
-          }
-        }
-      }
-    },
+    "执行完成" : {},
     "执行模式" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Execution Mode"
-          }
-        }
-      }
-    },
-    "执行状态待核实 · 结束于 %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run Status Unconfirmed · Ended %@"
-          }
-        }
-      }
-    },
-    "执行状态待核实，时间未知" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run status unconfirmed, time unknown"
           }
         }
       }
@@ -3751,94 +3313,6 @@
         }
       }
     },
-    "拒绝列出目录" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip Directory Listing"
-          }
-        }
-      }
-    },
-    "拒绝只跳过本次操作，不会停止任务。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Declining skips this action without stopping the task."
-          }
-        }
-      }
-    },
-    "拒绝本次写入" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip This Write"
-          }
-        }
-      }
-    },
-    "拒绝本次搜索" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip This Search"
-          }
-        }
-      }
-    },
-    "拒绝本次查找" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip This Lookup"
-          }
-        }
-      }
-    },
-    "拒绝本次编辑" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip This Edit"
-          }
-        }
-      }
-    },
-    "拒绝本次读取" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Skip This Read"
-          }
-        }
-      }
-    },
-    "拒绝本次运行" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don’t Run This Command"
-          }
-        }
-      }
-    },
     "按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。" : {
       "localizations" : {
         "en" : {
@@ -3865,17 +3339,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Press Return for a new line or ⌘↩ to submit. Text is limited to 1 MiB."
-          }
-        }
-      }
-    },
-    "按当前 Pi 配置和所选扩展运行，工具权限以运行环境为准。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Runs with the current Pi configuration and selected extensions. The runtime determines tool permissions."
           }
         }
       }
@@ -4498,39 +3961,6 @@
         }
       }
     },
-    "显示工作目录" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Working Directory"
-          }
-        }
-      }
-    },
-    "显示工作目录…" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Working Directory…"
-          }
-        }
-      }
-    },
-    "暂不可用" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Temporarily Unavailable"
-          }
-        }
-      }
-    },
     "暂无会话" : {
       "localizations" : {
         "en" : {
@@ -4864,17 +4294,6 @@
         }
       }
     },
-    "权限" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permissions"
-          }
-        }
-      }
-    },
     "极高" : {
       "comment" : "Extra-high reasoning effort",
       "localizations" : {
@@ -5099,28 +4518,6 @@
         }
       }
     },
-    "正在停止…" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopping…"
-          }
-        }
-      }
-    },
-    "正在压缩" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compacting"
-          }
-        }
-      }
-    },
     "正在压缩上下文" : {
       "localizations" : {
         "en" : {
@@ -5191,17 +4588,6 @@
         }
       }
     },
-    "正在清理进程…" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cleaning up processes…"
-          }
-        }
-      }
-    },
     "正在读取 Git 状态…" : {
       "localizations" : {
         "en" : {
@@ -5268,17 +4654,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connecting"
-          }
-        }
-      }
-    },
-    "正在连接…" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connecting…"
           }
         }
       }
@@ -5523,17 +4898,6 @@
         }
       }
     },
-    "由当前执行模式「%@」决定，可在模式菜单调整。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The “%@” execution mode determines these permissions. Change it in the mode menu."
-          }
-        }
-      }
-    },
     "界面语言" : {
       "localizations" : {
         "en" : {
@@ -5714,17 +5078,6 @@
         }
       }
     },
-    "结束于 %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ended %@"
-          }
-        }
-      }
-    },
     "结束受管进程" : {
       "localizations" : {
         "en" : {
@@ -5885,17 +5238,6 @@
         }
       }
     },
-    "自动" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatic"
-          }
-        }
-      }
-    },
     "自动换行" : {
       "localizations" : {
         "en" : {
@@ -5942,17 +5284,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "lines"
-          }
-        }
-      }
-    },
-    "计划" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plan"
           }
         }
       }
@@ -6218,17 +5549,6 @@
         }
       }
     },
-    "运行中或队列未清空时保持当前已生效权限，结束后可调整。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current permissions stay in effect until the run ends and the queue is empty."
-          }
-        }
-      }
-    },
     "运行命令" : {
       "localizations" : {
         "en" : {
@@ -6269,17 +5589,6 @@
         }
       }
     },
-    "运行时配置" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Runtime Settings"
-          }
-        }
-      }
-    },
     "运行时默认" : {
       "localizations" : {
         "en" : {
@@ -6300,17 +5609,6 @@
         }
       }
     },
-    "近似时间，%@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Approximate time, %@"
-          }
-        }
-      }
-    },
     "近似时间：%@" : {
       "localizations" : {
         "en" : {
@@ -6321,9 +5619,7 @@
         }
       }
     },
-    "返回" : {
-
-    },
+    "返回" : {},
     "返回 Pikachu 查看任务结果。" : {
       "localizations" : {
         "en" : {
@@ -6350,17 +5646,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back to Workspace"
-          }
-        }
-      }
-    },
-    "返回当前任务" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Return to Current Task"
           }
         }
       }
@@ -6421,17 +5706,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection Closed"
-          }
-        }
-      }
-    },
-    "连接操作" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection Actions"
           }
         }
       }
@@ -6562,17 +5836,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Partially expanded"
-          }
-        }
-      }
-    },
-    "配置将在下次连接并发送时生效，可在模式菜单调整。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The setting applies the next time you connect and send. Change it in the mode menu."
           }
         }
       }
@@ -6763,17 +6026,6 @@
         }
       }
     },
-    "需确认" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Approval Required"
-          }
-        }
-      }
-    },
     "非 Git 仓库" : {
       "localizations" : {
         "en" : {
@@ -6904,17 +6156,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Commits ahead of the local upstream ref: %@"
-          }
-        }
-      }
-    },
-    "额度" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quota"
           }
         }
       }

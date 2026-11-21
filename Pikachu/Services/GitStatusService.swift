@@ -433,13 +433,6 @@ extension GitRepositoryInspector {
         states[GitRepositoryInspector.normalizedPath(directory)] ?? .idle
     }
 
-    func markStale(directory: String) {
-        let key = GitRepositoryInspector.normalizedPath(directory)
-        if case .loaded(let snapshot, _, let error) = states[key] {
-            states[key] = .loaded(snapshot, isStale: true, refreshError: error)
-        }
-    }
-
     func refresh(directory: String, force: Bool = false) {
         let key = GitRepositoryInspector.normalizedPath(directory)
         if !force, tasks[key] != nil { return }

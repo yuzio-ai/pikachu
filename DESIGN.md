@@ -8,9 +8,9 @@
 - **平台**：macOS 优先，未来按需跨平台
 - **当前技术栈**：Swift 6、SwiftUI、AppKit、Swift Concurrency
 - **首期引擎**：Pi Coding Agent（直接使用本地 RPC，过渡方案）
-- **Phase 1 形态**：开发者自用、单窗口多项目、全局单任务执行
+- **当前形态**：开发者自用、单窗口多项目；在 Phase 1 MVP 基础上已交付手动会话并行与 Worktree 选择，Subagent 编排与 Phase 3 仍待实施
 - **长期方向**：ACP 优先的多 Runtime 接入、自研 Rust Mini Agent Loop、Pikachu 自主管理 Subagent
-- **当前状态**：Phase 1 的 M0–M3 已验收。M3 最终构建通过用量、扩展交互、快捷键和冻结性能指标。 [M3 原生复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
+- **当前状态**：Phase 1 的 M0–M3 已验收，并已完成工作台界面刷新、手动会话并行与 Worktree 选择；Subagent 与 Phase 3 尚未开始。 [M3 原生复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
 
 本文中的产品行为和架构约束是设计约定。M0 实测结果和适用边界见 [M0 监督收口报告](docs/reports/pi-rpc-compatibility/SUPERVISION.md)，首轮失败保留于 [历史报告](docs/reports/pi-rpc-compatibility/REPORT.md)。M1 范围见 [原生交互报告](docs/reports/runtime-integration/REPORT.md)，M2 范围与兼容限制见 [会话恢复报告](docs/reports/workspace-recovery/REPORT.md)。M3 实现与证据边界见 [工作台完善报告](docs/reports/interaction-performance/REPORT.md) 和 [性能验收](docs/reports/interaction-performance/PERFORMANCE.md)；后续阶段设计不代表当前已实现。文档核对和领域基线不等于完整原生性能或兼容性验收。
 
@@ -106,8 +106,8 @@ Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-- **左侧栏**：搜索会话标题或项目名称，也可按所属项目筛选。Open 与 Settled 独立折叠，按最近活动排序，收起时保留组内符合筛选的选中会话。用户标记已处理时移入 Settled。后台运行标记跟随实际执行会话。底部提供设置、当前会话统计、历史刷新和独立的账户额度入口。见[侧栏设计](docs/design/sidebar-session-groups-v2.md)。
-- **设置**：「通用」提供通知和界面语言。「项目」提供工作目录、项目级刷新与重新定位。「Providers」管理 Pi 运行依赖、可信扩展和子进程环境变量。见 [设置设计](docs/design/settings-organization.md)。
+- **左侧栏**：搜索会话标题或项目名称，也可按所属项目筛选。Open 与 Settled 独立折叠，按最近活动排序，收起时保留组内符合筛选的选中会话。用户标记已处理时移入 Settled。后台运行标记跟随实际执行会话。底部提供设置、当前会话统计、历史刷新和独立的账户额度入口。见[侧栏列表设计](docs/design/sidebar-session-groups-v4.md)与[运行状态及卡片操作](docs/design/session-run-timeline.md)。
+- **设置**：「通用」提供后台通知、界面语言、字体大小、文件打开方式和默认执行模式。「项目」提供工作目录、项目 Pi 配置开关、项目级刷新与重新定位。「服务商」管理 Pi 默认模型与可见性、运行依赖、工具搜索目录、可信扩展和子进程环境变量。见 [设置设计](docs/design/settings-organization.md)。
 - **中央区域**：展示当前查看会话；工具默认摘要，展开查看结果。历史中的运行标记不能冒充当前实时状态。
 - **会话工作区顶栏与运行反馈**：顶栏展示当前查看会话的连接状态图标、「项目 / 会话」身份、只读异步 Git 摘要（分支、领先本地 upstream 提交数、文件增删变化）及本会话的执行/连接操作；查看其他会话或无选中会话时，顶部按需出现执行横幅以返回执行会话或停止运行，移除常驻底部状态条。见[右侧会话工作区 v5](docs/design/session-detail-ui-v5.md)。
 - **输入区域**：绑定当前查看会话。新会话将项目提示和输入框居中，首条消息进入后输入框回到底部。底栏距编辑区（或附件行）13 pt。左组为附件、模式、权限和工作区；右组为上下文、模型和主按钮；运行时原位从发送切换为停止，不同时显示。底栏控件共用点击高度并垂直居中；上下文在底栏用小圆环表示，浮层保留横条和精确数值。窄窗优先压缩模型名，权限及「下次执行」保持完整，空间仍不足时将右组整体换行。模型与推理强度从输入栏浮层配置。窗口工具栏与侧栏标识、会话身份和 Git 摘要共用一行。见[统一窗口顶栏与新会话布局](docs/design/session-window-toolbar-v2.md)。
@@ -154,7 +154,7 @@ Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整
 
 - 使用 macOS 原生侧边栏与分栏布局，不模拟终端。
 - 明暗外观随系统切换。使用系统字体、SF Symbols、实色底和细描边。窗口控件、系统菜单、警告和文件选择器采用 macOS 原生外观。
-- 自有控件和会话列表用淡紫底标出选中。焦点沿用系统样式。闪电黄用于品牌和发送。
+- 自有控件和会话列表用中性灰底色和细描边标出选中。焦点使用系统样式或高对比度描边。闪电黄用于品牌和发送。
 - 不使用宝可梦角色造型或相关官方视觉资产；公开发布前复核名称和商标风险。
 
 ### 4.6 手动会话并行与 Subagent 交互（Phase 2 起）
@@ -448,13 +448,14 @@ pikachu/
 ├── Pikachu/                            # macOS App target（模块 Pikachu）
 │   ├── App/                            # 入口、AppDelegate、环境与诊断设置
 │   ├── Features/
+│   │   ├── Attachments/                # 图片与视频附件缩略图预览
 │   │   ├── Workbench/                  # 工作台主容器与会话顶栏
 │   │   ├── Sessions/                   # 侧边栏分组与账户额度入口
 │   │   ├── Transcript/                 # AppKit 复用的长历史消息与 Markdown
 │   │   ├── Composer/                   # 输入栏、模型/模式选择与扩展交互
 │   │   ├── Usage/                      # Token 与上下文占用视图
 │   │   └── Settings/                   # 连接配置与扩展状态
-│   ├── Services/                       # Git 仓库状态检查
+│   ├── Services/                       # Git 仓库状态检查与文件打开配置
 │   ├── DesignSystem/                   # 主题色、图标与控件样式
 │   ├── Diagnostics/                    # 诊断采样与窗口像素捕获
 │   └── Resources/                      # Assets.xcassets (AppIcon)、ProviderLogos/
@@ -462,7 +463,7 @@ pikachu/
 ├── Modules/                            # 动态 framework targets
 │   ├── AgentRuntimeCore/               # 与 UI 无关的领域模型、事件与协议
 │   ├── OrchestrationCore/              # 会话与工作台状态机；Phase 2 增加任务树与调度
-│   ├── PiRuntimeAdapter/               # Pi RPC 适配、历史读取与 execution-policy.ts
+│   ├── PiRuntimeAdapter/               # Pi RPC 适配、历史读取、execution-policy.ts 与 turn-file-changes.ts
 │   ├── WorkspacePersistence/           # SwiftData 本地工作台索引与草稿存储
 │   ├── ProcessSupervision/             # RPC 传输、进程身份与历史格式探针
 │   ├── CProcessInspection/             # Darwin libproc/sysctl 进程标记检查（C framework）
@@ -481,7 +482,9 @@ pikachu/
 ├── Scripts/                            # 执行策略验证与原生窗口像素分析脚本
 ├── docs/                               # 设计稿与阶段验收报告（docs/reports/）
 ├── README.md
-└── DESIGN.md
+├── DESIGN.md
+├── DESIGN_TOKEN.md
+└── THIRD-PARTY-NOTICES.md
 ```
 
 上图中标注为规划的目录按后续阶段创建。Phase 1 实现单任务协调。Phase 2 增加编排与 Pi 委派适配。Phase 3 增加 ACP 客户端与独立 Rust Runtime。

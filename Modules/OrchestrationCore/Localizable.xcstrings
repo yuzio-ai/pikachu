@@ -251,17 +251,6 @@
         }
       }
     },
-    "当前任务仍占用执行槽位。草稿已保留，请返回任务或明确停止后再执行。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The current task is still active. Your draft was kept. Return to that task or stop it before starting another."
-          }
-        }
-      }
-    },
     "当前任务及队列完成后才能使用待应用模型，草稿已保留。" : {
       "localizations" : {
         "en" : {
@@ -325,17 +314,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新会话"
-          }
-        }
-      }
-    },
-    "旧执行实例清理未确认，没有启动目标会话。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cleanup of the previous instance is unconfirmed. The target session was not started."
           }
         }
       }
@@ -646,17 +624,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The project directory does not exist."
-          }
-        }
-      }
-    },
-    "项目目录已移动，请重新定位后执行。" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The project directory has moved. Locate it again before running tasks."
           }
         }
       }
