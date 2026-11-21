@@ -606,6 +606,12 @@
         }
       }
     },
+    "Visual Studio Code" : {
+      "shouldTranslate" : false
+    },
+    "Xcode" : {
+      "shouldTranslate" : false
+    },
     "上下文与会话用量" : {
       "localizations" : {
         "en" : {
@@ -2314,6 +2320,16 @@
         }
       }
     },
+    "命令，例如 code -g {path}:{line}" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command, for example code -g {path}:{line}"
+          }
+        }
+      }
+    },
     "回到最新" : {
       "localizations" : {
         "en" : {
@@ -2882,6 +2898,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loaded"
+          }
+        }
+      }
+    },
+    "已在选择器中隐藏 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is hidden from the picker"
           }
         }
       }
@@ -3813,12 +3839,12 @@
         }
       }
     },
-    "按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片，按 ⌘L 聚焦输入框。" : {
+    "按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press ↩ or ⇧↩ for a new line, ⌘↩ to send, ⌘V to paste an image, or ⌘L to focus the input."
+            "value" : "Press ↩ or ⇧↩ for a new line, ⌘↩ to send, ⌘V to paste an image or video, or ⌘L to focus the input."
           }
         }
       }
@@ -3975,6 +4001,16 @@
         }
       }
     },
+    "播放 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play %@"
+          }
+        }
+      }
+    },
     "收藏" : {
       "localizations" : {
         "en" : {
@@ -4061,6 +4097,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The session file is still being written. Complete records are shown and execution is blocked. Reload it later."
+          }
+        }
+      }
+    },
+    "文件打开方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File opener"
           }
         }
       }
@@ -4282,6 +4328,16 @@
         }
       }
     },
+    "无法添加剪贴板中的视频，请先从 Finder 复制视频文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not attach the clipboard video. Copy the video file from Finder first."
+          }
+        }
+      }
+    },
     "无法添加剪贴板图片，请重新复制后再试。" : {
       "localizations" : {
         "en" : {
@@ -4378,6 +4434,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Approval"
+          }
+        }
+      }
+    },
+    "时长 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration %@"
           }
         }
       }
@@ -5387,6 +5453,16 @@
         }
       }
     },
+    "点击对话中的文件或代码行时使用；找不到所选应用时改用系统默认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used when opening files or code lines in a transcript. Falls back to the system default when the selected app is unavailable."
+          }
+        }
+      }
+    },
     "点击打开文件" : {
       "localizations" : {
         "en" : {
@@ -5608,6 +5684,16 @@
         }
       }
     },
+    "系统默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System default"
+          }
+        }
+      }
+    },
     "紧凑" : {
       "localizations" : {
         "en" : {
@@ -5816,6 +5902,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wrap lines"
+          }
+        }
+      }
+    },
+    "自定义命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom command"
           }
         }
       }
@@ -6823,23 +6919,22 @@
         }
       }
     },
-    "额度偏低：%@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Low Quota: %@"
-          }
-        }
-      }
-    },
     "额度：%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quota: %@"
+          }
+        }
+      }
+    },
+    "额度偏低：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Quota: %@"
           }
         }
       }
