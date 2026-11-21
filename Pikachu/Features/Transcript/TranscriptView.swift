@@ -604,16 +604,18 @@ private struct UserMessageRow: View {
     }
 
     var body: some View {
-        let images = item.attachedFiles.filter(ImageAttachmentThumbnail.isImage)
-        let otherFiles = item.attachedFiles.filter { !ImageAttachmentThumbnail.isImage($0) }
+        let attachments = item.attachedFiles.filter {
+            ImageAttachmentThumbnail.isImage($0) || VideoAttachmentThumbnail.isVideo($0)
+        }
+        let otherFiles = item.attachedFiles.filter { !attachments.contains($0) }
         let showsText = item.attachedFiles.isEmpty || !item.editableText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return VStack(alignment: .trailing, spacing: 4) {
             VStack(alignment: .trailing, spacing: 8) {
-                if !images.isEmpty {
-                    imageGrid(images)
+                if !attachments.isEmpty {
+                    attachmentGrid(attachments)
                 }
                 if showsText || !otherFiles.isEmpty {
-                    messageBubble(showsText: showsText, files: otherFiles, hasImages: !images.isEmpty)
+                    messageBubble(showsText: showsText, files: otherFiles, hasAttachments: !attachments.isEmpty)
                 } else if needsAttentionDelivery {
                     deliveryLabel
                 }
@@ -687,8 +689,8 @@ private struct UserMessageRow: View {
             .padding(.bottom, item.delivery == .queued ? 2 : 0)
     }
 
-    private func messageBubble(showsText: Bool, files: [URL], hasImages: Bool) -> some View {
-        VStack(alignment: hasImages ? .leading : .trailing, spacing: 5) {
+    private func messageBubble(showsText: Bool, files: [URL], hasAttachments: Bool) -> some View {
+        VStack(alignment: hasAttachments ? .leading : .trailing, spacing: 5) {
             if needsAttentionDelivery { deliveryLabel }
             if showsText {
                 Text(item.attachedFiles.isEmpty ? item.text : item.editableText)
@@ -714,33 +716,39 @@ private struct UserMessageRow: View {
         }
         .padding(.horizontal, bubbleInset)
         .padding(.vertical, 9)
-        .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: hasImages ? 18 : 12))
+        .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: hasAttachments ? 18 : 12))
     }
 
-    private func imageGrid(_ images: [URL]) -> some View {
+    private func attachmentGrid(_ attachments: [URL]) -> some View {
         let spacing: CGFloat = 8
         let available = max(1, width)
         let size = min(80, available)
         let columns = max(1, Int((available + spacing) / (size + spacing)))
-        let rowStarts = Array(stride(from: 0, to: images.count, by: columns))
+        let rowStarts = Array(stride(from: 0, to: attachments.count, by: columns))
         return VStack(alignment: .trailing, spacing: spacing) {
             ForEach(rowStarts, id: \.self) { start in
                 HStack(spacing: spacing) {
-                    ForEach(start..<min(start + columns, images.count), id: \.self) { index in
-                        let file = images[index]
-                        if let onPreviewImage {
-                            Button { onPreviewImage(file) } label: {
-                                ImageAttachmentThumbnail(file: file, size: size)
-                            }
-                            .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: ImageAttachmentThumbnail.cornerRadius)))
-                            .accessibilityLabel("预览 \(file.lastPathComponent)")
-                            .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
-                        } else {
-                            ImageAttachmentThumbnail(file: file, size: size)
-                        }
+                    ForEach(start..<min(start + columns, attachments.count), id: \.self) { index in
+                        attachmentThumbnail(attachments[index], index: index, size: size)
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder private func attachmentThumbnail(_ file: URL, index: Int, size: CGFloat) -> some View {
+        if VideoAttachmentThumbnail.isVideo(file) {
+            VideoAttachmentThumbnail(file: file, size: size, onOpen: { NSWorkspace.shared.open(file) })
+                .accessibilityIdentifier("open-video-\(item.id)-\(index)")
+        } else if let onPreviewImage {
+            Button { onPreviewImage(file) } label: {
+                ImageAttachmentThumbnail(file: file, size: size)
+            }
+            .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: ImageAttachmentThumbnail.cornerRadius)))
+            .accessibilityLabel("预览 \(file.lastPathComponent)")
+            .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
+        } else {
+            ImageAttachmentThumbnail(file: file, size: size)
         }
     }
 

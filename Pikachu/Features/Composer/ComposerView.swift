@@ -149,7 +149,7 @@ struct ComposerView: View {
     @State private var panel: Panel?
     @State private var savingModel = false
     @State private var restoreInputFocus = false
-    @State private var imagePasteFailed = false
+    @State private var attachmentPasteError: String?
     @State private var previewImage: AttachmentImagePreview.Selection?
 
     private enum Panel {
@@ -210,9 +210,11 @@ struct ComposerView: View {
     }
 
     private var composerContent: some View {
-        let images = controller.draftFiles.filter(ImageAttachmentThumbnail.isImage)
-        let imageSet = Set(images)
-        let files = controller.draftFiles.filter { !imageSet.contains($0) }
+        let attachments = controller.draftFiles.filter {
+            ImageAttachmentThumbnail.isImage($0) || VideoAttachmentThumbnail.isVideo($0)
+        }
+        let attachmentSet = Set(attachments)
+        let files = controller.draftFiles.filter { !attachmentSet.contains($0) }
         return VStack(alignment: .leading, spacing: 0) {
             if !controller.recoveredDrafts.isEmpty {
                 RecoveredDraftsView(controller: controller).padding(.bottom, 10)
@@ -220,21 +222,19 @@ struct ComposerView: View {
             ComposerIssuePills(controller: controller, panelsBlocked: panelsBlocked,
                                presentToolFailures: presentToolFailures)
             VStack(alignment: .leading, spacing: 8) {
-                if !images.isEmpty {
+                if !attachments.isEmpty {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 8) {
-                            ForEach(images, id: \.self) { file in
-                                ImageAttachmentThumbnail(file: file, onPreview: {
-                                    previewImage = .init(file: file)
-                                }, remove: { removeAttachment(file) })
+                            ForEach(attachments, id: \.self) { file in
+                                attachmentThumbnail(file)
                             }
                         }
                     }
-                    .accessibilityIdentifier("draft-images")
+                    .accessibilityIdentifier("draft-attachments")
                 }
                 editorRow
-                if imagePasteFailed {
-                    Text("无法添加剪贴板图片，请重新复制后再试。")
+                if let attachmentPasteError {
+                    Text(attachmentPasteError)
                         .pikachuFont(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -343,10 +343,10 @@ struct ComposerView: View {
                 .focused($focused).accessibilityIdentifier("prompt-input")
                 .diagnosticDraw("editor:\(controller.draft.utf8.count)")
                 .accessibilityLabel("当前查看会话的任务草稿")
-                .accessibilityHint("按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片，按 ⌘L 聚焦输入框。")
+                .accessibilityHint("按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。")
                 .background {
-                    ComposerInputEvents(isFocused: $focused, canPasteImage: !panelsBlocked, canSend: sendEnabled,
-                                        onPaste: addPastedImage, onSend: onSend)
+                    ComposerInputEvents(isFocused: $focused, canPasteAttachment: !panelsBlocked, canSend: sendEnabled,
+                                        onPaste: addPastedAttachment, onSend: onSend)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
@@ -408,13 +408,35 @@ struct ComposerView: View {
         ClipboardImage.removeUnusedPastedFile(file, in: pastedImagesDirectory, referenced: referenced)
     }
 
-    private func addPastedImage(_ image: ClipboardImage) {
-        do {
-            let file = try image.save(in: pastedImagesDirectory)
-            controller.draftFiles.append(file)
-            imagePasteFailed = false
-        } catch {
-            imagePasteFailed = true
+    @ViewBuilder private func attachmentThumbnail(_ file: URL) -> some View {
+        if VideoAttachmentThumbnail.isVideo(file) {
+            VideoAttachmentThumbnail(file: file, onOpen: { NSWorkspace.shared.open(file) },
+                                     remove: { removeAttachment(file) })
+        } else {
+            ImageAttachmentThumbnail(file: file, onPreview: { previewImage = .init(file: file) },
+                                     remove: { removeAttachment(file) })
+        }
+    }
+
+    private func addPastedAttachment(_ result: PastedAttachment.Result) {
+        switch result {
+        case .attachment(.image(let image)):
+            do {
+                let file = try image.save(in: pastedImagesDirectory)
+                controller.draftFiles.append(file)
+                attachmentPasteError = nil
+            } catch {
+                attachmentPasteError = String(localized: "无法添加剪贴板图片，请重新复制后再试。")
+            }
+        case .attachment(.video(let url)):
+            // A pasted video stays where it is so a large clip is never duplicated on disk.
+            let file = url.standardizedFileURL
+            if !controller.draftFiles.contains(file) { controller.draftFiles.append(file) }
+            attachmentPasteError = nil
+        case .unavailableVideo:
+            attachmentPasteError = String(localized: "无法添加剪贴板中的视频，请先从 Finder 复制视频文件。")
+        case .none:
+            break
         }
     }
 

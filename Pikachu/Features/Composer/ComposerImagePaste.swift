@@ -6,9 +6,9 @@ import UniformTypeIdentifiers
 /// Handles composer shortcuts before the field editor treats Return as a commit or pastes an image as text.
 struct ComposerInputEvents: NSViewRepresentable {
     let isFocused: FocusState<Bool>.Binding
-    let canPasteImage: Bool
+    let canPasteAttachment: Bool
     let canSend: Bool
-    let onPaste: (ClipboardImage) -> Void
+    let onPaste: (PastedAttachment.Result) -> Void
     let onSend: () -> Void
 
     func makeNSView(context: Context) -> MonitorView { MonitorView() }
@@ -18,8 +18,10 @@ struct ComposerInputEvents: NSViewRepresentable {
             guard isFocused.wrappedValue else { return false }
             let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
             if modifiers == .command && event.charactersIgnoringModifiers?.lowercased() == "v" {
-                guard canPasteImage, let image = ClipboardImage.read(from: .general) else { return false }
-                onPaste(image)
+                guard canPasteAttachment else { return false }
+                let result = PastedAttachment.read(from: .general)
+                if case .none = result { return false }
+                onPaste(result)
                 return true
             }
             // 36 is Return; 76 is keypad Enter. Do not bypass the input method when it has marked text.
@@ -61,6 +63,40 @@ struct ComposerInputEvents: NSViewRepresentable {
                 }
                 return consumed ? nil : event
             }
+        }
+    }
+}
+
+/// Whatever the composer can turn a paste into. Videos stay where they are: Pikachu only
+/// references the path and lets the agent decide whether it can read the file.
+enum PastedAttachment {
+    case image(ClipboardImage)
+    case video(URL)
+
+    enum Result {
+        case attachment(PastedAttachment)
+        /// The clipboard holds video data without a file behind it, so there is nothing to reference.
+        case unavailableVideo
+        case none
+    }
+
+    static func read(from pasteboard: NSPasteboard) -> Result {
+        // A Finder video copy can also carry an icon or preview image, so the file wins.
+        if let url = videoFileURL(in: pasteboard) { return .attachment(.video(url)) }
+        if let image = ClipboardImage.read(from: pasteboard) { return .attachment(.image(image)) }
+        if pasteboard.types?.contains(where: { UTType($0.rawValue)?.conforms(to: .movie) == true }) == true {
+            return .unavailableVideo
+        }
+        return .none
+    }
+
+    private static func videoFileURL(in pasteboard: NSPasteboard) -> URL? {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL] ?? []
+        return urls.first { url in
+            guard VideoAttachmentThumbnail.isVideo(url) else { return false }
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && !isDirectory.boolValue
         }
     }
 }

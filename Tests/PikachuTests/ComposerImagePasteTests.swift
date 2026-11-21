@@ -8,6 +8,45 @@ final class ComposerImagePasteTests: XCTestCase {
         defer { pasteboard.releaseGlobally() }
         pasteboard.setString("keep normal paste", forType: .string)
         XCTAssertNil(ClipboardImage.read(from: pasteboard))
+        guard case .none = PastedAttachment.read(from: pasteboard) else {
+            return XCTFail("Text pastes must fall through to the field editor")
+        }
+    }
+
+    @MainActor func testVideoFileURLPastesAsAReferenceWithoutCopying() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-video-paste-\(UUID())")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let video = directory.appendingPathComponent("clip.mp4")
+        try Data().write(to: video)
+
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.writeObjects([video as NSURL])
+
+        guard case .attachment(.video(let pasted)) = PastedAttachment.read(from: pasteboard) else {
+            return XCTFail("A pasted video file must become a video attachment")
+        }
+        XCTAssertEqual(pasted.standardizedFileURL, video.standardizedFileURL)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["clip.mp4"])
+
+        let folder = directory.appendingPathComponent("folder.mp4", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        pasteboard.clearContents()
+        pasteboard.writeObjects([folder as NSURL])
+        guard case .none = PastedAttachment.read(from: pasteboard) else {
+            return XCTFail("A directory named like a video file must not attach as a video")
+        }
+    }
+
+    @MainActor func testVideoDataWithoutAFileAsksForAFinderCopy() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setData(Data("movie bytes".utf8), forType: .init("public.mpeg-4"))
+
+        guard case .unavailableVideo = PastedAttachment.read(from: pasteboard) else {
+            return XCTFail("Video data without a file cannot be referenced")
+        }
     }
 
     @MainActor func testImagePastePrefersPNGAndCreatesDistinctAttachments() throws {
