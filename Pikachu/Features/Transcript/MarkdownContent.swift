@@ -4,30 +4,147 @@ import SwiftUI
 import OrchestrationCore
 
 enum TranscriptFileOpener {
+    /// How a referenced file can be shown; files without a matching app would
+    /// otherwise make Launch Services report “应用程序无法打开”.
+    enum Destination: Equatable {
+        case application(URL)
+        case revealInFinder(URL)
+        case unsupported
+    }
+
     @MainActor private final class OpenBox {
         let handler: ((URL) -> Void)?
         init(_ handler: ((URL) -> Void)?) { self.handler = handler }
     }
 
-    @MainActor static func open(_ fileURL: URL, handler: ((URL) -> Void)? = nil) {
-        if let handler {
-            handler(fileURL)
-        } else {
-            NSWorkspace.shared.open(fileURL)
+    static func destination(for fileURL: URL) -> Destination {
+        let url = withoutFragment(fileURL)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return .unsupported }
+        guard !isDirectory.boolValue, NSWorkspace.shared.urlForApplication(toOpen: url) != nil else {
+            // Asset catalogs, image sets and files without a default app reveal their
+            // enclosing folder instead of failing to launch.
+            return .revealInFinder(url)
         }
+        return .application(url)
+    }
+
+    @MainActor static func open(_ fileURL: URL, line: Int? = nil, handler: ((URL) -> Void)? = nil,
+                                configuration: FileOpenConfiguration = .saved) {
+        let url = withoutFragment(fileURL)
+        if let handler {
+            handler(url)
+            return
+        }
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        if case .run(let command) = FileOpenConfiguration.plan(for: url, line: line, configuration: configuration) {
+            run(command, fallbackURL: url)
+            return
+        }
+        openWithSystemDefault(url)
+    }
+
+    @MainActor private static func openWithSystemDefault(_ url: URL) {
+        let workspace = NSWorkspace.shared
+        switch destination(for: url) {
+        case .application(let url):
+            if !workspace.open(url) { workspace.activateFileViewerSelecting([url]) }
+        case .revealInFinder(let url):
+            workspace.activateFileViewerSelecting([url])
+        case .unsupported:
+            break
+        }
+    }
+
+    @MainActor private static func run(_ command: FileOpenCommand, fallbackURL: URL) {
+        guard FileManager.default.isExecutableFile(atPath: command.executable.path) else {
+            openWithSystemDefault(fallbackURL)
+            return
+        }
+        let process = Process()
+        process.executableURL = command.executable
+        process.arguments = command.arguments
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        // Wait asynchronously so slow or blocking editor commands never freeze the UI thread.
+        process.terminationHandler = { proc in
+            guard proc.terminationStatus != 0 else { return }
+            Task { @MainActor in
+                openWithSystemDefault(fallbackURL)
+            }
+        }
+        do {
+            try process.run()
+        } catch {
+            openWithSystemDefault(fallbackURL)
+        }
+    }
+
+    /// What a click in the transcript should do, decided without launching anything.
+    enum ClickedLink: Equatable {
+        case file(URL, line: Int?)
+        case system
+        case ignored
+    }
+
+    static func clickedLink(for url: URL, workspaceDirectory: URL?) -> ClickedLink {
+        if let scheme = url.scheme, !url.isFileURL {
+            // Web and custom schemes keep the system handler.
+            return ["http", "https", "mailto"].contains(scheme.lowercased()) ? .system : .ignored
+        }
+        // A relative reference that no longer resolves must not reach Launch Services.
+        guard let fileURL = TranscriptFileLinks.openableFileURL(for: url, workspaceDirectory: workspaceDirectory) else {
+            return .ignored
+        }
+        return .file(fileURL, line: lineReference(in: url))
+    }
+
+    /// Reads `#L12`, `#L12-L20`, `path:12` or `path:12:3` without trusting the path itself.
+    static func lineReference(in url: URL) -> Int? {
+        if let fragment = url.fragment, let line = firstNumber(in: fragment) { return line }
+        return lastNumber(in: url.path)
     }
 
     @MainActor static func openAction(workspaceDirectory: URL?, openFile: ((URL) -> Void)? = nil) -> OpenURLAction {
         let box = OpenBox(openFile)
         return OpenURLAction { url in
-            guard let fileURL = TranscriptFileLinks.openableFileURL(for: url, workspaceDirectory: workspaceDirectory) else {
+            switch MainActor.assumeIsolated({ clickedLink(for: url, workspaceDirectory: workspaceDirectory) }) {
+            case .system:
                 return .systemAction
+            case .ignored:
+                return .handled
+            case .file(let fileURL, let line):
+                MainActor.assumeIsolated {
+                    open(fileURL, line: line, handler: box.handler)
+                }
+                return .handled
             }
-            MainActor.assumeIsolated {
-                open(fileURL, handler: box.handler)
-            }
-            return .handled
         }
+    }
+
+    private static func firstNumber(in text: String) -> Int? {
+        var digits = ""
+        for character in text {
+            if character.isNumber { digits.append(character) } else if !digits.isEmpty { break }
+        }
+        return Int(digits)
+    }
+
+    private static func lastNumber(in text: String) -> Int? {
+        let pattern = #":(\d+)(?::\d+)?$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text) else { return nil }
+        return Int(text[range])
+    }
+
+    private static func withoutFragment(_ fileURL: URL) -> URL {
+        guard fileURL.fragment != nil, var components = URLComponents(url: fileURL, resolvingAgainstBaseURL: false) else {
+            return fileURL
+        }
+        components.fragment = nil
+        return components.url ?? fileURL
     }
 }
 

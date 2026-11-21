@@ -348,8 +348,8 @@ struct NativeTranscript: NSViewRepresentable {
                 fontSize: fontSize,
                 workspaceDirectory: workspaceDirectory,
                 toolExpansion: toolExpansion,
-                onOpenFile: { [weak self] in
-                    TranscriptFileOpener.open($0, handler: self?.onOpenFile)
+                onOpenFile: onOpenFile == nil ? nil : { [weak self] in
+                    self?.onOpenFile?($0)
                 },
                 onEditUserMessage: onEditUserMessage,
                 onPreviewImage: { [weak self] in self?.onPreviewImage?($0) },

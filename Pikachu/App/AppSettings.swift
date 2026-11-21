@@ -15,6 +15,9 @@ import WorkspacePersistence
     var interfaceFontSize: InterfaceFontSize {
         didSet { interfaceFontSize.save() }
     }
+    var fileOpen: FileOpenConfiguration {
+        didSet { fileOpen.save() }
+    }
     var piPath: String
     var nodeDirectory: String
     private let agentDirectory: String
@@ -52,6 +55,7 @@ import WorkspacePersistence
         diagnosticWindowWidth = diagnostic["--window-width"].flatMap(Double.init).flatMap { $0.isFinite && $0 > 0 ? CGFloat($0) : nil }
         interfaceLanguage = InterfaceLanguage.saved
         interfaceFontSize = InterfaceFontSize.saved()
+        fileOpen = .saved
         let paths = PiConfiguration.detectedPaths()
         piPath = option("--pi") ?? paths.pi
         nodeDirectory = option("--node-dir") ?? paths.node

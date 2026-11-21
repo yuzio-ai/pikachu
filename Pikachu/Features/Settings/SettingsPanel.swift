@@ -253,6 +253,27 @@ private struct GeneralSettingsView: View {
             .accessibilityIdentifier("interface-font-size")
             PikachuDivider().padding(.horizontal, 16)
             VStack(alignment: .leading, spacing: 8) {
+                FlatPanelPicker(title: "文件打开方式", selection: Binding(
+                    get: { settings.fileOpen.preference },
+                    set: { settings.fileOpen.preference = $0 }
+                ), options: FileOpenPreference.allCases,
+                   detail: "点击对话中的文件或代码行时使用；找不到所选应用时改用系统默认。") { preference in
+                    Text(preference.title)
+                }
+                .accessibilityIdentifier("file-open-preference")
+                if settings.fileOpen.preference == .custom {
+                    TextField("命令，例如 code -g {path}:{line}", text: Binding(
+                        get: { settings.fileOpen.customCommand },
+                        set: { settings.fileOpen.customCommand = $0 }
+                    ))
+                    .flatInputSurface()
+                    .accessibilityIdentifier("file-open-command")
+                }
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            PikachuDivider().padding(.horizontal, 16)
+            VStack(alignment: .leading, spacing: 8) {
                 FlatPanelPicker(title: "默认执行模式", selection: Binding(
                     get: { workspace.defaultAgentMode },
                     set: saveDefaultMode

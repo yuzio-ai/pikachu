@@ -1208,6 +1208,92 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(withWorkspace.blocks[0].content.runs.compactMap(\.link).map(\.path), [target.path])
     }
 
+    @MainActor func testTranscriptFileOpenerRevealsFilesWithoutAnApplication() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-reveal-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("Catalog.xcassets"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        // Directories and files without a default app are revealed rather than launched.
+        XCTAssertEqual(TranscriptFileOpener.destination(for: root), .revealInFinder(root))
+        XCTAssertEqual(TranscriptFileOpener.destination(for: root.appendingPathComponent("Catalog.xcassets")),
+                       .revealInFinder(root.appendingPathComponent("Catalog.xcassets")))
+        let orphan = root.appendingPathComponent("output.pikachuunmapped")
+        try Data("x".utf8).write(to: orphan)
+        XCTAssertEqual(TranscriptFileOpener.destination(for: orphan), .revealInFinder(orphan))
+        XCTAssertEqual(TranscriptFileOpener.destination(for: root.appendingPathComponent("Missing.swift")), .unsupported)
+
+        // A click on an unresolved relative reference is swallowed instead of reaching Launch Services.
+        XCTAssertEqual(TranscriptFileOpener.clickedLink(for: URL(string: "Pikachu/Missing.swift:12")!,
+                                                        workspaceDirectory: root), .ignored)
+        XCTAssertEqual(TranscriptFileOpener.clickedLink(for: URL(string: "https://example.com")!,
+                                                        workspaceDirectory: root), .system)
+        XCTAssertEqual(TranscriptFileOpener.clickedLink(for: URL(string: "slack://channel")!,
+                                                        workspaceDirectory: root), .ignored)
+        let catalog = root.appendingPathComponent("Catalog.xcassets")
+        XCTAssertEqual(TranscriptFileOpener.clickedLink(for: catalog, workspaceDirectory: root), .file(catalog, line: nil))
+        var opened: [URL] = []
+        let handled = TranscriptFileOpener.openAction(workspaceDirectory: root, openFile: { opened.append($0) })
+        handled(catalog)
+        XCTAssertEqual(opened, [catalog])
+    }
+
+    func testTranscriptFileLinksCarryTheirLineAndUseTheChosenOpener() throws {
+        let file = URL(fileURLWithPath: "/tmp/Pikachu/App.swift")
+        XCTAssertEqual(TranscriptFileOpener.lineReference(in: URL(string: file.absoluteString + "#L12-L20")!), 12)
+        XCTAssertEqual(TranscriptFileOpener.lineReference(in: URL(string: file.absoluteString + "#L7")!), 7)
+        XCTAssertEqual(TranscriptFileOpener.lineReference(in: URL(string: "Pikachu/App.swift:9")!), 9)
+        XCTAssertEqual(TranscriptFileOpener.lineReference(in: URL(string: "Pikachu/App.swift:9:3")!), 9)
+        XCTAssertNil(TranscriptFileOpener.lineReference(in: URL(string: "Pikachu/App.swift")!))
+
+        let sandbox = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-xcode-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let xcode = sandbox.appendingPathComponent("Xcode.app", isDirectory: true)
+        let xed = xcode.appendingPathComponent("Contents/Developer/usr/bin/xed")
+        try FileManager.default.createDirectory(at: xed.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: xed, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: xed.path)
+        let vscode = sandbox.appendingPathComponent("Visual Studio Code.app", isDirectory: true)
+        let codeCLI = vscode.appendingPathComponent("Contents/Resources/app/bin/code")
+        try FileManager.default.createDirectory(at: codeCLI.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: codeCLI, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: codeCLI.path)
+        let vscodeWithoutCLI = sandbox.appendingPathComponent("VSCodeNoCLI.app", isDirectory: true)
+        func plan(_ preference: FileOpenPreference, line: Int? = 12, custom: String = "",
+                  xcode: URL? = xcode,
+                  vscode: URL? = vscode) -> FileOpenPlan {
+            FileOpenConfiguration.plan(for: file, line: line,
+                                       configuration: .init(preference: preference, customCommand: custom),
+                                       xcode: xcode, visualStudioCode: vscode)
+        }
+
+        XCTAssertEqual(plan(.system), .system)
+        XCTAssertEqual(plan(.xcode, xcode: nil), .system)
+        XCTAssertEqual(plan(.xcode, line: 12, xcode: xcode), .run(.init(
+            executable: xed, arguments: ["--line", "12", file.path])))
+        XCTAssertEqual(plan(.xcode, line: nil, xcode: xcode), .run(.init(
+            executable: URL(fileURLWithPath: "/usr/bin/open"),
+            arguments: ["-b", "com.apple.dt.Xcode", file.path])))
+        XCTAssertEqual(plan(.visualStudioCode, line: 12, vscode: nil), .system)
+        XCTAssertEqual(plan(.visualStudioCode, line: nil, vscode: vscode), .run(.init(
+            executable: URL(fileURLWithPath: "/usr/bin/open"),
+            arguments: ["-b", "com.microsoft.VSCode", file.path])))
+        XCTAssertEqual(plan(.visualStudioCode, vscode: vscode), .run(.init(
+            executable: codeCLI, arguments: ["-g", "\(file.path):12"])))
+        XCTAssertEqual(plan(.visualStudioCode, vscode: vscodeWithoutCLI), .run(.init(
+            executable: URL(fileURLWithPath: "/usr/bin/open"),
+            arguments: ["-b", "com.microsoft.VSCode", "--args", "-g", "\(file.path):12"])))
+        XCTAssertEqual(FileOpenConfiguration.customScript("code -g {path}:{line}", path: "/tmp/a b.swift", line: 3),
+                       "code -g '/tmp/a b.swift':3")
+        XCTAssertEqual(FileOpenConfiguration.customScript("code -g {path}:{line}", path: "/tmp/{line}/a.swift", line: 3),
+                       "code -g '/tmp/{line}/a.swift':3")
+        XCTAssertEqual(FileOpenConfiguration.customScript("open {path}", path: "/tmp/it's.swift", line: nil),
+                       "open '/tmp/it'\\''s.swift'")
+        XCTAssertEqual(plan(.custom, custom: "  "), .system)
+        XCTAssertEqual(plan(.custom, custom: "true"), .run(.init(
+            executable: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "true"])))
+    }
+
     @MainActor private func tool(_ id: String, state: ToolState) -> TranscriptItem {
         .init(id: id, kind: .tool, tool: .init(id: id, name: "read", arguments: "arguments for \(id)", output: "output from \(id)", state: state))
     }
