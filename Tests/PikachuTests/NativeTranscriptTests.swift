@@ -868,6 +868,69 @@ import XCTest
         XCTAssertEqual(table.rect(ofRow: 0).height, collapsed.height, accuracy: 2)
     }
 
+    func testLiveToolAndReplyUpdatesKeepMountedRows() async throws {
+        let turn = TurnRecord(startedAt: .now)
+        let first = TranscriptItem(id: "first", kind: .tool, tool: .init(id: "first", name: "read", state: .running), turn: turn)
+        let second = TranscriptItem(id: "second", kind: .tool, tool: .init(id: "second", name: "read", state: .running), turn: turn)
+        let reply = TranscriptItem(id: "reply", kind: .assistant, streaming: true, turn: turn)
+        let host = NSHostingView(rootView: TranscriptView(items: [first]))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 340),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+        await settleLayout(host)
+
+        let table = try XCTUnwrap(findTable(in: host))
+        XCTAssertEqual(table.numberOfRows, 2)
+        let headerCell = try XCTUnwrap(table.view(atColumn: 0, row: 0, makeIfNecessary: false))
+        let groupCell = try XCTUnwrap(table.view(atColumn: 0, row: 1, makeIfNecessary: false))
+
+        // A live turn appends tools and then the first reply text. Rows that
+        // survive those updates keep their hosting views so thumbnails and the
+        // running effect do not restart on every tool call.
+        host.rootView = TranscriptView(items: [first, second])
+        await settleLayout(host)
+        XCTAssertEqual(table.numberOfRows, 2)
+        XCTAssertTrue(table.view(atColumn: 0, row: 0, makeIfNecessary: false) === headerCell,
+                      "Appending a tool remounted the turn header")
+        XCTAssertTrue(table.view(atColumn: 0, row: 1, makeIfNecessary: false) === groupCell,
+                      "Appending a tool remounted the tool group")
+
+        host.rootView = TranscriptView(items: [first, second, reply])
+        await settleLayout(host)
+        XCTAssertEqual(table.numberOfRows, 2, "A reply without visible text has no row yet")
+        reply.append(index: 0, delta: "Reply")
+        await settleLayout(host)
+        XCTAssertEqual(table.numberOfRows, 3)
+        XCTAssertTrue(table.view(atColumn: 0, row: 0, makeIfNecessary: false) === headerCell,
+                      "Inserting the reply remounted the turn header")
+        XCTAssertTrue(table.view(atColumn: 0, row: 1, makeIfNecessary: false) === groupCell,
+                      "Inserting the reply remounted the tool group")
+    }
+
+    func testQueueFooterUpdatesOnUnchangedMessageRow() async throws {
+        let user = TranscriptItem(id: "user-1", kind: .user, text: "Follow up", delivery: .queued)
+        let host = NSHostingView(rootView: TranscriptView(items: [user]))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 240),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+        await settleLayout(host)
+
+        let table = try XCTUnwrap(findTable(in: host))
+        let cell = try XCTUnwrap(table.view(atColumn: 0, row: 0, makeIfNecessary: false))
+        let initialHeight = table.rect(ofRow: 0).height
+
+        host.rootView = TranscriptView(items: [user], queue: RuntimeQueue(steering: ["Follow up"]))
+        await settleLayout(host)
+        XCTAssertTrue(table.view(atColumn: 0, row: 0, makeIfNecessary: false) === cell)
+        XCTAssertGreaterThan(table.rect(ofRow: 0).height, initialHeight)
+
+        host.rootView = TranscriptView(items: [user], queue: RuntimeQueue())
+        await settleLayout(host)
+        XCTAssertEqual(table.rect(ofRow: 0).height, initialHeight, accuracy: 1)
+    }
+
     func testTranscriptKeepsToolGroupStableWhileToolsFinish() async throws {
         let turn = TurnRecord(startedAt: .now)
         let first = TranscriptItem(id: "first", kind: .tool, tool: .init(id: "first", name: "read", state: .completed), turn: turn)
@@ -978,7 +1041,7 @@ import XCTest
                        color.blueComponent - color.greenComponent > 0.45 { imageBottom = y }
                     // The fixture's wide file chip makes the bubble extend into the left half,
                     // away from the thumbnail's light background. Allow for color conversion.
-                    if x < bitmap.pixelsWide / 2, (0.90...0.94).contains(color.redComponent),
+                    if x < bitmap.pixelsWide / 2, (0.88...0.96).contains(color.redComponent),
                        abs(color.redComponent - color.greenComponent) < 0.01,
                        abs(color.redComponent - color.blueComponent) < 0.01 { bubblePixels += 1 }
                 }

@@ -477,9 +477,17 @@ struct NativeTranscript: NSViewRepresentable {
                 return
             }
             let anchor = follow ? nil : readAnchor()
+            let previousRows = rows
+            var affectedFooterIDs: Set<String> = []
             if footerChanged {
-                if let old = self.queueFooter { heights.removeValue(forKey: old.itemID) }
-                if let queueFooter { heights.removeValue(forKey: queueFooter.itemID) }
+                if let old = self.queueFooter {
+                    heights.removeValue(forKey: old.itemID)
+                    affectedFooterIDs.insert(old.itemID)
+                }
+                if let queueFooter {
+                    heights.removeValue(forKey: queueFooter.itemID)
+                    affectedFooterIDs.insert(queueFooter.itemID)
+                }
                 self.queueFooter = queueFooter
             }
             if fontChanged {
@@ -498,12 +506,73 @@ struct NativeTranscript: NSViewRepresentable {
                 heights = heights.filter { retained.contains($0.key) }
             }
             rows = values; changed = []; upgrades = []; pendingHeights = [:]
-            table?.reloadData()
+            if fontChanged || workspaceChanged || !Self.preservesRowOrder(previousRows, values) {
+                table?.reloadData()
+            } else if let table {
+                applyRowChanges(from: previousRows, to: values, affectedFooterIDs: affectedFooterIDs, in: table)
+            }
             if follow {
                 scrollToLatest()
             } else if let anchor, let lastIndex = values.indices.last {
                 let row = values.firstIndex(where: { $0.contains(anchor.row.id) }) ?? min(anchor.index, lastIndex)
                 restoreAnchor(anchor, at: row)
+            }
+        }
+
+        /// Rows keep their identity across a live turn as long as their relative
+        /// order holds, so only inserted and removed rows are handed to AppKit.
+        /// Reloading every row would restart thumbnails and the running effect.
+        private static func preservesRowOrder(_ old: [NativeTranscriptRow], _ new: [NativeTranscriptRow]) -> Bool {
+            let oldIDs = old.map(\.id), newIDs = new.map(\.id)
+            guard Set(oldIDs).count == oldIDs.count, Set(newIDs).count == newIDs.count else { return false }
+            let oldSet = Set(oldIDs), newSet = Set(newIDs)
+            return oldIDs.filter(newSet.contains) == newIDs.filter(oldSet.contains)
+        }
+
+        private func applyRowChanges(from previous: [NativeTranscriptRow], to values: [NativeTranscriptRow],
+                                     affectedFooterIDs: Set<String>, in table: NSTableView) {
+            let oldIDs = previous.map(\.id), newIDs = values.map(\.id)
+            let oldSet = Set(oldIDs), newSet = Set(newIDs)
+            let removed = IndexSet(oldIDs.indices.filter { !newSet.contains(oldIDs[$0]) })
+            let inserted = IndexSet(newIDs.indices.filter { !oldSet.contains(newIDs[$0]) })
+            if !removed.isEmpty || !inserted.isEmpty {
+                table.beginUpdates()
+                if !removed.isEmpty { table.removeRows(at: removed, withAnimation: []) }
+                if !inserted.isEmpty { table.insertRows(at: inserted, withAnimation: []) }
+                table.endUpdates()
+                synchronizeAvailableIndexes(in: table)
+            }
+            let oldByID = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            var hostCellsToUpdate: [(Int, HostCell, String)] = []
+            var rowsToReload = IndexSet()
+            table.enumerateAvailableRowViews { rowView, row in
+                guard values.indices.contains(row) else { return }
+                let value = values[row]
+                let contentChanged = oldByID[value.id].map { !$0.hasSameItems(as: value) } ?? false
+                guard contentChanged || affectedFooterIDs.contains(value.id) else { return }
+                if let cell = rowView.view(atColumn: 0) as? HostCell {
+                    hostCellsToUpdate.append((row, cell, value.id))
+                } else {
+                    rowsToReload.insert(row)
+                }
+            }
+            for (row, cell, id) in hostCellsToUpdate {
+                configure(cell, row: row)
+                scheduleMeasure(for: cell, expectedID: id)
+            }
+            if !rowsToReload.isEmpty {
+                table.reloadData(forRowIndexes: rowsToReload, columnIndexes: IndexSet(integer: 0))
+            }
+        }
+
+        /// AppKit keeps row views across insertions but does not re-ask for
+        /// them, so later height measurements need the current row indexes.
+        private func synchronizeAvailableIndexes(in table: NSTableView) {
+            table.enumerateAvailableRowViews { rowView, row in
+                guard rows.indices.contains(row),
+                      let cell = rowView.view(atColumn: 0) as? HostCell,
+                      cell.representedID == rows[row].id else { return }
+                cell.representedIndex = row
             }
         }
 
