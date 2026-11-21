@@ -64,6 +64,7 @@ enum TranscriptFileOpener {
         let process = Process()
         process.executableURL = command.executable
         process.arguments = command.arguments
+        process.environment = processEnvironment()
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
@@ -79,6 +80,20 @@ enum TranscriptFileOpener {
         } catch {
             openWithSystemDefault(fallbackURL)
         }
+    }
+
+    private static func processEnvironment() -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let existing = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        let candidates = existing + [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.local/bin",
+        ]
+        var seen: Set<String> = []
+        environment["PATH"] = candidates.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: ":")
+        return environment
     }
 
     /// What a click in the transcript should do, decided without launching anything.

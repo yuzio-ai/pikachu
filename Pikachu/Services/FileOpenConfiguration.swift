@@ -101,15 +101,16 @@ extension FileOpenConfiguration {
         let template = command.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !template.isEmpty else { return "" }
         let quotedPath = Self.shellQuote(path)
-        let lineText = line.map(String.init) ?? ""
         var result = ""
         var index = template.startIndex
         while index < template.endIndex {
             if template[index...].hasPrefix("{path}") {
                 result += quotedPath
                 index = template.index(index, offsetBy: 6)
+            } else if line == nil, template[index...].hasPrefix(":{line}") {
+                index = template.index(index, offsetBy: 7)
             } else if template[index...].hasPrefix("{line}") {
-                result += lineText
+                result += line.map(String.init) ?? ""
                 index = template.index(index, offsetBy: 6)
             } else {
                 result.append(template[index])
@@ -119,7 +120,7 @@ extension FileOpenConfiguration {
         return result
     }
 
-    /// Only the three simple tokens above are substituted, so the quoted value
+    /// Only the two simple tokens above are substituted, so the quoted value
     /// never re-enters the template and cannot inject shell syntax.
     private static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"

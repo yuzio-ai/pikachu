@@ -1284,6 +1284,8 @@ final class TranscriptRenderingTests: XCTestCase {
             arguments: ["-b", "com.microsoft.VSCode", "--args", "-g", "\(file.path):12"])))
         XCTAssertEqual(FileOpenConfiguration.customScript("code -g {path}:{line}", path: "/tmp/a b.swift", line: 3),
                        "code -g '/tmp/a b.swift':3")
+        XCTAssertEqual(FileOpenConfiguration.customScript("code -g {path}:{line}", path: "/tmp/a b.swift", line: nil),
+                       "code -g '/tmp/a b.swift'")
         XCTAssertEqual(FileOpenConfiguration.customScript("code -g {path}:{line}", path: "/tmp/{line}/a.swift", line: 3),
                        "code -g '/tmp/{line}/a.swift':3")
         XCTAssertEqual(FileOpenConfiguration.customScript("open {path}", path: "/tmp/it's.swift", line: nil),
