@@ -416,7 +416,13 @@ struct NativeTranscript: NSViewRepresentable {
             let visible = table.rows(in:table.visibleRect)
             guard visible.location != NSNotFound else { return }
             for row in visible.location..<NSMaxRange(visible) where rows.indices.contains(row) {
-                if table.view(atColumn:0,row:row,makeIfNecessary:false) is SummaryCell { upgrades.insert(row); schedule() }
+                let view = table.view(atColumn: 0, row: row, makeIfNecessary: false)
+                if view is SummaryCell {
+                    upgrades.insert(row)
+                    schedule()
+                } else if let hostCell = view as? HostCell {
+                    stageHeight(hostCell)
+                }
             }
         }
         // Programmatic row-height and scroll changes also move the clip view.
