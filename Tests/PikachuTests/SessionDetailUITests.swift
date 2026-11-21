@@ -87,6 +87,90 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
 }
 
 final class SessionDetailUITests: XCTestCase {
+    @MainActor func testModelSettingsRendersFavoriteStarsConsistently() async throws {
+        let sol = RuntimeModel(provider: "openai", modelID: "gpt-6.2-sol", name: "GPT-6.2 Sol")
+        let astra = RuntimeModel(provider: "openai", modelID: "gpt-6.2-astra", name: "GPT-6.2 Astra")
+        let flash = RuntimeModel(provider: "deepseek", modelID: "deepseek-flash", name: "DeepSeek V4.1 Flash")
+        let spare = RuntimeModel(provider: "openai", modelID: "gpt-4.1", name: "GPT-4.1")
+        let other = RuntimeModel(provider: "openai", modelID: "gpt-5", name: "GPT-5")
+        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: []),
+                                            inspectModels: { _ in
+            RuntimeConfigurationOptions(models: [sol, astra, flash, spare, other], thinkingLevels: ["low", "high"])
+        }) { _, _ in StubSessionRuntime() }
+        await workspace.start()
+        _ = await workspace.setDefaultModel(sol)
+        for model in [sol, astra, flash] { _ = await workspace.setFavoriteModel(model, isFavorite: true) }
+        _ = await workspace.setModelVisible(other, isVisible: false)
+
+        let host = NSHostingView(rootView: ModelSettingsView(workspace: workspace))
+        host.frame = .init(x: 0, y: 0, width: 720, height: 470)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        for _ in 0..<150 {
+            try await Task.sleep(for: .milliseconds(20))
+            host.layoutSubtreeIfNeeded()
+        }
+
+        func snapshot() throws -> CGImage {
+            host.layoutSubtreeIfNeeded()
+            let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: rep)
+            let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+            return try XCTUnwrap(NSBitmapImageRep(data: png)?.cgImage)
+        }
+
+        // Favourited rows must keep a filled star on the first paint and after a row moves
+        // from "其他模型" into "收藏".
+        func favoriteStars(_ image: CGImage) -> Int {
+            guard let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return -1 }
+            let bytesPerRow = image.bytesPerRow, height = image.height, width = image.width, length = CFDataGetLength(data)
+            var runs = 0, inRun = false
+            for y in 0..<height {
+                var gold = 0
+                for x in 0..<width {
+                    let offset = y * bytesPerRow + x * 4
+                    guard offset + 3 < length else { continue }
+                    let r = Int(bytes[offset]), g = Int(bytes[offset + 1]), b = Int(bytes[offset + 2])
+                    if abs(r - 0x80) < 40 && abs(g - 0x53) < 45 && b < 80 { gold += 1 }
+                }
+                if gold >= 6 {
+                    if !inRun { runs += 1; inRun = true }
+                } else {
+                    inRun = false
+                }
+            }
+            return runs
+        }
+
+        XCTAssertEqual(favoriteStars(try snapshot()), 3, "GPT-6.2 ×2 and DeepSeek are favourites")
+        // The reported bug: a row moved from "其他模型" into "收藏" kept its outline star.
+        _ = await workspace.setFavoriteModel(spare, isFavorite: true)
+        for _ in 0..<20 { try await Task.sleep(for: .milliseconds(20)); host.layoutSubtreeIfNeeded() }
+        XCTAssertEqual(favoriteStars(try snapshot()), 4, "the new favourite keeps a filled star")
+        _ = await workspace.setFavoriteModel(spare, isFavorite: false)
+        for _ in 0..<20 { try await Task.sleep(for: .milliseconds(20)); host.layoutSubtreeIfNeeded() }
+        XCTAssertEqual(favoriteStars(try snapshot()), 3, "removing a favourite clears its star")
+        XCTAssertEqual(workspace.state.modelPreferences?.favorites.count, 3)
+    }
+
+    func testModelSettingsKeepStarAndSectionConsistent() {
+        let sol = RuntimeModel(provider: "openai", modelID: "gpt-6.2-sol", name: "GPT-6.2 Sol")
+        let flash = RuntimeModel(provider: "deepseek", modelID: "deepseek-flash", name: "DeepSeek V4.1 Flash")
+        let other = RuntimeModel(provider: "openai", modelID: "gpt-4.1", name: "GPT-4.1")
+        let groups = ModelListSection.group([sol, flash, other], favorites: [sol.id, flash.id], hidden: [other.id])
+        XCTAssertEqual(groups.map(\.section), [.favorites, .hidden])
+        XCTAssertEqual(groups[0].models.map(\.id), [sol.id, flash.id])
+        XCTAssertEqual(groups[1].models.map(\.id), [other.id])
+
+        // Switching a favorite off must not duplicate it, and it keeps its star.
+        let toggledOff = ModelListSection.group([sol, flash], favorites: [sol.id, flash.id], hidden: [flash.id])
+        XCTAssertEqual(toggledOff.map(\.section), [.favorites, .hidden])
+        XCTAssertEqual(toggledOff.flatMap(\.models).filter { $0.id == flash.id }.count, 1)
+    }
+
     func testCodexQuotaUsesOnlyCodexWindowsAndPreservesResetTime() throws {
         let payload = #"{"rateLimits":{"limitId":"codex","primary":{"usedPercent":5}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":99,"windowDurationMins":10080,"resetsAt":1795250809},"secondary":{"usedPercent":71}},"other":{"primary":{"usedPercent":100}}}}"#
         let observed = Date(timeIntervalSince1970: 1_795_250_000)

@@ -72,18 +72,24 @@ struct ModelSettingsView: View {
                         }
                         let catalogueIDs = Set(models.map(\.id))
                         let favoriteIDs = Set(preferences.favorites.map(\.id))
-                        let hiddenIDs = preferences.hiddenModelIDs
                         let listed = listedModels
                         if listed.isEmpty, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Text("没有匹配的模型。").foregroundStyle(.secondary)
                         }
+                        // A row that moves between sections gets a new identity, so its star and
+                        // switch always follow the section it is drawn in.
                         LazyVStack(alignment: .leading, spacing: 2) {
-                            modelGroup("收藏", models: listed.filter { favoriteIDs.contains($0.id) && !hiddenIDs.contains($0.id) },
-                                       catalogueIDs: catalogueIDs, favoriteIDs: favoriteIDs, visible: true)
-                            modelGroup("其他模型", models: listed.filter { !favoriteIDs.contains($0.id) && !hiddenIDs.contains($0.id) },
-                                       catalogueIDs: catalogueIDs, favoriteIDs: favoriteIDs, visible: true)
-                            modelGroup("已从选择器隐藏", models: listed.filter { hiddenIDs.contains($0.id) },
-                                       catalogueIDs: catalogueIDs, favoriteIDs: favoriteIDs, visible: false)
+                            ForEach(ModelListSection.group(listed, favorites: favoriteIDs,
+                                                           hidden: preferences.hiddenModelIDs), id: \.section) { group in
+                                Text(group.section.title).pikachuFont(.caption, weight: .semibold).foregroundStyle(.secondary)
+                                    .padding(.top, 8)
+                                    .accessibilityAddTraits(.isHeader)
+                                ForEach(group.models) { model in
+                                    modelRow(model, section: group.section, available: catalogueIDs.contains(model.id),
+                                             favorite: favoriteIDs.contains(model.id))
+                                        .id("\(group.section.rawValue)|\(model.id)")
+                                }
+                            }
                         }
                     }
                 }
@@ -104,20 +110,9 @@ struct ModelSettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    @ViewBuilder private func modelGroup(_ title: LocalizedStringKey, models: [RuntimeModel], catalogueIDs: Set<String>,
-                                         favoriteIDs: Set<String>, visible: Bool) -> some View {
-        if !models.isEmpty {
-            Text(title).pikachuFont(.caption, weight: .semibold).foregroundStyle(.secondary)
-                .padding(.top, 8)
-                .accessibilityAddTraits(.isHeader)
-            ForEach(models) { model in
-                modelRow(model, available: catalogueIDs.contains(model.id), favorite: favoriteIDs.contains(model.id), visible: visible)
-            }
-        }
-    }
-
-    private func modelRow(_ model: RuntimeModel, available: Bool, favorite: Bool, visible: Bool) -> some View {
-        HStack(spacing: 6) {
+    private func modelRow(_ model: RuntimeModel, section: ModelListSection, available: Bool, favorite: Bool) -> some View {
+        let visible = section != .hidden
+        return HStack(spacing: 6) {
             Button {
                 save { await workspace.setFavoriteModel(model, isFavorite: !favorite) }
             } label: {
@@ -154,6 +149,8 @@ struct ModelSettingsView: View {
             }
             .toggleStyle(FlatToggleStyle(compact: true))
             .disabled(!available)
+            .padding(.leading, 10)
+            .help(visible ? Text("在选择器中显示 \(model.name)") : Text("已在选择器中隐藏 \(model.name)"))
             .accessibilityIdentifier("model-visibility-\(model.id)")
         }
     }
