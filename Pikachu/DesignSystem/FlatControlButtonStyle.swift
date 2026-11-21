@@ -10,6 +10,7 @@ struct FlatControlButtonStyle: ButtonStyle {
     var inset = true
     var cornerRadius: CGFloat = 8
     var height: CGFloat? = nil
+    var minimumWidth: CGFloat? = nil
     var outlineColor: Color? = nil
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovered = false
@@ -46,6 +47,7 @@ struct FlatControlButtonStyle: ButtonStyle {
             .foregroundStyle(foreground)
             .padding(.horizontal, inset ? 8 : 0)
             .padding(.vertical, inset && height == nil ? 5 : 0)
+            .frame(minWidth: minimumWidth)
             .frame(height: height)
             .background(fill, in: shape)
             .overlay { shape.strokeBorder(outlineColor ?? outline, lineWidth: 1).allowsHitTesting(false) }

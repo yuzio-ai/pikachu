@@ -366,15 +366,7 @@ import UserNotifications
         }
         let content = FlatConfirmation(request: request, cancel: { application.stopModal(withCode: .cancel) }, width: width)
             .pikachuTypography(settings.interfaceFontSize)
-        let host = NSHostingView(rootView: content)
-        let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.title = "Pikachu"
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.hidesOnDeactivate = false
-        panel.contentView = host
-        panel.setContentSize(host.fittingSize)
-        panel.center()
+        let panel = ConfirmationPanel.make(rootView: content)
         panel.makeKeyAndOrderFront(nil)
         defer { panel.orderOut(nil) }
         return application.runModal(for: panel) == .OK
