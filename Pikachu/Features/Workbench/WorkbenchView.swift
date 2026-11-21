@@ -692,24 +692,22 @@ struct SessionHeader: View {
     }
 
     private func statusBadge(_ status: ConnectionStatus) -> some View {
-        let isRunning = status.kind == .running
+        let tint = status.kind == .neutral ? PikachuTheme.secondaryText : status.kind.color
         return HStack(spacing: 5) {
             Circle()
                 .fill(status.kind.color)
-                .frame(width: isRunning ? 6 : 8, height: isRunning ? 6 : 8)
+                .frame(width: 6, height: 6)
             Text(status.label)
-                .pikachuFont(.caption, weight: isRunning ? .medium : .regular)
-                .foregroundStyle(isRunning ? PikachuTheme.runningText : Color.secondary)
+                .pikachuFont(.caption, weight: .medium)
+                .foregroundStyle(tint)
                 .lineLimit(1)
         }
-        .padding(.horizontal, isRunning ? 7 : 0)
-        .padding(.vertical, isRunning ? 2 : 0)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
         .background {
-            if isRunning {
-                Capsule()
-                    .fill(PikachuTheme.runningText.opacity(0.12))
-                    .shadow(color: .black.opacity(0.10), radius: 2, y: 1)
-            }
+            Capsule()
+                .fill(tint.opacity(0.12))
+                .shadow(color: .black.opacity(0.10), radius: 2, y: 1)
         }
         .frame(height: 24)
         .fixedSize(horizontal: true, vertical: false)
