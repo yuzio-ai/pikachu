@@ -24,25 +24,30 @@ if args.count >= 4, args[1] == "--relaunch-app", let parent = Int32(args[2]), pa
         exit(70)
     }
 }
-guard args.count >= 6, args[4] == "--" else { exit(64) }
+guard args.count >= 6, ["--", "--version-probe", "--one-shot", "--terminal", "--terminal-login"].contains(args[4]) else { exit(64) }
+let oneShot = args[4] == "--one-shot" || args[4] == "--version-probe"
+let terminalLogin = args[4] == "--terminal-login"
+let terminal = args[4] == "--terminal" || terminalLogin
 let statusURL = URL(fileURLWithPath: args[1]), token = args[2]
-let ownerPID = Int32(args[3])!
+guard let ownerPID = Int32(args[3]), ownerPID > 1 else { exit(64) }
 pk_install_signal_handlers()
 let owner = ProcessIdentity.read(ownerPID)
-let root = Process()
-root.executableURL = URL(fileURLWithPath: args[5]); root.arguments = Array(args.dropFirst(6))
 var environment = ProcessInfo.processInfo.environment
 environment["PIKACHU_EXECUTION_TOKEN"] = token
-root.environment = environment
-root.standardInput = FileHandle.standardInput
-root.standardOutput = FileHandle.standardOutput
-root.standardError = FileHandle.standardError
+let root = SupervisedProcess(terminalLogin: terminalLogin, executable: args[5],
+                            arguments: Array(args.dropFirst(6)), environment: environment)
 var owned: [Int32: ProcessIdentity] = [:]
 var signalsSent = 0, sweepCount = 0
 @MainActor func status(_ state: String, _ reason: String = "", _ remaining: Int? = nil) {
-    let record: Record = ["state": state, "reason": reason, "runtimePID": root.processIdentifier,
+    var record: Record = ["state": state, "reason": reason, "runtimePID": root.processIdentifier,
+                          "supervisionID": statusURL.deletingLastPathComponent().lastPathComponent,
                           "supervisorPID": getpid(), "ownedIdentities": owned.count,
                           "signalsSent": signalsSent, "sweeps": sweepCount, "remaining": remaining ?? -1]
+    if state == "clean", !root.isRunning, terminal || (oneShot && reason == "runtimeExited"),
+       let result = root.termination {
+        record["runtimeExitStatus"] = result.code
+        if terminal { record["runtimeExitBySignal"] = result.bySignal }
+    }
     if let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) {
         try? data.write(to: statusURL, options: .atomic)
     }
@@ -74,11 +79,33 @@ var signalsSent = 0, sweepCount = 0
     return snapshot.filter { entry in entry.live && owned[entry.pid]?.sameProcess(as: entry) == true } + unresolved
 }
 do {
-    try root.run()
-    guard let identity = ProcessIdentity.read(root.processIdentifier), owner != nil else {
-        root.terminate(); throw ProbeError.failure("Cannot establish runtime/owner identity")
+    if terminalLogin {
+        do {
+            var agentEnvironment = try TerminalLoginEnvironment.receive(in: statusURL.deletingLastPathComponent()) {
+                pk_stop_requested() == 0 && getppid() == ownerPID
+                    && ProcessIdentity.read(ownerPID).map { owner?.sameProcess(as: $0) == true } == true
+            }
+            agentEnvironment["PIKACHU_EXECUTION_TOKEN"] = token
+            guard pk_stop_requested() == 0 else { throw CancellationError() }
+            try root.run(environment: agentEnvironment)
+        } catch {
+            // No terminal child was spawned if transfer or posix_spawn failed.
+            status("clean", error is CancellationError ? "supervisorStopRequested" : "terminalLaunchFailed", 0)
+            exit(error is CancellationError ? 0 : 70)
+        }
+    } else {
+        try root.run()
     }
-    owned[identity.pid] = identity
+    guard owner != nil else {
+        if root.isRunning { root.terminate() }
+        throw ProbeError.failure("Cannot establish owner identity")
+    }
+    if let identity = ProcessIdentity.read(root.processIdentifier) {
+        owned[identity.pid] = identity
+    } else if !(oneShot || terminal) || root.isRunning {
+        if root.isRunning { root.terminate() }
+        throw ProbeError.failure("Cannot establish runtime identity")
+    }
     _ = try sweep()
     status("running")
     var reason = "runtimeExited"

@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
+#include <spawn.h>
+#include <sys/wait.h>
 
 static volatile sig_atomic_t stopping = 0;
 static void stop_handler(int signal) { stopping = signal; }
@@ -74,4 +77,36 @@ int pk_marker_scan_matches(pk_marker_scan *scan, int pid) {
     }
     memset_s(bytes, scan->capacity, 0, n);
     return found;
+}
+
+int pk_spawn_terminal_child(int32_t *pid, const char *executable, char *const argv[], char *const envp[]) {
+    if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) ||
+        tcgetpgrp(STDIN_FILENO) != getpgrp()) return ENOTTY;
+
+    posix_spawnattr_t attributes;
+    int error = posix_spawnattr_init(&attributes);
+    if (error != 0) return error;
+    sigset_t signals;
+    sigemptyset(&signals);
+    sigaddset(&signals, SIGINT);
+    sigaddset(&signals, SIGTERM);
+    sigaddset(&signals, SIGHUP);
+    sigaddset(&signals, SIGPIPE);
+    error = posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSIGDEF);
+    if (error == 0) error = posix_spawnattr_setsigdefault(&attributes, &signals);
+    // Inherit the supervisor's foreground group and controlling terminal.
+    if (error == 0) error = posix_spawn(pid, executable, NULL, &attributes, argv, envp);
+    posix_spawnattr_destroy(&attributes);
+    return error;
+}
+
+int pk_poll_terminal_child(int32_t pid, int32_t *exit_code, int32_t *by_signal) {
+    int status;
+    pid_t result;
+    do { result = waitpid(pid, &status, WNOHANG); } while (result < 0 && errno == EINTR);
+    if (result <= 0) return (int)result;
+
+    *by_signal = WIFSIGNALED(status);
+    *exit_code = *by_signal ? WTERMSIG(status) : WEXITSTATUS(status);
+    return 1;
 }
