@@ -1,120 +1,97 @@
 # Pikachu
 
-原生 macOS Coding Agent 工作台。Phase 1 功能与冻结性能指标均已通过验收。[原生窗口呈现复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
+Pikachu 是通过 ACP 连接本地编程智能体的原生 macOS 工作台，支持多项目、并行会话、Worktree、工具审批和历史浏览。
 
 ## 本地运行
 
-要求 macOS 27、Xcode 27 / Swift 6、Python 3，以及已配置认证的 Pi **1.x** 和 Node。版本检查接受 Pi 1.x 的次版本和补丁版本；实际 RPC 兼容性以所用版本的验证结果为准。当前仅验证本机 arm64 环境。
+- 构建需要 macOS 27 或更高版本、Xcode 27 和 Swift 6。当前验证环境为 Apple Silicon（arm64）。
+- 真实会话需要至少一个已安装的 ACP 智能体。可执行文件、启动参数和认证由对应智能体管理。
+- Python 3 用于验证工具和测试夹具。
 
-### 使用 Xcode
-
-打开 `Pikachu.xcodeproj`，选择 `Pikachu` scheme，按 ⌘R 构建并运行（⌘U 运行全部单元测试）。工程默认采用本地 ad-hoc 签名，自动内嵌 6 个动态 framework 与独立监督进程 `pikachu-supervisor`。
-
-### 使用命令行（`xcodebuild`）
-
-Debug 构建并启动：
+用 Xcode 打开 `Pikachu.xcodeproj`，选择 `Pikachu` scheme，按 ⌘R 构建并运行。工程采用本地 ad-hoc 签名，并内嵌运行时框架和独立监督进程 `pikachu-supervisor`。也可以在仓库根目录运行下列命令。
 
 ```sh
-xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build build
+xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -configuration Debug -derivedDataPath build build
 open build/Build/Products/Debug/Pikachu.app
 ```
 
-Release 构建并启动：
+构建 Release 时将 `-configuration Debug` 改为 `-configuration Release`，打开 `build/Build/Products/Release/Pikachu.app`。
 
-```sh
-xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -configuration Release -derivedDataPath build build
-open build/Build/Products/Release/Pikachu.app
-```
+首次启动时，在「设置 → 智能体」添加并启用本机 ACP 智能体。打开项目后即可新建会话；首次发送时按需连接。也可以从侧栏或 ⌘N 进入配置。
 
-独立诊断配置构建（必须使用非默认 Bundle Identifier，防止混入正式工作台）：
+## 使用工作台
 
-```sh
-xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -configuration Release -derivedDataPath build \
-  PIKACHU_BUNDLE_IDENTIFIER=ai.yuzio.pikachu.diagnostics \
-  PIKACHU_DIAGNOSTICS_CONFIG=/path/to/DiagnosticsConfiguration.json \
-  build
-```
+### 会话和工作目录
 
-打开后，点击「打开项目…」，选择或新建会话。发送草稿时自动连接并开始任务。
+手动会话可并行运行，没有固定会话额度。每个会话独立处理消息、工具审批和停止操作。切换查看对象时，后台任务继续执行。可从侧栏、后台运行横幅或 macOS 菜单栏返回会话。菜单栏显示运行、待审批和未读完成的数量。
 
-侧栏齿轮打开「通用」「项目」和「服务商」。设置面板随主窗口宽高调整，较长的页面可滚动。通用设置提供后台任务与待审批通知、界面语言、字体大小、文件打开方式和默认执行模式。通知默认关闭。切换界面语言后可立即重新启动，也可保留设置并稍后重启。
+输入栏的工作区选择器默认使用项目工作区，也可选已有 Worktree，或指定基准提交、分支和路径新建 Worktree。首次发送前可在原会话切换目录并保留草稿。会话与工作目录绑定后，换目录会在目标目录新建会话并带上草稿。同目录会话共享文件，同时改代码时可使用不同 Worktree。
 
-在「设置 → 服务商 → Pi 模型」可设置新会话的默认模型，也可恢复为跟随 Pi 设置。点星号收藏常用模型，关闭右侧开关可将模型从会话选择器隐藏。打开会话模型选择器时，有可用的收藏就先显示收藏；仍可查看全部可见模型，当前会话的模型也会保留。
+会话顶栏显示项目、会话、Git 摘要和连接状态。悬停标题旁的连接胶囊可查看详情。空闲连接在无任务、队列或扩展交互的情况下，持续 35 分钟后会断开。下次发送按需重连。受管进程清理未确认时，同一会话暂停新的执行。
 
-「服务商 → Pi 连接」管理 Pi、Node、可信扩展和传给 Pi 子进程的环境变量。App 自动发现 Pi、Node 和系统代理。环境变量值保存在 macOS 钥匙串，保存后在下次启动 Pi 子进程时生效。已有代理配置会迁移为 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NODE_USE_ENV_PROXY`，诊断参数 `--proxy` 仍可覆盖本次启动。认证复用 `~/.pi/agent`。运行时可以修改项目和执行命令，请先确认工作目录。
+侧栏按「待处理」和「已处理」组织会话，支持搜索、项目筛选、刷新和标记处理状态。底栏的账户额度入口显示本机 Codex CLI 账户的额度，可手动刷新。会话用量独立显示累计 Token、估算费用和上下文占用。无法估算的费用会标为不可用。
 
-从 Finder 启动时，Pi 不一定能看到终端里的工具。可在「服务商 → Pi 连接 → 工具搜索目录」选择受信任的工具目录（例如 Apple Silicon 上的 `/opt/homebrew/bin`）。Pikachu 按「已配置的 Node 目录 → 添加的工具目录 → 继承的 PATH」顺序搜索；设置在下次启动 Pi 子进程时生效，不必重启 Pikachu。`PATH` 仍由应用管理，不要在环境变量表里填写。
+### 执行模式与审批
 
-输入栏提供文件路径引用、执行模式、工具审批、工作区选择、模型与推理强度、上下文用量与明细入口，以及发送。工作区选择器默认使用项目工作区。用户也可选择已有 Worktree，或指定基准提交、分支和路径创建 Worktree。首次运行前可切换目录并保留草稿。之后换目录会在目标位置新建会话并带上草稿。
+连接后，输入栏显示智能体提供的执行模式。工具审批使用智能体返回的选项。文件读写和终端等客户端权限按智能体配置，默认关闭。
 
-| 执行模式 | 工具审批 |
+### 输入与对话
+
+- 默认按 ⌘ Return 发送，Return 或 ⇧ Return 换行，⌘. 停止。可在「设置 → 通用 → 输入与对话」选择 Return 发送。运行中可编辑下一条草稿，本轮结束后再发送。停止会请求智能体取消当前回合，已完成的文件写入会保留。
+- 输入栏支持添加文件、从剪贴板粘贴图片、从 Finder 粘贴视频文件。图片和视频可显示缩略图。附件以文件路径随消息发送，引用的视频留在原位置。
+- 对话支持流式 Markdown、列表、表格、可复制的代码块和原生文本选择，提供消息复制、用户消息重编辑、右侧消息导航和「回到最新」。长历史使用 AppKit 可见行复用。
+- 同一轮中连续的工具调用自动成组，默认折叠。展开后可检查参数和输出。只有一项时，该工具行就是组标题。工具结束后如果模型尚未继续输出，会显示「思考中」。模型调用失败时，可以确认后重试上一条消息。
+- 点击窗口右上角的「项目文件」或按 ⌥⌘B，浏览当前会话目录。宽窗中目录在文件面板左侧。打开的文件显示在顶部标签栏，悬停时可从标签左侧关闭，切换工作目录会清空标签。面包屑标明项目或 worktree，可点击目录段定位。正文默认显示带行号的原文，支持切换换行和 Markdown 格式预览。刷新可读取磁盘上的新内容并尽量保留阅读位置。「打开方式」可临时选择 Finder、编辑器或系统默认方式。
+- 点击工作区文件链接或本轮变更的文件可打开对应路径。链接可用 `#L42` 或 `:42` 指定行号，所选编辑器支持时会跳转到该行。
+
+### 常用设置
+
+点击侧栏齿轮或按 ⌘, 打开设置。
+
+| 位置 | 用途 |
 | --- | --- |
-| 制定计划 | 只开放读取、搜索、查找和列目录，可选「每次审批」或「无需审批」（默认）。 |
-| 交互执行 | 可选「每次审批」「工具审批」（默认）或「无需审批」。「工具审批」在修改文件或执行命令前逐次询问。 |
-| 自主执行 | 固定「无需审批」。使用 Pi 配置的工具和所选扩展，扩展可发起自身的交互。 |
+| 通用 | 管理通知、界面语言、字体、文件打开方式、发送快捷键和会话标题。 |
+| 项目 | 管理显示名称、工作目录、归档和项目规则及 Skills 的来源。 |
+| 智能体 | 添加或启用 ACP 智能体，检查连接、登录和配置模型。 |
 
-在「设置 → 通用 → 默认执行模式」可选择新建会话的模式。未修改设置时，新会话默认「交互执行」。修改默认值不会改变已有会话；缺少模式记录的旧会话和导入会话仍使用「自主执行」。会话分别保留制定计划和交互执行的审批选择，空闲时修改的设置在下次连接并发送时生效。
+在「设置 → 通用 → 会话标题」可设置所有项目的命名规则，选择自动、指定模型或关闭模型生成。默认自动使用「智能体」列表中首个可独立生成标题的配置，优先使用为该智能体保存的默认模型。新会话先使用首条消息或附件名称。智能体确认收到首条正文后，Pikachu 将完整正文和命名规则交给标题模型生成一次。纯附件、历史恢复和手动命名保留各自的标题。模型不可用时保留首条消息标题。
 
-支持流式聊天、基础 Markdown / 代码块、图片与视频附件缩略图、消息发送时间与复制/编辑、轮次署名与执行耗时。对话和本轮文件变更中提及的工作区路径、行内代码与相对链接可直接点击打开，带 `#L` 或 `:行号` 时定位到对应行。Pika 摘要紧跟触发该轮的消息，运行时显示跳动圆点和已用秒数；工具已结束而模型尚未继续输出时，最后一组工具下方显示「思考中」。同一轮中连续的工具调用在执行期间就组成一组；只有一条时该行同时作为组标题，完成后保留展开状态，展开后可逐项查看参数与输出。模型调用失败时，失败提示旁提供确认后重试上一条消息的入口。长历史使用 AppKit 可见行复用，保留原生文本选择与代码复制。当前会话运行时，编辑区左侧的胶囊可切换「中途调整」和「排队执行」。光标和每一行文字都从胶囊右侧开始；空闲时隐藏胶囊，恢复全宽。右下角空闲时显示「发送」，运行中显示「停止」。Return 或 Shift-Return 换行，⌘ Return 发送，⌘ . 停止。停止不会撤销已完成的文件操作。
+目前可独立生成标题的配置为 Claude Agent ACP 0.88 起的 0.x 版本，搭配 Claude Code 2.1.293 或更新版本，并配置 Claude API Key 或受支持的云服务认证。仅有 Claude 订阅登录时使用首条消息标题。标题进程使用 Claude Code 的 bare 模式，关闭工具和会话写入。 [Claude Code bare 模式](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)
 
-支持多项目、独立会话草稿、只读历史和重启恢复。打开模型选择器时加载可用模型。执行会话空闲时立即应用模型配置，其余会话保存并在下次发送时应用。会话顶栏展示项目与会话身份、Git 摘要和连接操作。连接状态统一紧跟会话标题，运行中使用胶囊；悬停可查看详情。点击项目名可在当前项目下新建会话。会话列表在启动和工作台重新激活时自动刷新。手动会话可并行运行，不设固定并发额度。会话独立处理消息、扩展请求及停止；同目录会话共享项目文件，同时改代码建议使用不同的 Worktree。切换会话时已有任务继续运行，可从侧栏或后台运行横幅定位；横幅较多时可滚动。启动其他会话不会挤掉已有连接。没有运行任务、待执行队列或扩展交互的连接，持续空闲 35 分钟后才会自动断开，避免为了节省本地 CPU 在常见的半小时续聊窗口内提前重启运行时；历史和草稿保留，下次发送会按需重连。模型缓存的有效期和命中由服务商决定。清理未确认时，会话仍会阻止新的执行。
+在「设置 → 智能体」点击「添加智能体…」，按名称或 ID 搜索官方 ACP Registry。选择智能体后可编辑预填的可执行文件和启动参数。「检查本机安装」查看配置能否找到对应的本地可执行文件。保存后，可在该智能体的设置中运行连接自检以验证 ACP 握手。目录不可用时可重试或手动填写配置。 [ACP Registry](https://agentclientprotocol.com/get-started/registry)
 
-工作台的项目索引、草稿、配置与发送状态保存在 `~/Library/Application Support/Pikachu/Workspace/workspace.store`（SwiftData）。普通编辑约 250 ms 合并保存；发送前必须完成提交状态持久化，退出前显式保存。尚未保存的编辑不承诺在强制退出后恢复。
+在「登录与登出」选择 Agent 提供的登录方式。选择终端登录后，确认参数及环境覆盖，随后在 Pikachu 的登录终端完成操作。登录成功后应用会重新连接 Agent。
 
-对话真实来源仍是 Pi JSONL。新会话保存在 `~/Library/Application Support/Pikachu/Sessions/<projectID>/`；同时发现标准 `~/.pi/agent/sessions/`。打开项目和“刷新”用于发现历史，重新选择会话会读取源文件。读取不启动 Pi。未知格式、损坏、缺失或尾部未写完均明确提示；已确认的历史不会静默变成空会话。
+文件打开方式支持系统默认、Xcode、Visual Studio Code 和自定义命令。自定义命令可填 `code -g {path}:{line}`。应用会替换路径和行号，`{path}` 自带 shell 引号，无行号时自动省略 `:{line}`。编辑器不可用或命令失败时，会尝试系统默认应用，需要时在 Finder 中显示文件。
 
-「设置 → 项目」提供工作目录、「加载项目提供的 Pi 配置」开关、项目级的会话刷新和重新定位。项目配置加载默认关闭（启动 Pi 时传入 `--no-approve`），按实际工作目录保存；主目录与各 Worktree 分别设置，切换 Worktree 或重新定位后按目标目录自己的设置生效，开启时传入 `--approve`。目录移动后，用「重新定位项目…」更新原路径并保留项目和会话标识。旧会话仍可只读查看。要在新位置执行任务，请新建会话。
+「设置 → 项目」底部可在所有会话断开后删除项目。删除会清除 Pikachu 内的项目设置、会话条目和草稿。磁盘上的项目文件、Worktree 和智能体历史保留。
 
-重启不恢复推理、不重放旧队列、不自动重发任务。结果未确认的提交保留关联标识，并要求用户核对。提供累计 Token / 估算费用、独立上下文占用、原生扩展弹窗与快捷键；未知费用明确显示不可用。原生性能的完成边界见报告。
+每个 ACP 智能体可以独立设置普通环境变量和工具搜索目录。从钥匙串存储环境变量的旧版升级后，请在设置中重新录入需要的普通变量。认证由智能体管理。只从环境变量读取 API Key 的智能体需要从 Pikachu 的外部启动环境获取 Key。
 
-⌘B 显示或隐藏侧栏，⌘+ / ⌘- / ⌘0 调整字体大小，⌃⌘F 切换全屏，⌘, 打开设置，⌘O 打开项目，⌘N 新建会话，⌘L 聚焦输入，⇧⌘R 返回执行会话，⇧⌘M 模型设置，⇧⌘U 查看或关闭用量，⌘. 停止当前执行。可信扩展可从「服务商 → Pi 连接」添加，由自主执行加载。
+⌘O 打开项目，⌘N 新建会话，⌘L 聚焦输入，⌘B 切换侧栏，⌘+ / ⌘- / ⌘0 调整字号，⌃⌘F 切换全屏。⇧⌘M 打开「智能体与模型」，可从当前智能体的收藏或全部可见模型选取模型及推理档位。⇧⌘U 查看或关闭会话用量。仅有一个执行会话时，可用 ⇧⌘R 返回。空闲时按住或连按两次 ⌘Q 退出，有活跃任务时弹出退出确认。
 
-侧栏按「待处理」和「已处理」组织会话。悬停待处理卡片可显示提醒和标记已处理操作，运行标签位于时间左侧。标记已处理后，会话移入「已处理」，右键可移回「待处理」。顶部可搜索和筛选项目，左下角刷新本地会话，底栏右侧的账户额度入口读取本机 Codex CLI 的账户额度，弹层标注额度只属于本机 Codex 账号、不绑定当前会话，并可手动刷新。
+## 本地数据与恢复
 
-## 验证
+- 工作台索引、草稿、配置和发送状态存放于 `~/Library/Application Support/Pikachu/Workspace/workspace.store`（SwiftData），剪贴板粘贴的图片存放在 `~/Library/Application Support/Pikachu/Pasted Images/`。普通编辑约 250 ms 合并保存，发送前先保存提交状态。强制退出时可能丢失尚未保存的编辑。
+- ACP 会话按原智能体的能力恢复。断开后可查看已缓存的对话，切换智能体时冻结旧段。新会话优先使用指定的默认智能体，否则使用首个已启用项。
+- 升级后，当前绑定内置 Pi 的会话、归档和未发送草稿会移出工作台。原始 JSONL 保留在原位置。当前绑定 ACP 的会话保留全部冻结段，包括早期由 Pi 产生的内容。
+
+- 重启后可恢复已保存的草稿和可确认的历史。系统会标记尚未确认的提交，等待用户核对，避免重复发送或重放队列。重新定位项目后可以继续查看原历史，在新目录执行时需新建会话。
+
+## 开发与验证
+
+Xcode 中用 ⌘U 运行 `PikachuTests` 和 `ProcessSupervisionTests`。命令行入口如下。
 
 ```sh
-# 单元测试（PikachuTests + ProcessSupervisionTests）
-xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build test
-
-# 构建并运行集成验证工具（均可在 Xcode 中通过对应 scheme 运行）
-xcodebuild -project Pikachu.xcodeproj -scheme pi-compat-probe -derivedDataPath build build
-xcodebuild -project Pikachu.xcodeproj -scheme runtime-verify -derivedDataPath build build
-xcodebuild -project Pikachu.xcodeproj -scheme workspace-verify -derivedDataPath build build
-xcodebuild -project Pikachu.xcodeproj -scheme interaction-verify -configuration Release -derivedDataPath build build
-
-build/Build/Products/Debug/pi-compat-probe --suite local
-build/Build/Products/Debug/pi-compat-probe --suite supervision
-build/Build/Products/Debug/runtime-verify
-build/Build/Products/Debug/runtime-verify --real
-build/Build/Products/Debug/runtime-verify --baseline
-build/Build/Products/Debug/workspace-verify
-build/Build/Products/Debug/workspace-verify --real
-build/Build/Products/Release/interaction-verify
-python3 Scripts/check-execution-policy.py --wait-for-timeout
+Scripts/run-isolated-verify.sh --scheme Pikachu --action test
 ```
 
-`runtime-verify` 默认使用合成协议进程；`workspace-verify` 默认还验证本机 Pi 的无推理恢复与合成故障。`--real` 额外使用现有 Pi 认证和模型，在临时目录中执行真实编码任务，会产生模型调用费用。`interaction-verify` 默认验证真实 Pi 的扩展命令与合成大输出，不调用模型。结果统一写入忽略目录 `.verification-runs/<工具名>/`。基线只测领域状态投影，不测原生显示延迟。详细参数见 [验证工具说明](Verification/README.md)。
+合成 ACP 集成验证可运行 `Scripts/run-isolated-verify.sh --tool acp-compat-probe -- --suite fake`。更多用法见 [验证工具说明](Verification/README.md)。开发诊断可用 `--state-dir` 指向独立的工作区存储目录。
 
-开发者可用 `--fake` 参数替换执行后端；同一界面和协调器无需修改。`--state-dir` 可指定隔离的工作台存储，`--sessions` 指定会话目录（均已在 `Pikachu` scheme 的启动参数中预置）。由语言设置重启时，相对路径仍以原启动目录为准。其余诊断参数见 [AppSettings](Pikachu/App/AppSettings.swift)。不要将 Pi 凭据复制到项目或诊断文件中。
+## 设计与报告
 
-## 文档
-
-- [产品与架构设计](DESIGN.md)
-- [设计令牌](DESIGN_TOKEN.md)
-- [验证工具说明与命名对照](Verification/README.md)
-- [工作台分区命名与界面优化](docs/design/workbench-ui-refresh.md)
-- [侧边栏会话、提醒与账户额度基础规则](docs/design/sidebar-session-groups-v2.md)
-- [侧栏会话列表与 Settled 历史](docs/design/sidebar-session-groups-v4.md)
-- [会话工作区顶栏、时间与权限](docs/design/session-detail-ui-v5.md)
-- [统一窗口顶栏与新会话布局](docs/design/session-window-toolbar-v2.md)
-- [会话运行控制与时间线](docs/design/session-run-timeline.md)
-- [输入区发送方式](docs/design/composer-send-mode-placement.md)
-- [设置分组与交互](docs/design/settings-organization.md)
-- [确认弹窗排版](docs/design/confirmation-dialogs.md)
-- [Pi 协议兼容与进程监督报告](docs/reports/pi-rpc-compatibility/SUPERVISION.md)
-- [运行时集成与原生交互报告](docs/reports/runtime-integration/REPORT.md)
-- [工作台持久化与会话恢复报告](docs/reports/workspace-recovery/REPORT.md)
-- [扩展交互与工作台优化报告](docs/reports/interaction-performance/REPORT.md)
-- [原生性能验收报告](docs/reports/interaction-performance/PERFORMANCE.md)
-- [领域投影基线与性能目标](docs/reports/runtime-integration/PERFORMANCE.md)
+- [产品与架构设计](DESIGN.md) · [设计令牌](DESIGN_TOKEN.md) · [应用图标](docs/design/app-icon/README.md) · [第三方资源声明](THIRD-PARTY-NOTICES.md)
+- [工作台布局](docs/design/workbench-ui-refresh.md) · [侧栏会话](docs/design/sidebar-session-groups-v4.md) · [提醒和账户额度](docs/design/sidebar-session-groups-v2.md) · [会话顶栏](docs/design/session-window-toolbar-v2.md)
+- [会话详情](docs/design/session-detail-ui-v5.md) · [运行时间线](docs/design/session-run-timeline.md) · [输入区](docs/design/composer-send-mode-placement.md) · [设置](docs/design/settings-organization.md) · [确认弹窗](docs/design/confirmation-dialogs.md)
+- [Pi 协议与进程监督](docs/reports/pi-rpc-compatibility/SUPERVISION.md) · [运行时集成](docs/reports/runtime-integration/REPORT.md) · [工作台恢复](docs/reports/workspace-recovery/REPORT.md)
+- [原生交互](docs/reports/interaction-performance/REPORT.md) · [性能验收](docs/reports/interaction-performance/PERFORMANCE.md) · [领域投影基线](docs/reports/runtime-integration/PERFORMANCE.md)
