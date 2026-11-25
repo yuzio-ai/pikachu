@@ -2,66 +2,110 @@ import Foundation
 
 public enum TranscriptFileLinks {
     public static func enrich(_ blocks: [MarkdownBlock], workspaceDirectory: URL?) -> [MarkdownBlock] {
+        enrich(blocks, workspaceDirectory: workspaceDirectory) { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    public static func enrich(
+        _ blocks: [MarkdownBlock],
+        workspaceDirectory: URL?,
+        fileExists: (String) -> Bool
+    ) -> [MarkdownBlock] {
         var cache: [String: URL?] = [:]
-        return enrich(blocks, workspaceDirectory: workspaceDirectory, cache: &cache)
+        return enrich(blocks, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists)
     }
 
     public static func enrich(_ text: AttributedString, workspaceDirectory: URL?) -> AttributedString {
         var cache: [String: URL?] = [:]
-        return enrich(text, workspaceDirectory: workspaceDirectory, cache: &cache)
+        return enrich(text, workspaceDirectory: workspaceDirectory, cache: &cache) {
+            FileManager.default.fileExists(atPath: $0)
+        }
     }
 
     public static func openableFileURL(for url: URL, workspaceDirectory: URL?) -> URL? {
+        openableFileURL(for: url, workspaceDirectory: workspaceDirectory) {
+            FileManager.default.fileExists(atPath: $0)
+        }
+    }
+
+    public static func openableFileURL(
+        for url: URL,
+        workspaceDirectory: URL?,
+        fileExists: (String) -> Bool
+    ) -> URL? {
         if url.isFileURL {
-            return existingFileURL(forRawPath: url.path)
+            return existingFileURL(forRawPath: url.path, fileExists: fileExists)
         }
         guard url.scheme == nil, let workspaceDirectory else { return nil }
-        return openableFileURL(forRelativePath: decodedRelativePath(from: url), workspaceDirectory: workspaceDirectory)
+        return openableFileURL(forRelativePath: decodedRelativePath(from: url),
+                               workspaceDirectory: workspaceDirectory,
+                               fileExists: fileExists)
     }
 
     public static func openableFileURL(forRelativePath path: String, workspaceDirectory: URL?) -> URL? {
+        openableFileURL(forRelativePath: path, workspaceDirectory: workspaceDirectory) {
+            FileManager.default.fileExists(atPath: $0)
+        }
+    }
+
+    public static func openableFileURL(
+        forRelativePath path: String,
+        workspaceDirectory: URL?,
+        fileExists: (String) -> Bool
+    ) -> URL? {
         guard let workspaceDirectory else { return nil }
         let (basePath, _) = splitLineReference(path)
         guard !basePath.isEmpty else { return nil }
         let resolved = URL(fileURLWithPath: basePath, relativeTo: workspaceDirectory).standardizedFileURL
-        return FileManager.default.fileExists(atPath: resolved.path) ? resolved : nil
+        return fileExists(resolved.path) ? resolved : nil
     }
 
-    private static func enrich(_ blocks: [MarkdownBlock], workspaceDirectory: URL?, cache: inout [String: URL?]) -> [MarkdownBlock] {
+    private static func enrich(
+        _ blocks: [MarkdownBlock],
+        workspaceDirectory: URL?,
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
+    ) -> [MarkdownBlock] {
         blocks.map { block in
             switch block.kind {
             case .paragraph, .heading:
                 return MarkdownBlock(
                     id: block.id,
+                    sourceOffset: block.sourceOffset,
                     kind: block.kind,
-                    content: enrich(block.content, workspaceDirectory: workspaceDirectory, cache: &cache)
+                    content: enrich(block.content, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists)
                 )
             case .list(let ordered, let items):
                 let enrichedItems = items.map { item in
                     MarkdownListItem(
                         id: item.id,
+                        sourceOffset: item.sourceOffset,
                         ordinal: item.ordinal,
-                        blocks: enrich(item.blocks, workspaceDirectory: workspaceDirectory, cache: &cache)
+                        blocks: enrich(item.blocks, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists),
+                        taskChecked: item.taskChecked
                     )
                 }
-                return MarkdownBlock(id: block.id, kind: .list(ordered: ordered, items: enrichedItems), content: block.content)
+                return MarkdownBlock(id: block.id, sourceOffset: block.sourceOffset, kind: .list(ordered: ordered, items: enrichedItems),
+                                     content: block.content, isLooseList: block.isLooseList)
             case .table(let table):
                 let enrichedRows = table.rows.map { row in
                     MarkdownTable.Row(
                         id: row.id,
+                        sourceOffset: row.sourceOffset,
                         isHeader: row.isHeader,
-                        cells: row.cells.map { enrich($0, workspaceDirectory: workspaceDirectory, cache: &cache) }
+                        cells: row.cells.map { enrich($0, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists) }
                     )
                 }
                 return MarkdownBlock(
                     id: block.id,
+                    sourceOffset: block.sourceOffset,
                     kind: .table(.init(columns: table.columns, rows: enrichedRows)),
                     content: block.content
                 )
             case .quote(let children):
                 return MarkdownBlock(
                     id: block.id,
-                    kind: .quote(enrich(children, workspaceDirectory: workspaceDirectory, cache: &cache)),
+                    sourceOffset: block.sourceOffset,
+                    kind: .quote(enrich(children, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists)),
                     content: block.content
                 )
             case .code, .divider:
@@ -70,7 +114,12 @@ public enum TranscriptFileLinks {
         }
     }
 
-    private static func enrich(_ text: AttributedString, workspaceDirectory: URL?, cache: inout [String: URL?]) -> AttributedString {
+    private static func enrich(
+        _ text: AttributedString,
+        workspaceDirectory: URL?,
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
+    ) -> AttributedString {
         var result = AttributedString()
         for run in text.runs {
             let slice = text[run.range]
@@ -80,7 +129,8 @@ public enum TranscriptFileLinks {
                    let resolved = resolvedLinkURL(forRawReference: decodedRelativePath(from: existingLink),
                                                   fragment: existingLink.fragment,
                                                   workspaceDirectory: workspaceDirectory,
-                                                  cache: &cache) {
+                                                  cache: &cache,
+                                                  fileExists: fileExists) {
                     span.link = resolved
                 }
                 result.append(span)
@@ -88,11 +138,11 @@ public enum TranscriptFileLinks {
             }
 
             if run.inlinePresentationIntent?.contains(.code) == true {
-                result.append(enrichInlineCode(slice, workspaceDirectory: workspaceDirectory, cache: &cache))
+                result.append(enrichInlineCode(slice, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists))
                 continue
             }
 
-            result.append(enrichPlainText(slice, workspaceDirectory: workspaceDirectory, cache: &cache))
+            result.append(enrichPlainText(slice, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists))
         }
         return result
     }
@@ -100,12 +150,14 @@ public enum TranscriptFileLinks {
     private static func enrichInlineCode(
         _ slice: AttributedSubstring,
         workspaceDirectory: URL?,
-        cache: inout [String: URL?]
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
     ) -> AttributedString {
         let raw = String(slice.characters)
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              let resolved = resolvedLinkURL(forCandidate: trimmed, workspaceDirectory: workspaceDirectory, cache: &cache) else {
+              let resolved = resolvedLinkURL(forCandidate: trimmed, workspaceDirectory: workspaceDirectory,
+                                             cache: &cache, fileExists: fileExists) else {
             return AttributedString(slice)
         }
         if trimmed == raw {
@@ -133,10 +185,11 @@ public enum TranscriptFileLinks {
     private static func enrichPlainText(
         _ slice: AttributedSubstring,
         workspaceDirectory: URL?,
-        cache: inout [String: URL?]
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
     ) -> AttributedString {
         let string = String(slice.characters)
-        let matches = linkMatches(in: string, workspaceDirectory: workspaceDirectory, cache: &cache)
+        let matches = linkMatches(in: string, workspaceDirectory: workspaceDirectory, cache: &cache, fileExists: fileExists)
         guard !matches.isEmpty else { return AttributedString(slice) }
 
         var output = AttributedString()
@@ -180,7 +233,8 @@ public enum TranscriptFileLinks {
     private static func linkMatches(
         in string: String,
         workspaceDirectory: URL?,
-        cache: inout [String: URL?]
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
     ) -> [PathMatch] {
         let fullRange = NSRange(string.startIndex..<string.endIndex, in: string)
         var results: [PathMatch] = []
@@ -191,7 +245,8 @@ public enum TranscriptFileLinks {
 
             if let cleaned = cleanToken(token, in: string, range: tokenRange) {
                 if cleaned.text.contains("://") && !cleaned.text.hasPrefix("file://") { continue }
-                if let url = resolvedLinkURL(forCandidate: cleaned.text, workspaceDirectory: workspaceDirectory, cache: &cache) {
+                if let url = resolvedLinkURL(forCandidate: cleaned.text, workspaceDirectory: workspaceDirectory,
+                                             cache: &cache, fileExists: fileExists) {
                     results.append(.init(range: cleaned.range, url: url))
                     continue
                 }
@@ -203,7 +258,8 @@ public enum TranscriptFileLinks {
                 guard let subRange = Range(sub.range, in: string) else { continue }
                 if let last = results.last, last.range.overlaps(subRange) { continue }
                 let candidate = trimTrailingSentencePunctuation(String(string[subRange]), in: string, range: subRange)
-                if let url = resolvedLinkURL(forCandidate: candidate.text, workspaceDirectory: workspaceDirectory, cache: &cache) {
+                if let url = resolvedLinkURL(forCandidate: candidate.text, workspaceDirectory: workspaceDirectory,
+                                             cache: &cache, fileExists: fileExists) {
                     results.append(.init(range: candidate.range, url: url))
                 }
             }
@@ -227,7 +283,7 @@ public enum TranscriptFileLinks {
         range: Range<String.Index>
     ) -> (text: String, range: Range<String.Index>) {
         let trailingPunctuation: Set<Character> = [":", ",", ".", ";", "!", "?"]
-        var lower = range.lowerBound
+        let lower = range.lowerBound
         var upper = range.upperBound
         while lower < upper {
             let prev = source.index(before: upper)
@@ -243,22 +299,27 @@ public enum TranscriptFileLinks {
     private static func resolvedLinkURL(
         forCandidate candidate: String,
         workspaceDirectory: URL?,
-        cache: inout [String: URL?]
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
     ) -> URL? {
         if let cached = cache[candidate] {
             return cached
         }
-        let resolved = computeResolvedLinkURL(forCandidate: candidate, workspaceDirectory: workspaceDirectory)
+        let resolved = computeResolvedLinkURL(forCandidate: candidate, workspaceDirectory: workspaceDirectory, fileExists: fileExists)
         cache[candidate] = resolved
         return resolved
     }
 
-    private static func computeResolvedLinkURL(forCandidate candidate: String, workspaceDirectory: URL?) -> URL? {
+    private static func computeResolvedLinkURL(
+        forCandidate candidate: String,
+        workspaceDirectory: URL?,
+        fileExists: (String) -> Bool
+    ) -> URL? {
         guard !candidate.isEmpty else { return nil }
 
         if candidate.hasPrefix("file://") {
             guard let url = URL(string: candidate), url.isFileURL else { return nil }
-            guard let existing = existingFileURL(forRawPath: url.path) else { return nil }
+            guard let existing = existingFileURL(forRawPath: url.path, fileExists: fileExists) else { return nil }
             return appendingFragment(url.fragment, to: existing)
         }
 
@@ -270,18 +331,21 @@ public enum TranscriptFileLinks {
         guard looksLikePath(basePath) else { return nil }
 
         let fragment = explicitFragment ?? lineNumber.map { "L\($0)" }
-        return resolvedLinkURL(forRawReference: basePath, fragment: fragment, workspaceDirectory: workspaceDirectory)
+        return resolvedLinkURL(forRawReference: basePath, fragment: fragment,
+                               workspaceDirectory: workspaceDirectory, fileExists: fileExists)
     }
 
     private static func resolvedLinkURL(
         forRawReference reference: String,
         fragment: String?,
         workspaceDirectory: URL?,
-        cache: inout [String: URL?]
+        cache: inout [String: URL?],
+        fileExists: (String) -> Bool
     ) -> URL? {
         let key = "\(reference)#\(fragment ?? "")"
         if let cached = cache[key] { return cached }
-        let resolved = resolvedLinkURL(forRawReference: reference, fragment: fragment, workspaceDirectory: workspaceDirectory)
+        let resolved = resolvedLinkURL(forRawReference: reference, fragment: fragment,
+                                       workspaceDirectory: workspaceDirectory, fileExists: fileExists)
         cache[key] = resolved
         return resolved
     }
@@ -289,7 +353,8 @@ public enum TranscriptFileLinks {
     private static func resolvedLinkURL(
         forRawReference reference: String,
         fragment: String?,
-        workspaceDirectory: URL?
+        workspaceDirectory: URL?,
+        fileExists: (String) -> Bool
     ) -> URL? {
         let (basePath, lineNumber) = splitLineReference(reference)
         guard !basePath.isEmpty else { return nil }
@@ -307,20 +372,20 @@ public enum TranscriptFileLinks {
             return nil
         }
 
-        guard FileManager.default.fileExists(atPath: resolved.path) else { return nil }
+        guard fileExists(resolved.path) else { return nil }
         let normalizedFragment = fragment ?? lineNumber.map { "L\($0)" }
         return appendingFragment(normalizedFragment, to: resolved)
     }
 
-    private static func existingFileURL(forRawPath rawPath: String) -> URL? {
+    private static func existingFileURL(forRawPath rawPath: String, fileExists: (String) -> Bool) -> URL? {
         let direct = URL(fileURLWithPath: rawPath).standardizedFileURL
-        if FileManager.default.fileExists(atPath: direct.path) {
+        if fileExists(direct.path) {
             return direct
         }
         let (basePath, _) = splitLineReference(rawPath)
         guard basePath != rawPath, !basePath.isEmpty else { return nil }
         let fallback = URL(fileURLWithPath: basePath).standardizedFileURL
-        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
+        return fileExists(fallback.path) ? fallback : nil
     }
 
     private static func decodedRelativePath(from url: URL) -> String {
