@@ -1,50 +1,41 @@
 import Foundation
 
-public enum RuntimeCapability: String, Sendable, Hashable { case streaming, tools, interruption, queuedPrompts, turnFileChanges }
+public enum RuntimeCapability: String, Sendable, Hashable, Codable {
+    case streaming, tools, interruption, queuedPrompts, turnFileChanges
+    case sessionResume, sessionDelete, modelConfiguration, modeSelection, usageReporting
+}
 public enum SendMode: String, Sendable, Codable, CaseIterable, Identifiable {
     case steer, followUp
     public var id: Self { self }
 }
-public enum AgentMode: String, Sendable, Codable, CaseIterable, Identifiable {
-    case plan, interactive, automatic
-    public var id: Self { self }
-    public var availableApprovals: [ToolApprovalPolicy] {
-        switch self {
-        case .interactive: [.everyCall, .mutations, .never]
-        case .plan: [.everyCall, .never]
-        case .automatic: [.never]
-        }
-    }
-    public var defaultApproval: ToolApprovalPolicy { self == .interactive ? .mutations : .never }
-}
-public enum ToolApprovalPolicy: String, Sendable, Codable, Identifiable {
-    case everyCall, mutations, never
-    public var id: Self { self }
-}
-public struct AgentExecutionPolicy: Sendable, Equatable {
-    public let mode: AgentMode
-    public let approval: ToolApprovalPolicy
-
-    public init(mode: AgentMode, approval: ToolApprovalPolicy? = nil) {
-        self.mode = mode
-        self.approval = approval.flatMap { mode.availableApprovals.contains($0) ? $0 : nil } ?? mode.defaultApproval
-    }
-}
-public enum PromptDisposition: String, Sendable { case started, queued, handled }
+public enum PromptDisposition: String, Sendable { case started, queued, handled, awaitingAcceptance }
+public enum RuntimePromptAcceptance: Sendable { case accepted, rejected, unknown }
 public struct UserPrompt: Sendable {
     public let id: UUID
     public let text: String
     public let mode: SendMode
     public let files: [URL]
+    public let handoffContext: String?
     public var hasContent: Bool { !files.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    public var messageText: String {
+        guard let handoffContext, !handoffContext.isEmpty else { return text }
+        return """
+        Historical context transferred from a previous Agent. Treat this as reference material for the current request.
+
+        \(handoffContext)
+
+        Current user request:
+        \(text)
+        """
+    }
     public var runtimeText: String {
-        guard !files.isEmpty else { return text }
+        guard !files.isEmpty else { return messageText }
         let paths = files.map { $0.path.debugDescription }.joined(separator: "\n")
-        let message = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "请查看以下文件。" : text
+        let message = messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "请查看以下文件。" : messageText
         return "\(message)\n\n本地文件引用（按需读取）\n\(paths)"
     }
-    public init(id: UUID = UUID(), text: String, mode: SendMode = .steer, files: [URL] = []) {
-        self.id = id; self.text = text; self.mode = mode; self.files = files
+    public init(id: UUID = UUID(), text: String, mode: SendMode = .steer, files: [URL] = [], handoffContext: String? = nil) {
+        self.id = id; self.text = text; self.mode = mode; self.files = files; self.handoffContext = handoffContext
     }
 }
 public struct RuntimeSession: Sendable, Equatable {
@@ -55,9 +46,28 @@ public struct RuntimeSession: Sendable, Equatable {
     public let file: URL?
     public let provider: String?
     public let modelID: String?
-    public init(id: String, model: String, thinking: String, capabilities: Set<RuntimeCapability>, file: URL? = nil, provider: String? = nil, modelID: String? = nil) {
+    public let runtimeID: String?
+    public let modeID: String?
+    public let availableModes: [RuntimeModeOption]
+    public let resumable: Bool
+    public let replaysHistory: Bool
+    public init(
+        id: String,
+        model: String,
+        thinking: String,
+        capabilities: Set<RuntimeCapability>,
+        file: URL? = nil,
+        provider: String? = nil,
+        modelID: String? = nil,
+        runtimeID: String? = nil,
+        modeID: String? = nil,
+        availableModes: [RuntimeModeOption] = [],
+        resumable: Bool = false,
+        replaysHistory: Bool = true
+    ) {
         self.id = id; self.model = model; self.thinking = thinking; self.capabilities = capabilities
         self.file = file; self.provider = provider; self.modelID = modelID
+        self.runtimeID = runtimeID; self.modeID = modeID; self.availableModes = availableModes; self.resumable = resumable; self.replaysHistory = replaysHistory
     }
 }
 public struct PendingPrompt: Sendable, Codable, Equatable, Identifiable {
@@ -106,6 +116,12 @@ public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
 
         public static func decodeToolArguments(from data: Data) throws -> Self {
             Self(raw: try JSONDecoder().decode(RawArguments.self, from: data))
+        }
+
+        public init(path: String, edits: [RuntimeToolApproval.Replacement], replacementCount: Int? = nil) {
+            self.path = path
+            self.replacementCount = max(edits.count, replacementCount ?? 0)
+            self.edits = Self.previewableReplacements(edits)
         }
 
         public init(from decoder: Decoder) throws {
@@ -202,13 +218,59 @@ public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
         self.id = id; self.name = name; self.arguments = arguments; self.output = output; self.state = state; self.truncated = truncated
     }
 }
-public enum RuntimeFailureKind: String, Sendable { case setup, unsupportedVersion, authentication, model, tool, protocolError, connection, outcomeUnknown, supervision, unsupportedInteraction }
+public enum RuntimeFailureKind: String, Sendable {
+    case setup, unsupportedVersion, authentication, model, tool, protocolError, connection, outcomeUnknown, supervision, unsupportedInteraction
+
+    public var leavesTurnOutcomeUnknown: Bool {
+        switch self {
+        case .outcomeUnknown, .connection, .protocolError, .supervision, .unsupportedInteraction: true
+        default: false
+        }
+    }
+}
 public struct RuntimeFailure: Error, Sendable, Equatable {
     public let kind: RuntimeFailureKind
     public let detail: String
     public init(_ kind: RuntimeFailureKind, _ detail: String) { self.kind = kind; self.detail = detail }
+
+    public static func promptLengthRejection(_ reason: String?) -> Self? {
+        guard let reason else { return nil }
+        let normalized = reason.lowercased().replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+        let sizeReasons = [
+            "request too large", "request is too large", "payload too large", "request entity too large",
+            "request too long", "request is too long", "prompt too long", "prompt is too long",
+            "input too long", "input is too long", "context length exceeded", "maximum context length",
+            "context window exceeded", "input exceeds the maximum", "too many input tokens"
+        ]
+        guard sizeReasons.contains(where: normalized.contains) else { return nil }
+        // Provider error bodies can contain credentials or the original prompt.
+        return .init(.model, String(localized: "请求过长，超出运行时的输入限制。请缩短消息或交接内容后重试。", bundle: #bundle))
+    }
 }
+public struct RuntimePlanEntry: Identifiable, Sendable, Equatable, Codable {
+    public enum Status: String, Sendable, Codable {
+        case pending
+        case inProgress = "in_progress"
+        case completed
+    }
+
+    public let id: String
+    public let content: String
+    public let priority: String?
+    public let status: Status
+
+    public init(id: String, content: String, priority: String? = nil, status: Status) {
+        self.id = id
+        self.content = content
+        self.priority = priority
+        self.status = status
+    }
+}
+
 public enum AgentEvent: Sendable {
+    case promptAcceptance(UUID, RuntimePromptAcceptance)
+    case promptConfirmed(UUID)
     case batch([AgentEvent])
     case phase(ExecutionPhase)
     case runStarted
@@ -219,6 +281,8 @@ public enum AgentEvent: Sendable {
     case assistantCompleted(UUID, String)
     case assistantAttemptFailed(UUID, RuntimeFailure)
     case tool(RuntimeTool)
+    case thought(String?)
+    case plan([RuntimePlanEntry])
     case turnFileChanges(TurnFileChanges)
     case queue(RuntimeQueue)
     case settled(aborted: Bool)
@@ -227,9 +291,13 @@ public enum AgentEvent: Sendable {
     case failure(RuntimeFailure)
     case disconnected(cleanupConfirmed: Bool)
     case interaction(RuntimeInteraction)
+    case interactionUpdated(RuntimeInteraction)
     case interactionEnded(String, InteractionEnd)
     case suggestedDraft(String)
     case extensionStatus(String, String?)
+    case sessionUpdated(RuntimeSession)
+    case historyReplayed([HistoryItem])
+    case usageUpdated(RuntimeUsage)
 }
 public struct RuntimeEnvelope: Sendable {
     public let instanceID: UUID
@@ -240,11 +308,16 @@ public protocol AgentRuntime: Sendable {
     var instanceID: UUID { get }
     var events: AsyncStream<RuntimeEnvelope> { get }
     func connect() async throws -> RuntimeSession
+    func connectForHistory() async throws -> RuntimeSession
+    func loadedSessionHistory() async -> [HistoryItem]?
     func send(_ prompt: UserPrompt) async throws -> PromptDisposition
     func stop() async throws
     func close(force: Bool) async throws
     func configurationOptions() async throws -> RuntimeConfigurationOptions
+    func modelCatalogue() async throws -> [RuntimeModel]
+    func thinkingLevels() async throws -> [String]
     func applyConfiguration(_ selection: RuntimeSelection) async throws -> RuntimeSession
+    func setMode(_ modeID: String) async throws -> RuntimeSession
     func currentSession() async throws -> RuntimeSession
     func usage() async throws -> RuntimeUsage
     func respond(to request: RuntimeInteraction, with response: InteractionResponse) async throws
@@ -252,8 +325,13 @@ public protocol AgentRuntime: Sendable {
 }
 
 public extension AgentRuntime {
+    func connectForHistory() async throws -> RuntimeSession { try await connect() }
+    func loadedSessionHistory() async -> [HistoryItem]? { nil }
     func configurationOptions() async throws -> RuntimeConfigurationOptions { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模型配置。", bundle: #bundle)) }
+    func modelCatalogue() async throws -> [RuntimeModel] { try await configurationOptions().models }
+    func thinkingLevels() async throws -> [String] { try await configurationOptions().thinkingLevels }
     func applyConfiguration(_ selection: RuntimeSelection) async throws -> RuntimeSession { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模型配置。", bundle: #bundle)) }
+    func setMode(_ modeID: String) async throws -> RuntimeSession { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模式切换。", bundle: #bundle)) }
     func currentSession() async throws -> RuntimeSession { throw RuntimeFailure(.setup, String(localized: "此运行时不支持状态读取。", bundle: #bundle)) }
     func usage() async throws -> RuntimeUsage { throw RuntimeFailure(.setup, String(localized: "此运行时未提供统计。", bundle: #bundle)) }
     func respond(to request: RuntimeInteraction, with response: InteractionResponse) async throws { throw RuntimeFailure(.unsupportedInteraction, String(localized: "此运行时不支持交互回复。", bundle: #bundle)) }

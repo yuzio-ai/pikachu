@@ -2,10 +2,10 @@ import AppKit
 import Foundation
 import Observation
 import SwiftUI
+import Vision
 import XCTest
 import AgentRuntimeCore
 @testable import OrchestrationCore
-@testable import PiRuntimeAdapter
 @testable import Pikachu
 
 private final class TestClock: RuntimeClock, @unchecked Sendable {
@@ -38,20 +38,85 @@ private actor MemoryStore: WorkspaceStore {
     }
 }
 
+private actor PausedACPSettingsProbe {
+    private var pending: CheckedContinuation<RuntimeConnectionCheckResult, Never>?
+    private var earlyResult: RuntimeConnectionCheckResult?
+
+    func run(started: XCTestExpectation) async -> RuntimeConnectionCheckResult {
+        if let earlyResult {
+            started.fulfill()
+            return earlyResult
+        }
+        return await withCheckedContinuation {
+            pending = $0
+            started.fulfill()
+        }
+    }
+
+    func complete(_ result: RuntimeConnectionCheckResult) {
+        if let pending {
+            pending.resume(returning: result)
+            self.pending = nil
+        } else {
+            earlyResult = result
+        }
+    }
+}
+
+private actor PausedACPSettingsStore: WorkspaceStore {
+    private var snapshot: WorkspaceSnapshot
+    private var savingStarted: XCTestExpectation?
+    private var resumeSave: CheckedContinuation<Void, Never>?
+    private var failNext = false
+
+    init(snapshot: WorkspaceSnapshot) { self.snapshot = snapshot }
+
+    func load() -> WorkspaceSnapshot { snapshot }
+
+    func pauseNextSave(started: XCTestExpectation) { savingStarted = started }
+
+    func failNextSave() { failNext = true }
+
+    func save(_ value: WorkspaceSnapshot) async throws {
+        if let savingStarted {
+            self.savingStarted = nil
+            await withCheckedContinuation { resume in
+                resumeSave = resume
+                savingStarted.fulfill()
+            }
+        }
+        if failNext {
+            failNext = false
+            throw CocoaError(.fileWriteUnknown)
+        }
+        snapshot = value
+    }
+
+    func releaseSave() {
+        savingStarted = nil
+        resumeSave?.resume()
+        resumeSave = nil
+    }
+}
+
 private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
     let instanceID = UUID()
     let events: AsyncStream<RuntimeEnvelope>
     let continuation: AsyncStream<RuntimeEnvelope>.Continuation
     let sessionID: String
+    let resumable: Bool
     let file: URL?
+    let connectionFailure: RuntimeFailure?
     let disposition: @Sendable (UserPrompt) -> PromptDisposition
     var usageResponses: [Result<RuntimeUsage, Error>] = []
     private let lock = NSLock()
 
-    init(sessionID: String = "stub-session", file: URL? = nil,
+    init(sessionID: String = "stub-session", file: URL? = nil, resumable: Bool = false, connectionFailure: RuntimeFailure? = nil,
          disposition: @escaping @Sendable (UserPrompt) -> PromptDisposition = { _ in .started }) {
         self.sessionID = sessionID
         self.file = file
+        self.resumable = resumable
+        self.connectionFailure = connectionFailure
         self.disposition = disposition
         let pair = AsyncStream<RuntimeEnvelope>.makeStream()
         events = pair.stream
@@ -59,7 +124,8 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
     }
 
     func connect() async throws -> RuntimeSession {
-        .init(id: sessionID, model: "GPT-5.4", thinking: "high", capabilities: [.streaming, .tools, .interruption, .queuedPrompts], file: file, provider: "openai", modelID: "gpt-5.4")
+        if let connectionFailure { throw connectionFailure }
+        return .init(id: sessionID, model: "GPT-5.4", thinking: "high", capabilities: [.streaming, .tools, .interruption, .queuedPrompts], file: file, provider: "openai", modelID: "gpt-5.4", resumable: resumable)
     }
 
     func send(_ prompt: UserPrompt) async throws -> PromptDisposition { disposition(prompt) }
@@ -87,74 +153,34 @@ private final class StubSessionRuntime: AgentRuntime, @unchecked Sendable {
 }
 
 final class SessionDetailUITests: XCTestCase {
-    @MainActor func testModelSettingsRendersFavoriteStarsConsistently() async throws {
-        let sol = RuntimeModel(provider: "openai", modelID: "gpt-6.2-sol", name: "GPT-6.2 Sol")
-        let astra = RuntimeModel(provider: "openai", modelID: "gpt-6.2-astra", name: "GPT-6.2 Astra")
-        let flash = RuntimeModel(provider: "deepseek", modelID: "deepseek-flash", name: "DeepSeek V4.1 Flash")
-        let spare = RuntimeModel(provider: "openai", modelID: "gpt-4.1", name: "GPT-4.1")
-        let other = RuntimeModel(provider: "openai", modelID: "gpt-5", name: "GPT-5")
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: []),
-                                            inspectModels: { _ in
-            RuntimeConfigurationOptions(models: [sol, astra, flash, spare, other], thinkingLevels: ["low", "high"])
-        }) { _, _ in StubSessionRuntime() }
-        await workspace.start()
-        _ = await workspace.setDefaultModel(sol)
-        for model in [sol, astra, flash] { _ = await workspace.setFavoriteModel(model, isFavorite: true) }
-        _ = await workspace.setModelVisible(other, isVisible: false)
-
-        let host = NSHostingView(rootView: ModelSettingsView(workspace: workspace))
-        host.frame = .init(x: 0, y: 0, width: 720, height: 470)
-        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .aqua)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
-        for _ in 0..<150 {
-            try await Task.sleep(for: .milliseconds(20))
-            host.layoutSubtreeIfNeeded()
-        }
-
-        func snapshot() throws -> CGImage {
-            host.layoutSubtreeIfNeeded()
-            let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-            host.cacheDisplay(in: host.bounds, to: rep)
-            let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
-            return try XCTUnwrap(NSBitmapImageRep(data: png)?.cgImage)
-        }
-
-        // Favourited rows must keep a filled star on the first paint and after a row moves
-        // from "其他模型" into "收藏".
-        func favoriteStars(_ image: CGImage) -> Int {
-            guard let data = image.dataProvider?.data, let bytes = CFDataGetBytePtr(data) else { return -1 }
-            let bytesPerRow = image.bytesPerRow, height = image.height, width = image.width, length = CFDataGetLength(data)
-            var runs = 0, inRun = false
-            for y in 0..<height {
-                var gold = 0
-                for x in 0..<width {
-                    let offset = y * bytesPerRow + x * 4
-                    guard offset + 3 < length else { continue }
-                    let r = Int(bytes[offset]), g = Int(bytes[offset + 1]), b = Int(bytes[offset + 2])
-                    if abs(r - 0x80) < 40 && abs(g - 0x53) < 45 && b < 80 { gold += 1 }
-                }
-                if gold >= 6 {
-                    if !inRun { runs += 1; inRun = true }
-                } else {
-                    inRun = false
-                }
-            }
-            return runs
-        }
-
-        XCTAssertEqual(favoriteStars(try snapshot()), 3, "GPT-6.2 ×2 and DeepSeek are favourites")
-        // The reported bug: a row moved from "其他模型" into "收藏" kept its outline star.
-        _ = await workspace.setFavoriteModel(spare, isFavorite: true)
-        for _ in 0..<20 { try await Task.sleep(for: .milliseconds(20)); host.layoutSubtreeIfNeeded() }
-        XCTAssertEqual(favoriteStars(try snapshot()), 4, "the new favourite keeps a filled star")
-        _ = await workspace.setFavoriteModel(spare, isFavorite: false)
-        for _ in 0..<20 { try await Task.sleep(for: .milliseconds(20)); host.layoutSubtreeIfNeeded() }
-        XCTAssertEqual(favoriteStars(try snapshot()), 3, "removing a favourite clears its star")
-        XCTAssertEqual(workspace.state.modelPreferences?.favorites.count, 3)
+    func testFlatMenuExecutesOnlyTheFirstActionAfterClosing() {
+        var pending = FlatMenuPendingAction()
+        var executed: [Int] = []
+        XCTAssertTrue(pending.schedule { executed.append(1) })
+        XCTAssertFalse(pending.schedule { executed.append(2) })
+        XCTAssertTrue(executed.isEmpty)
+        pending.take()?()
+        XCTAssertNil(pending.take())
+        XCTAssertEqual(executed, [1])
     }
+
+    func testHiddenDefaultModelRetainsItsRowBadgesWhenUnavailable() {
+        let model = RuntimeModel(provider: "openai", modelID: "snapshot", name: "Snapshot")
+        var preferences = WorkspaceModelPreferences()
+        preferences.defaultModel = model
+        preferences.favorites = [model]
+        preferences.hiddenModelIDs = [model.id]
+        let catalogue = ModelSettingsCatalogue(models: [], preferences: preferences)
+
+        for (verified, availability) in [(true, ModelSettingsRowStatus.Availability.unavailable), (false, .unverified)] {
+            let status = catalogue.rowStatus(for: model.id, verified: verified)
+            XCTAssertTrue(status.favorite)
+            XCTAssertTrue(status.isDefault)
+            XCTAssertEqual(status.availability, availability)
+            XCTAssertNotNil(status.availability.title)
+        }
+    }
+
 
     func testModelSettingsKeepStarAndSectionConsistent() {
         let sol = RuntimeModel(provider: "openai", modelID: "gpt-6.2-sol", name: "GPT-6.2 Sol")
@@ -169,6 +195,474 @@ final class SessionDetailUITests: XCTestCase {
         let toggledOff = ModelListSection.group([sol, flash], favorites: [sol.id, flash.id], hidden: [flash.id])
         XCTAssertEqual(toggledOff.map(\.section), [.favorites, .hidden])
         XCTAssertEqual(toggledOff.flatMap(\.models).filter { $0.id == flash.id }.count, 1)
+    }
+
+    @MainActor func testModelDirectorySearchRestoresManualDisclosure() {
+        let directory = ModelDirectoryState()
+        XCTAssertFalse(directory.hiddenExpanded)
+        directory.search = " GPT "
+        XCTAssertTrue(directory.hiddenExpanded)
+        directory.toggleHidden()
+        XCTAssertFalse(directory.hiddenExpanded)
+        directory.search = "latest"
+        XCTAssertTrue(directory.hiddenExpanded)
+        directory.search = ""
+        XCTAssertFalse(directory.hiddenExpanded)
+        directory.toggleHidden()
+        directory.search = "Astra"
+        directory.toggleHidden()
+        XCTAssertFalse(directory.hiddenExpanded)
+        directory.search = ""
+        XCTAssertTrue(directory.hiddenExpanded)
+    }
+
+    @MainActor func testModelDirectoryRejectsResultsFromSupersededACPConfiguration() {
+        let directory = ModelDirectoryState()
+        let original = RuntimeModel(provider: "acp:test", modelID: "original", name: "Original")
+        let late = RuntimeModel(provider: "acp:test", modelID: "late", name: "Late")
+        let replacement = RuntimeModel(provider: "acp:test", modelID: "replacement", name: "Replacement")
+
+        directory.beginLoad(revision: 0)
+        directory.finishLoad(.models([original]), requested: 0, current: 0)
+        XCTAssertEqual(directory.loadStatus(for: 0), .ready)
+        XCTAssertEqual(directory.loadStatus(for: 1), .outdated)
+
+        directory.beginLoad(revision: 0)
+        directory.finishLoad(.models([late]), requested: 0, current: 1)
+        XCTAssertEqual(directory.models, [original])
+        XCTAssertEqual(directory.loadStatus(for: 1), .outdated)
+
+        directory.beginLoad(revision: 1)
+        directory.finishLoad(.failed("Superseded request"), requested: 0, current: 1)
+        XCTAssertEqual(directory.loadStatus(for: 1), .loading)
+        directory.finishLoad(.models([replacement]), requested: 1, current: 1)
+        XCTAssertEqual(directory.loadStatus(for: 1), .ready)
+        XCTAssertEqual(directory.models, [replacement])
+    }
+
+    func testModelDirectoryKeepsSavedRowsAndPickerHonorsVisibilityAndScope() {
+        let favorite = RuntimeModel(provider: "openai", modelID: "one", name: "Shared name")
+        let other = RuntimeModel(provider: "openai-codex", modelID: "two", name: favorite.name)
+        let hidden = RuntimeModel(provider: "openai", modelID: "hidden", name: "Hidden")
+        let current = RuntimeModel(provider: "openai", modelID: "current", name: "Current")
+        let missing = RuntimeModel(provider: "legacy", modelID: "missing", name: "Unavailable")
+        var prefs = WorkspaceModelPreferences()
+        prefs.favorites = [favorite, hidden, missing]
+        prefs.defaultModel = missing
+        prefs.hiddenModelIDs = [hidden.id, current.id]
+        let models = [favorite, favorite, other, hidden, current]
+        let settings = ModelSettingsCatalogue(models: models, preferences: prefs)
+        XCTAssertEqual(settings.all, [favorite, other, hidden, current, missing])
+        XCTAssertFalse(settings.available.contains(missing.id))
+
+        let picker = ModelPickerCatalogue(models: settings.all.filter { settings.available.contains($0.id) },
+                                          preferences: prefs, retaining: [current.id])
+        XCTAssertEqual(picker.initialScope, .favorites)
+        XCTAssertEqual(picker.rows(scope: .favorites, query: ""), [favorite, current])
+        XCTAssertEqual(picker.rows(scope: .all, query: "OpenAI Codex"), [other])
+        XCTAssertTrue(picker.rows(scope: .all, query: "Hidden").isEmpty)
+        XCTAssertEqual(ModelPickerCatalogue(models: [other], preferences: prefs, retaining: []).initialScope, .all)
+    }
+
+    @MainActor func testSavedHiddenModelsCanBeRestoredWhenCatalogueReturnsEmpty() async throws {
+        let model = RuntimeModel(provider: "isolated-source", modelID: "group/solo", name: "Solo Hidden")
+        let favorite = RuntimeModel(provider: "favorite-source", modelID: "missing", name: "Hidden Favorite")
+        let store = MemoryStore()
+        var result: Result<[RuntimeModel], RuntimeFailure> = .success([model, favorite])
+        let workspace = WorkspaceController(store: store, inspectModels: { _ in
+            .init(models: try result.get(), thinkingLevels: [])
+        }) { _, _ in FakeRuntime() }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
+        let hidModel = await workspace.setModelVisible(model, isVisible: false, forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        let hidFavorite = await workspace.setModelVisible(favorite, isVisible: false, forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        let markedFavorite = await workspace.setFavoriteModel(favorite, isFavorite: true, forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        XCTAssertTrue(hidModel && hidFavorite && markedFavorite)
+        let persisted = try await store.load()
+        let preferences = try XCTUnwrap(persisted.modelPreferencesByRuntime?[RuntimeAgentProfile.antigravityRuntimeID])
+        XCTAssertEqual(preferences.hiddenModelIDs, [model.id, favorite.id])
+        XCTAssertEqual(preferences.hiddenModelReferences?[model.id], model)
+
+        result = .failure(.init(.connection, "synthetic catalogue failure"))
+        do {
+            _ = try await workspace.modelCatalogue(forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+            XCTFail("A catalogue failure should remain an error")
+        } catch is RuntimeFailure {}
+        let unverified = ModelSettingsCatalogue(models: [], preferences: preferences)
+        XCTAssertEqual(Set(unverified.all.map(\.id)), [model.id, favorite.id])
+
+        result = .success([])
+        let refreshed = try await workspace.modelCatalogue(forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        let after = ModelSettingsCatalogue(models: refreshed, preferences: preferences)
+        XCTAssertTrue(after.available.isEmpty)
+        let groups = ModelListSection.group(after.all, favorites: after.favorites, hidden: after.hidden)
+        XCTAssertEqual(groups.map(\.section), [.hidden])
+        XCTAssertEqual(Set(groups.flatMap(\.models).map(\.id)), [model.id, favorite.id])
+        XCTAssertTrue(after.rowStatus(for: favorite.id, verified: true).favorite)
+
+        let restored = await workspace.setModelVisible(model, isVisible: true, forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        let restoredFavorite = await workspace.setModelVisible(favorite, isVisible: true, forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        XCTAssertTrue(restored && restoredFavorite)
+        let updated = try XCTUnwrap(workspace.state.modelPreferencesByRuntime?[RuntimeAgentProfile.antigravityRuntimeID])
+        XCTAssertTrue(updated.hiddenModelIDs.isEmpty)
+        XCTAssertNil(updated.hiddenModelReferences)
+        XCTAssertEqual(updated.favorites, [favorite])
+        XCTAssertEqual(ModelSettingsCatalogue(models: [], preferences: updated).all, [favorite])
+
+        result = .success([model, favorite])
+        let returned = try await workspace.modelCatalogue(forRuntime: RuntimeAgentProfile.antigravityRuntimeID)
+        let picker = ModelPickerCatalogue(models: returned, preferences: updated, retaining: [])
+        XCTAssertEqual(picker.rows(scope: .all, query: ""), [favorite, model])
+
+        let legacy = try JSONDecoder().decode(WorkspaceModelPreferences.self, from:
+            Data(#"{"favorites":[],"hiddenModelIDs":["isolated-source/group/solo"]}"#.utf8))
+        let legacyModel = try XCTUnwrap(ModelSettingsCatalogue(models: [], preferences: legacy).all.first)
+        XCTAssertEqual(legacyModel.id, model.id)
+        XCTAssertEqual(legacyModel.modelID, "group/solo")
+    }
+
+    @MainActor func testACPSettingsModelStateRetainsFailureAcrossPaneReplacement() {
+        let first = ACPAgentSettingsPresentation()
+        let other = ACPAgentSettingsPresentation()
+        first.modelDirectory.search = "hidden"
+        first.modelDirectory.toggleHidden()
+        first.modelDirectory.saveFailure = .init(source: .model("hidden"), message: "Synthetic failure")
+        let reopened = first.modelDirectory
+        XCTAssertEqual(reopened.search, "hidden")
+        XCTAssertFalse(reopened.hiddenExpanded)
+        XCTAssertEqual(reopened.saveFailure?.message, "Synthetic failure")
+        XCTAssertNil(other.modelDirectory.saveFailure)
+        reopened.saveFailure = nil
+        XCTAssertNil(reopened.saveFailure)
+    }
+
+    @MainActor func testACPEnvironmentDraftClearsValidationWhenRestoredToSavedValues() {
+        let presentation = ACPAgentSettingsPresentation()
+        presentation.environmentDraft.rows = [.init(name: "INVALID=NAME", value: "original")]
+        presentation.environmentDraft.validationError = "Synthetic validation failure"
+
+        presentation.environmentDraft.rows?[0].name = "VALID_NAME"
+
+        XCTAssertNil(presentation.environmentDraft.validationError)
+        XCTAssertEqual(ACPEnvironmentRow.values(from: presentation.environmentDraft.rows ?? []), ["VALID_NAME": "original"])
+    }
+
+    @MainActor func testACPAuthenticationInvalidatesOnlyTheAgentConnectionAndModelDirectory() async throws {
+        let settings = AppSettings()
+        let first = RuntimeAgentProfile(id: "acp:first", name: "First", executablePath: "/unused")
+        let other = RuntimeAgentProfile(id: "acp:other", name: "Other", executablePath: "/unused")
+        settings.acpAgents = [first, other]
+        let initialRevision = settings.acpConfigurationRevision(for: first.id)
+        let otherRevision = settings.acpConfigurationRevision(for: other.id)
+        let directory = ModelDirectoryState()
+        directory.beginLoad(revision: initialRevision)
+        directory.finishLoad(.models([]), requested: initialRevision, current: initialRevision)
+
+        let check = try XCTUnwrap(settings.checkACPConnection(for: first) { configuration in
+            .init(runtimeID: configuration.runtimeID, executablePath: "/unused", protocolVersion: .compatible(1))
+        })
+        await check.value
+        XCTAssertFalse(settings.acpCheckIsOutdated(first.id))
+        let previousResult = settings.acpCheckResult(for: first.id)
+        let queued = try XCTUnwrap(settings.checkACPConnection(for: first) { configuration in
+            XCTFail("A check queued before authentication must not start during authentication")
+            return .init(runtimeID: configuration.runtimeID, executablePath: "/unused")
+        })
+        do {
+            try await settings.performACPAuthentication(for: first.id) {
+                XCTAssertTrue(settings.isChangingACPConfiguration(for: first.id))
+                XCTAssertTrue(settings.acpCheckIsOutdated(first.id))
+                XCTAssertFalse(settings.beginACPModelPreferencesWrite(for: first.id))
+                XCTAssertNil(settings.checkACPConnection(for: first))
+                await queued.value
+                XCTAssertFalse(settings.isCheckingACP(first.id))
+                XCTAssertTrue(settings.acpCheckIsOutdated(first.id))
+                XCTAssertEqual(settings.acpCheckResult(for: first.id), previousResult)
+                throw RuntimeFailure(.connection, "Synthetic reconnect failure after terminal login")
+            }
+            XCTFail("The reconnect failure must be returned to the caller")
+        } catch let failure as RuntimeFailure {
+            XCTAssertEqual(failure.detail, "Synthetic reconnect failure after terminal login")
+        }
+        XCTAssertTrue(settings.acpCheckIsOutdated(first.id))
+        XCTAssertEqual(directory.loadStatus(for: settings.acpConfigurationRevision(for: first.id)), .outdated)
+        XCTAssertEqual(settings.acpConfigurationRevision(for: other.id), otherRevision)
+        XCTAssertFalse(settings.isWritingACPSettings(for: first.id))
+        let beforeSuccessfulAuthentication = settings.acpConfigurationRevision(for: first.id)
+        try await settings.performACPAuthentication(for: first.id) {}
+        XCTAssertGreaterThan(settings.acpConfigurationRevision(for: first.id), beforeSuccessfulAuthentication)
+    }
+
+    @MainActor func testACPTerminalCleanupBlocksNewCheckAndModelInspectionForOnlyItsAgent() async throws {
+        let settings = AppSettings()
+        let first = RuntimeAgentProfile(id: "acp:first", name: "First", executablePath: "/unused")
+        let other = RuntimeAgentProfile(id: "acp:other", name: "Other", executablePath: "/unused")
+        settings.acpAgents = [first, other]
+        let otherRevision = settings.acpConfigurationRevision(for: other.id)
+        var cleanupConfirmed = false
+        let cleanup = RuntimeTerminalCleanupPending(failure: .init(.supervision, "Synthetic cleanup pending")) {
+            cleanupConfirmed
+        }
+        let authenticate = try XCTUnwrap(settings.trackedACPTerminalAuthenticator(for: first.id, using: { _ in
+            throw cleanup
+        }))
+        let launch = RuntimeTerminalAuthenticationLaunch(
+            name: "Synthetic login", executable: URL(fileURLWithPath: "/unused"),
+            workingDirectory: FileManager.default.temporaryDirectory, arguments: [], environment: [:],
+            appendedArguments: [], environmentOverrides: [:]
+        )
+        let authenticateInSession = settings.acpAuthenticationTransaction(for: first.id)
+        do {
+            try await authenticateInSession {
+                try await authenticate(launch)
+            }
+            XCTFail("The adapter must receive the original cleanup-pending error")
+        } catch let pending as RuntimeTerminalCleanupPending {
+            XCTAssertEqual(pending.failure.detail, cleanup.failure.detail)
+        }
+        XCTAssertFalse(settings.isWritingACPSettings(for: first.id))
+        let blockedCheck = try XCTUnwrap(settings.checkACPConnection(for: first) { configuration in
+            XCTFail("A check must not start an agent while credential changes can still be in progress")
+            return .init(runtimeID: configuration.runtimeID, executablePath: "/unused")
+        })
+        await blockedCheck.value
+        XCTAssertEqual(settings.acpCheckResult(for: first.id)?.cleanupUnconfirmed, true)
+        XCTAssertEqual(settings.acpCheckResult(for: first.id)?.isReady, false)
+        do {
+            _ = try await settings.inspectACPModels(for: first.id, model: nil)
+            XCTFail("Model verification must wait for confirmed cleanup")
+        } catch let failure as RuntimeFailure {
+            XCTAssertEqual(failure.kind, .supervision)
+            XCTAssertEqual(failure.detail, cleanup.failure.detail)
+        }
+        let otherCheck = try XCTUnwrap(settings.checkACPConnection(for: other) { configuration in
+            .init(runtimeID: configuration.runtimeID, executablePath: "/unused", protocolVersion: .compatible(1))
+        })
+        await otherCheck.value
+        XCTAssertEqual(settings.acpCheckResult(for: other.id)?.isReady, true)
+        XCTAssertEqual(settings.acpConfigurationRevision(for: other.id), otherRevision)
+        cleanupConfirmed = true
+        let retry = try XCTUnwrap(settings.checkACPConnection(for: first) { configuration in
+            .init(runtimeID: configuration.runtimeID, executablePath: "/unused", protocolVersion: .compatible(1))
+        })
+        await retry.value
+        XCTAssertEqual(settings.acpCheckResult(for: first.id)?.isReady, true)
+        XCTAssertFalse(settings.acpCheckIsOutdated(first.id))
+    }
+
+    @MainActor func testACPModelWriteRemainsExclusiveWithARecreatedSettingsPresentation() async {
+        let settings = AppSettings()
+        let first = RuntimeAgentProfile(id: "acp:first", name: "First", executablePath: "/unused")
+        let other = RuntimeAgentProfile(id: "acp:other", name: "Other", executablePath: "/unused")
+        settings.acpAgents = [first, other]
+        var snapshot = WorkspaceSnapshot()
+        snapshot.preferences = settings.preferences
+        let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
+        snapshot.projects = [project]
+        let store = PausedACPSettingsStore(snapshot: snapshot)
+        let workspace = WorkspaceController(store: store) { _, _ in FakeRuntime() }
+        await workspace.start()
+
+        let started = expectation(description: "First default model is writing to the store")
+        await store.pauseNextSave(started: started)
+        XCTAssertTrue(settings.beginACPModelPreferencesWrite(for: first.id))
+        let model = RuntimeModel(provider: "acp:first", modelID: "available", name: "Available")
+        let saving = Task {
+            defer { settings.endACPModelPreferencesWrite(for: first.id) }
+            return await workspace.setDefaultModel(model, forRuntime: first.id)
+        }
+        await fulfillment(of: [started], timeout: 2)
+
+        let reopened = ACPAgentSettingsPresentation()
+        XCTAssertTrue(reopened.modelDirectory.search.isEmpty)
+        XCTAssertTrue(settings.isWritingACPSettings(for: first.id))
+        XCTAssertFalse(settings.beginACPModelPreferencesWrite(for: first.id))
+        var changed = first
+        changed.arguments = ["new"]
+        settings.updateACPAgent(changed)
+        XCTAssertEqual(settings.acpAgents.first?.arguments, first.arguments)
+        let duplicate = await workspace.setDefaultModel(nil, forRuntime: first.id)
+        XCTAssertFalse(duplicate)
+        XCTAssertTrue(settings.beginACPModelPreferencesWrite(for: other.id))
+        let otherModel = RuntimeModel(provider: "acp:other", modelID: "second", name: "Second")
+        let otherStarted = expectation(description: "Second agent requested its own default")
+        let otherSaving = Task {
+            defer { settings.endACPModelPreferencesWrite(for: other.id) }
+            otherStarted.fulfill()
+            return await workspace.setDefaultModel(otherModel, forRuntime: other.id)
+        }
+        await fulfillment(of: [otherStarted], timeout: 2)
+        XCTAssertTrue(settings.isWritingACPSettings(for: other.id))
+        let creatingStarted = expectation(description: "New session requested while its default is pending")
+        let newSession = Task {
+            creatingStarted.fulfill()
+            return await workspace.createSession(in: project.id, runtimeID: other.id)
+        }
+        await fulfillment(of: [creatingStarted], timeout: 2)
+        XCTAssertTrue(workspace.state.sessions.isEmpty)
+
+        await store.releaseSave()
+        let modelSaved = await saving.value
+        let otherSaved = await otherSaving.value
+        XCTAssertTrue(modelSaved)
+        XCTAssertTrue(otherSaved)
+        XCTAssertEqual(workspace.modelPreferences(forRuntime: first.id).defaultModel, model)
+        XCTAssertEqual(workspace.modelPreferences(forRuntime: other.id).defaultModel, otherModel)
+        let sessionID = await newSession.value
+        XCTAssertNotNil(sessionID)
+        let session = workspace.state.sessions.first { $0.id == sessionID }
+        XCTAssertEqual(session?.runtimeID, other.id)
+        XCTAssertEqual(session?.pendingSelection?.modelID, otherModel.modelID)
+        XCTAssertFalse(settings.isWritingACPSettings(for: first.id))
+        XCTAssertFalse(settings.isWritingACPSettings(for: other.id))
+        settings.updateACPAgent(changed)
+        XCTAssertEqual(settings.acpAgents.first?.arguments, ["new"])
+
+        await store.failNextSave()
+        XCTAssertTrue(settings.beginACPModelPreferencesWrite(for: first.id))
+        let failingSave = Task {
+            defer { settings.endACPModelPreferencesWrite(for: first.id) }
+            return await workspace.setDefaultModel(nil, forRuntime: first.id)
+        }
+        let didSave = await failingSave.value
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(workspace.modelPreferences(forRuntime: first.id).defaultModel, model)
+        XCTAssertFalse(settings.isWritingACPSettings(for: first.id))
+    }
+
+    @MainActor func testRemovedAgentProbeCannotPublishOrClearReaddedAgentCheck() async throws {
+        let settings = AppSettings()
+        let agent = RuntimeAgentProfile(id: "acp:reused", name: "Agent", executablePath: "/unused")
+        settings.addACPAgent(agent)
+        let oldRevision = settings.acpConfigurationRevision(for: agent.id)
+        let oldProbe = PausedACPSettingsProbe()
+        let oldStarted = expectation(description: "Old check started")
+        let old = try XCTUnwrap(settings.checkACPConnection(for: agent) { _ in await oldProbe.run(started: oldStarted) })
+        await fulfillment(of: [oldStarted], timeout: 2)
+
+        settings.acpAgents = []
+        XCTAssertFalse(settings.isCheckingACP(agent.id))
+        XCTAssertNil(settings.acpCheckResult(for: agent.id))
+        settings.addACPAgent(agent)
+        XCTAssertNotEqual(settings.acpConfigurationRevision(for: agent.id), oldRevision)
+        let newProbe = PausedACPSettingsProbe()
+        let newStarted = expectation(description: "Replacement check started")
+        let new = try XCTUnwrap(settings.checkACPConnection(for: agent) { _ in await newProbe.run(started: newStarted) })
+        await fulfillment(of: [newStarted], timeout: 2)
+
+        await oldProbe.complete(.init(runtimeID: agent.id, executablePath: "/old", protocolVersion: .compatible(1)))
+        await old.value
+        XCTAssertTrue(settings.isCheckingACP(agent.id))
+        XCTAssertNil(settings.acpCheckResult(for: agent.id))
+
+        await newProbe.complete(.init(runtimeID: agent.id, executablePath: "/new", protocolVersion: .compatible(1)))
+        await new.value
+        XCTAssertFalse(settings.isCheckingACP(agent.id))
+        XCTAssertEqual(settings.acpCheckResult(for: agent.id)?.executablePath, "/new")
+
+        let removedProbe = PausedACPSettingsProbe()
+        let removedStarted = expectation(description: "Final check started")
+        let removed = try XCTUnwrap(settings.checkACPConnection(for: agent) { _ in
+            await removedProbe.run(started: removedStarted)
+        })
+        await fulfillment(of: [removedStarted], timeout: 2)
+        settings.acpAgents = []
+        await removedProbe.complete(.init(runtimeID: agent.id, executablePath: "/removed"))
+        await removed.value
+        XCTAssertFalse(settings.isCheckingACP(agent.id))
+        XCTAssertNil(settings.acpCheckResult(for: agent.id))
+        XCTAssertNil(settings.acpCheckFinishedAt(for: agent.id))
+    }
+
+    func testProviderConnectionRequestsSelectAndReturnToTheTargetOnce() {
+        let first = RuntimeAgentProfile(id: "acp:first", name: "First", executablePath: "/unused")
+        let second = RuntimeAgentProfile(id: "acp:second", name: "Second", executablePath: "/unused", enabled: false)
+        let agents = [first, second]
+        let initial = ProviderConnectionRequest(runtimeID: first.id, sequence: 1)
+        var reopened = SettingsPanelNavigation(section: .providers, connectionRequest: initial, agents: agents)
+        XCTAssertEqual(reopened.section, .providers)
+        XCTAssertEqual(reopened.selectedAgentID, first.id)
+        XCTAssertTrue(reopened.consumeConnection(initial))
+        XCTAssertFalse(reopened.consumeConnection(initial))
+
+        var open = SettingsPanelNavigation(section: .general, connectionRequest: nil, agents: agents)
+        XCTAssertEqual(open.section, .general)
+        XCTAssertNil(open.selectedAgentID)
+        open.section = .projects
+        open.openConnection(initial, agents: agents)
+        XCTAssertEqual(open.section, .providers)
+        XCTAssertEqual(open.selectedAgentID, first.id)
+        XCTAssertTrue(open.consumeConnection(initial))
+
+        let switchAgent = ProviderConnectionRequest(runtimeID: second.id, sequence: 2)
+        open.openConnection(switchAgent, agents: agents)
+        XCTAssertEqual(open.selectedAgentID, second.id)
+        open.agentRemoved(first.id)
+        XCTAssertEqual(open.selectedAgentID, second.id)
+        XCTAssertTrue(open.consumeConnection(switchAgent))
+
+        let repeatAgent = ProviderConnectionRequest(runtimeID: second.id, sequence: 3)
+        open.openConnection(repeatAgent, agents: agents)
+        XCTAssertFalse(open.consumeConnection(switchAgent))
+        XCTAssertTrue(open.consumeConnection(repeatAgent))
+        open.selectedAgentID = first.id
+        open.openConnection(repeatAgent, agents: agents)
+        XCTAssertEqual(open.selectedAgentID, first.id)
+        XCTAssertNil(open.connectionRequest)
+
+        let removed = ProviderConnectionRequest(runtimeID: "acp:removed", sequence: 4)
+        open.openConnection(removed, agents: agents)
+        XCTAssertEqual(open.selectedAgentID, first.id)
+        XCTAssertNil(open.connectionRequest)
+
+        open.agentRemoved(first.id)
+        XCTAssertNil(open.selectedAgentID)
+    }
+
+    @MainActor func testConnectionSettingsShortcutTargetsTheFailedSession() async throws {
+        let first = RuntimeAgentProfile(id: "acp:first", name: "First", executablePath: "/unused", enabled: false)
+        let second = RuntimeAgentProfile(id: "acp:second", name: "Second", executablePath: "/unused")
+        let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
+        let failed = SessionReference(projectID: project.id, runtimeID: first.id)
+        let selected = SessionReference(projectID: project.id, runtimeID: second.id)
+        var snapshot = WorkspaceSnapshot()
+        snapshot.projects = [project]
+        snapshot.sessions = [failed, selected]
+        snapshot.selectedSessionID = selected.id
+        let workspace = WorkspaceController(store: MemoryStore(snapshot)) { _, _ in FakeRuntime() }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
+        XCTAssertEqual(workspace.selected?.runtimeID, second.id)
+
+        let settings = AppSettings()
+        let presentation = SessionPresentation(id: failed.id)
+        let detail = SessionDetail(workspace: workspace, settings: settings, presentation: presentation,
+                                   openConnectionSettings: { _ in }, presentConfirmation: { _ in })
+        let agents = [first, second]
+        XCTAssertNil(detail.connectionSettingsRuntimeID(agents: agents))
+        await presentation.controller.connect(StubSessionRuntime(connectionFailure: .init(.setup, "Synthetic ACP launch failure")))
+        XCTAssertEqual(detail.connectionSettingsRuntimeID(agents: agents), first.id)
+        XCTAssertNil(detail.connectionSettingsRuntimeID(agents: [second]))
+        XCTAssertEqual(presentation.controller.failure?.detail, "Synthetic ACP launch failure")
+
+    }
+
+    func testModelSnapshotDateOnlySplitsDocumentedProviderIdentifiers() {
+        let qwen = RuntimeModel(provider: "qwen-token-plan-individual-cn", modelID: "deepseek-v4.1-flash-1017",
+                                name: "DeepSeek V4.1 Flash 1017")
+        XCTAssertEqual(ModelPresentation.snapshot(qwen)?.date, "10-17")
+        XCTAssertEqual(ModelPresentation.snapshot(qwen)?.displayDate, "1017")
+        XCTAssertEqual(ModelPresentation.snapshot(qwen)?.name, "DeepSeek V4.1 Flash")
+        XCTAssertTrue(ModelPresentation.matches(qwen, query: "1017"))
+        XCTAssertTrue(ModelPresentation.matches(qwen, query: "10-17"))
+        let openAI = RuntimeModel(provider: "openai", modelID: "gpt-4o-2024-08-06", name: "GPT-4o (2024-08-06)")
+        XCTAssertEqual(ModelPresentation.snapshot(openAI)?.name, "GPT-4o")
+        XCTAssertEqual(ModelPresentation.snapshot(openAI)?.date, "2024-08-06")
+        XCTAssertEqual(ModelPresentation.snapshot(openAI)?.displayDate, "20240806")
+        XCTAssertTrue(ModelPresentation.matches(openAI, query: "20240806"))
+        let version = RuntimeModel(provider: "openai", modelID: "gpt-4-1106-preview", name: "Preview 1106")
+        let invalid = RuntimeModel(provider: "openai", modelID: "gpt-4o-2024-02-31", name: "Invalid date")
+        XCTAssertNil(ModelPresentation.snapshot(version))
+        XCTAssertNil(ModelPresentation.snapshot(invalid))
+        XCTAssertEqual(CodingAgentLabel.initials(for: "Claude Code"), "CL")
     }
 
     func testCodexQuotaUsesOnlyCodexWindowsAndPreservesResetTime() throws {
@@ -199,17 +693,25 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(ProviderLogo.assetName(for: "glm"), "zai")
         XCTAssertEqual(ProviderLogo.assetName(for: "qwen-token-plan-individual-cn"), "qwen")
         XCTAssertEqual(ProviderLogo.assetName(for: "QWEN"), "qwen")
+        XCTAssertEqual(ProviderLogo.assetName(for: "gemini"), "googlegemini")
+        XCTAssertEqual(ProviderLogo.assetName(for: "antigravity"), "antigravity")
+        XCTAssertEqual(ProviderLogo.assetName(for: "acp:antigravity"), "antigravity")
+        XCTAssertEqual(ProviderLogo.assetName(for: "Antigravity", model: "Gemini 4 Hydrogen"), "googlegemini")
+        XCTAssertEqual(ProviderLogo.assetName(for: "Antigravity", model: "Claude Sonnet 4.5"), "anthropic")
+        XCTAssertEqual(ProviderLogo.assetName(for: "Antigravity", model: "Custom Agent Model"), "antigravity")
         XCTAssertNil(ProviderLogo.assetName(for: ""))
         XCTAssertNil(ProviderLogo.assetName(for: "unverified-provider"))
         // Wide or thin-stroked marks fill the 13 pt frame; square marks keep 12 pt.
         XCTAssertEqual(ProviderLogo.drawSide(for: "deepseek"), 13)
         XCTAssertEqual(ProviderLogo.drawSide(for: "google"), 13)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "antigravity"), 13)
+        XCTAssertEqual(ProviderLogo.drawSide(for: "Antigravity", model: "Gemini 4 Hydrogen"), 13)
         XCTAssertEqual(ProviderLogo.drawSide(for: "qwen-token-plan"), 13)
         XCTAssertEqual(ProviderLogo.drawSide(for: "openai"), 12)
         XCTAssertEqual(ProviderLogo.drawSide(for: "zai"), 12)
         XCTAssertEqual(ProviderLogo.drawSide(for: "unverified-provider"), 12)
         let bundle = Bundle(for: AppDelegate.self)
-        for name in ["openai", "anthropic", "googlegemini", "deepseek", "qwen", "zai"] {
+        for name in ["openai", "anthropic", "googlegemini", "deepseek", "qwen", "zai", "antigravity"] {
             let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"), name)
             let image = try XCTUnwrap(NSImage(contentsOf: url), name)
             // Templates must carry at least 2x pixels of their draw box so thin strokes survive.
@@ -218,11 +720,11 @@ final class SessionDetailUITests: XCTestCase {
     }
 
     @MainActor func testTranscriptScrollerFollowsSessionDetailWidth() async throws {
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
+        let workspace = WorkspaceController(store: MemoryStore()) { _, _ in FakeRuntime() }
         let presentation = SessionPresentation(id: UUID())
         presentation.controller.showHistory((0..<30).map { .init(id: "layout-\($0)", kind: .assistant, text: "Message \($0)") })
         let host = NSHostingView(rootView: SessionDetail(
-            workspace: workspace, settings: AppSettings(), presentation: presentation, openSettings: {}, presentConfirmation: { _ in }
+            workspace: workspace, settings: AppSettings(), presentation: presentation, openConnectionSettings: { _ in }, presentConfirmation: { _ in }
         ))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1200, height: 600),
                               styleMask: [.borderless], backing: .buffered, defer: false)
@@ -251,10 +753,13 @@ final class SessionDetailUITests: XCTestCase {
     @MainActor func testWorkbenchInstallsSessionAndSidebarToggleInNativeToolbar() async throws {
         let workspace = await newConversationWorkspace()
         let visibility = TestSidebarVisibility()
+        let projectFiles = ProjectFilesControls()
+        let controller = try XCTUnwrap(workspace.viewed?.controller)
+        controller.draft = "Draft stays in the session"
         let host = NSHostingView(rootView: WorkbenchView(
             workspace: workspace, settings: AppSettings(), quitRequest: 0, openSettingsRequest: 0,
             terminate: { _, cancel in cancel() },
-            sidebarVisibility: Binding(get: { visibility.value }, set: { visibility.value = $0 })
+            sidebarVisibility: Binding(get: { visibility.value }, set: { visibility.value = $0 }), projectFiles: projectFiles
         ))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 620),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -265,6 +770,7 @@ final class SessionDetailUITests: XCTestCase {
             window.contentView = nil
         }
 
+        var retainedSidebarToggle: NSToolbarItem?
         for (width, showSidebar) in [(1200.0, true), (860.0, true), (860.0, false), (860.0, true), (1200.0, true)] {
             visibility.value = showSidebar ? .all : .detailOnly
             window.setContentSize(NSSize(width: width, height: 620))
@@ -274,8 +780,13 @@ final class SessionDetailUITests: XCTestCase {
             let toolbar = try XCTUnwrap(window.toolbar)
             XCTAssertEqual(window.titlebarSeparatorStyle, .none)
             let identifiers = toolbar.items.map { $0.itemIdentifier.rawValue }
-            XCTAssertEqual(identifiers.last, "PikachuSessionHeader")
-            XCTAssertTrue(identifiers.contains("PikachuSidebarToggle"))
+            XCTAssertEqual(Array(identifiers.suffix(2)), ["PikachuSessionHeader", "PikachuProjectFiles"])
+            let sidebarToggle = try XCTUnwrap(toolbar.items.first { $0.itemIdentifier.rawValue == "PikachuSidebarToggle" })
+            if let retainedSidebarToggle {
+                XCTAssertTrue(sidebarToggle === retainedSidebarToggle, "The sidebar toggle must remain attached when its neighbors change")
+            } else {
+                retainedSidebarToggle = sidebarToggle
+            }
             XCTAssertEqual(identifiers.contains("PikachuSidebarHeading"), showSidebar)
             XCTAssertEqual(toolbar.items.contains { $0.itemIdentifier == .sidebarTrackingSeparator }, showSidebar)
 
@@ -285,25 +796,141 @@ final class SessionDetailUITests: XCTestCase {
             XCTAssertTrue(visibleIdentifiers.contains("PikachuSidebarToggle"), "Sidebar toggle overflowed at width=\(width), showSidebar=\(showSidebar): visible=\(visibleIdentifiers)")
             XCTAssertEqual(visibleIdentifiers.contains("PikachuSidebarHeading"), showSidebar, "Sidebar heading visibility mismatch at width=\(width), showSidebar=\(showSidebar): visible=\(visibleIdentifiers)")
 
-            let session = try XCTUnwrap(toolbar.items.last?.view)
+            XCTAssertTrue(visibleIdentifiers.contains("PikachuProjectFiles"), "Project files toggle overflowed")
+            let session = try XCTUnwrap(toolbar.items.first { $0.itemIdentifier.rawValue == "PikachuSessionHeader" }?.view)
             XCTAssertTrue(session.window === window)
             XCTAssertGreaterThan(session.bounds.width, 350)
             XCTAssertLessThan(session.bounds.width, width)
             XCTAssertLessThanOrEqual(session.convert(session.bounds, to: nil).maxX, width + 1)
         }
+
+        let files = try XCTUnwrap(window.toolbar?.items.first {
+            $0.itemIdentifier.rawValue == "PikachuProjectFiles"
+        }?.view as? NSButton)
+        files.performClick(nil)
+        await settleWindow(window)
+        XCTAssertTrue(projectFiles.isOpen)
+        XCTAssertEqual(files.state, .on)
+        window.setContentSize(NSSize(width: 860, height: 620))
+        await settleWindow(window)
+        XCTAssertTrue(projectFiles.isOpen)
+        XCTAssertTrue(workspace.viewed?.controller === controller)
+        XCTAssertEqual(controller.draft, "Draft stays in the session")
+        files.performClick(nil)
+        await settleWindow(window)
+        XCTAssertFalse(projectFiles.isOpen)
+        XCTAssertEqual(controller.draft, "Draft stays in the session")
+    }
+
+    @MainActor func testWorkbenchRemainsInteractiveDuringExternalOpenValidation() async throws {
+        let fixture = FileManager.default.temporaryDirectory.appending(path: "Pikachu-Open-Test-\(UUID())")
+        try FileManager.default.createDirectory(at: fixture, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        try "Preview".write(to: fixture.appending(path: "notes.md"), atomically: true, encoding: .utf8)
+        let workspace = await newConversationWorkspace(projectPath: fixture.path)
+        let controller = try XCTUnwrap(workspace.viewed?.controller)
+        controller.draft = "Keep editing"
+        let controls = ProjectFilesControls()
+        let reader = DelayedReader(delaysReads: false)
+        let model = ProjectFilesModel(reader: reader)
+        let host = NSHostingView(rootView: WorkbenchView(
+            workspace: workspace, settings: AppSettings(), quitRequest: 0, openSettingsRequest: 0,
+            terminate: { _, cancel in cancel() }, sidebarVisibility: .constant(.detailOnly),
+            projectFiles: controls, filesModel: model
+        ))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 620),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+            Task { await reader.releaseValidation() }
+        }
+
+        func waitFor(_ condition: () async -> Bool) async throws {
+            for _ in 0..<100 {
+                if await condition() { return }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            _ = try XCTUnwrap(nil as Bool?, "Timed out waiting for the open-validation fixture")
+        }
+
+        await settleWindow(window)
+        let filesButton = try XCTUnwrap(window.toolbar?.items.first {
+            $0.itemIdentifier.rawValue == "PikachuProjectFiles"
+        }?.view as? NSButton)
+        filesButton.performClick(nil)
+        await settleWindow(window)
+        XCTAssertTrue(controls.isOpen)
+        model.open(.init(path: .root.appending("notes.md"), kind: .file))
+        try await waitFor { model.canOpenSelection }
+
+        var pendingFailure: (@MainActor @Sendable () async -> Void)?
+        var launches = 0
+        var fallbackOpens = 0
+        var actions = TranscriptFileOpener.Actions()
+        actions.launch = { _, failure in
+            launches += 1
+            pendingFailure = failure
+        }
+        actions.destination = { .application($0) }
+        actions.openApplication = { _ in
+            fallbackOpens += 1
+            return true
+        }
+        let configuration = FileOpenConfiguration(preference: .custom, customCommand: "true")
+        let openingID = try XCTUnwrap(controls.openingID)
+        await reader.holdNextValidation()
+        let initialOpen = try XCTUnwrap(model.openSelection(canLaunch: { controls.openingID == openingID }) {
+            await ProjectFilesOpenMethod.configured(.custom).open($0, configuration: configuration, actions: actions)
+        })
+        try await waitFor { await reader.isWaitingForValidation }
+        XCTAssertEqual(launches, 0)
+        workspace.focusInput()
+        await settleWindow(window)
+        let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+        XCTAssertTrue(editor.isEditable)
+        editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
+        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.shift],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+        NSApp.sendEvent(event)
+        await settleWindow(window)
+        XCTAssertEqual(controller.draft, "Keep editing\n")
+        let stillWaiting = await reader.isWaitingForValidation
+        XCTAssertTrue(stillWaiting)
+        XCTAssertEqual(launches, 0)
+
+        await reader.releaseValidation()
+        await initialOpen.value
+        XCTAssertEqual(launches, 1)
+        let failure = try XCTUnwrap(pendingFailure)
+        pendingFailure = nil
+        await reader.holdNextValidation()
+        let fallback = Task { await failure() }
+        try await waitFor { await reader.isWaitingForValidation }
+        filesButton.performClick(nil)
+        await settleWindow(window)
+        XCTAssertFalse(controls.isOpen)
+        XCTAssertFalse(model.isOpen)
+        XCTAssertEqual(controller.draft, "Keep editing\n")
+        await reader.releaseValidation()
+        await fallback.value
+        XCTAssertEqual(fallbackOpens, 0)
     }
 
     @MainActor func testWorkbenchProjectNameCreatesSessionWithoutOpeningSidebar() async throws {
         let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
         let otherProject = ProjectRecord(path: NSHomeDirectory())
-        let original = SessionReference(projectID: project.id)
+        let original = SessionReference(projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID)
         var snapshot = WorkspaceSnapshot()
         snapshot.projects = [otherProject, project]
-        snapshot.sessions = [SessionReference(projectID: otherProject.id), original]
+        snapshot.sessions = [SessionReference(projectID: otherProject.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID), original]
         snapshot.selectedSessionID = original.id
         let store = MemoryStore(snapshot)
-        let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in FakeRuntime() }
-        await workspace.start()
+        let workspace = WorkspaceController(store: store) { _, _ in FakeRuntime() }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         let visibility = TestSidebarVisibility()
         visibility.value = .detailOnly
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 620),
@@ -320,7 +947,7 @@ final class SessionDetailUITests: XCTestCase {
         }
         await settleWindow(window)
 
-        let toolbarView = try XCTUnwrap(window.toolbar?.items.last?.view)
+        let toolbarView = try XCTUnwrap(window.toolbar?.items.first { $0.itemIdentifier.rawValue == "PikachuSessionHeader" }?.view)
         // The project badge is the leading control in the session header.
         let location = toolbarView.convert(NSPoint(x: toolbarView.bounds.minX + 14, y: toolbarView.bounds.midY), to: nil)
         for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
@@ -382,11 +1009,83 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(reopened.viewController.view.bounds.width, 204.5)
     }
 
+    @MainActor func testSidebarDividerHighlightPreservesSplitViewHitTestingAndStyle() async throws {
+        XCTAssertEqual(ResizeDividerStyle.color(hovering: false, dragging: false), PikachuTheme.subtleDivider)
+        XCTAssertEqual(ResizeDividerStyle.color(hovering: true, dragging: false), PikachuTheme.selectionBorder)
+        XCTAssertEqual(ResizeDividerStyle.color(hovering: true, dragging: true), PikachuTheme.focusBorder)
+        XCTAssertGreaterThan(ResizeDividerStyle.activeWidth, ResizeDividerStyle.restingWidth)
+
+        let workspace = await newConversationWorkspace()
+        let visibility = TestSidebarVisibility()
+        let projectFiles = ProjectFilesControls()
+        projectFiles.toggle(keyboard: false)
+        let host = NSHostingView(rootView: WorkbenchView(
+            workspace: workspace, settings: AppSettings(), quitRequest: 0, openSettingsRequest: 0,
+            terminate: { _, cancel in cancel() },
+            sidebarVisibility: Binding(get: { visibility.value }, set: { visibility.value = $0 }),
+            projectFiles: projectFiles
+        ))
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1500, height: 780),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.contentView = host
+        await settleWindow(window)
+
+        func splitView(in view: NSView) -> NSSplitView? {
+            (view as? NSSplitView) ?? view.subviews.lazy.compactMap { splitView(in: $0) }.first
+        }
+
+        let split = try XCTUnwrap(splitView(in: host))
+        let controller = try XCTUnwrap(split.delegate as? NSSplitViewController)
+        let sidebar = try XCTUnwrap(controller.splitViewItems.first { $0.behavior == .sidebar })
+        XCTAssertFalse(sidebar.isCollapsed)
+
+        let dividerPoint = host.convert(NSPoint(x: sidebar.viewController.view.bounds.maxX, y: 200),
+                                        from: sidebar.viewController.view)
+        XCTAssertTrue(host.hitTest(dividerPoint) === split,
+                      "Divider overlay must stay mouse-transparent so NSSplitView keeps native resize hit-testing")
+
+        func highlightOverlay(in view: NSView) -> NSView? {
+            if String(describing: type(of: view)).contains("HighlightView") { return view }
+            return view.subviews.lazy.compactMap { highlightOverlay(in: $0) }.first
+        }
+
+        let overlay = try XCTUnwrap(highlightOverlay(in: host))
+        let trackingArea = try XCTUnwrap(overlay.trackingAreas.first)
+        XCTAssertEqual(trackingArea.rect.width, ResizeDividerStyle.hitWidth, accuracy: 0.5)
+        XCTAssertEqual(trackingArea.rect.midX, dividerPoint.x, accuracy: 2)
+        let bar = try XCTUnwrap(overlay.subviews.first)
+        XCTAssertEqual(bar.alphaValue, 0, accuracy: 0.01)
+
+        let windowPoint = host.convert(dividerPoint, to: nil)
+        let moveEvent = try XCTUnwrap(NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: windowPoint,
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        ))
+        overlay.mouseMoved(with: moveEvent)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertGreaterThan(bar.alphaValue, 0.9)
+
+        overlay.mouseExited(with: moveEvent)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(bar.alphaValue, 0, accuracy: 0.01)
+
+        visibility.value = .detailOnly
+        await settleWindow(window)
+        XCTAssertTrue(overlay.trackingAreas.isEmpty)
+    }
+
     @MainActor func testManyBackgroundRunsLeaveRoomForTheTranscript() async throws {
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in
+        let workspace = WorkspaceController(store: MemoryStore()) { _, _ in
             StubSessionRuntime(sessionID: UUID().uuidString)
         }
-        await workspace.start()
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         let added = await workspace.addProject(FileManager.default.temporaryDirectory)
         let project = try XCTUnwrap(added)
         for index in 0..<18 {
@@ -413,6 +1112,58 @@ final class SessionDetailUITests: XCTestCase {
         let clean = await workspace.disconnectAll()
         XCTAssertTrue(clean)
         window.contentView = nil
+    }
+
+    @MainActor func testBackgroundRunShowsActionsOnlyWhenApprovalArrives() async throws {
+        let runtime = StubSessionRuntime()
+        let workspace = WorkspaceController(store: MemoryStore()) { _, _ in runtime }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
+        let added = await workspace.addProject(FileManager.default.temporaryDirectory)
+        let project = try XCTUnwrap(added)
+        let background = await workspace.createSession(in: project)
+        let id = try XCTUnwrap(background)
+        await workspace.send(id, submitted: .init(text: "Background fixture"))
+        let controller = try XCTUnwrap(workspace.execution(for: id))
+        XCTAssertEqual(controller.phase, .running)
+        var presented = false
+        let host = NSHostingView(rootView: ActiveRunBanner(workspace: workspace, sessionID: id) {
+            presented = true
+        }.frame(width: 600, height: 38, alignment: .top).background(PikachuTheme.pageBackground))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 38),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        func hasMenuPixels() throws -> Bool {
+            let bounds = NSRect(x: host.bounds.maxX - 14 - IconButtonLabel.side,
+                                y: host.bounds.minY, width: IconButtonLabel.side, height: host.bounds.height)
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: bounds))
+            host.cacheDisplay(in: bounds, to: bitmap)
+            for y in 0..<bitmap.pixelsHigh {
+                for x in 0..<bitmap.pixelsWide {
+                    if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+                       color.redComponent < 0.5, color.greenComponent < 0.5, color.blueComponent < 0.5 {
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+        XCTAssertFalse(try hasMenuPixels())
+
+        let request = RuntimeInteraction(
+            instanceID: runtime.instanceID, requestID: "background-approval", kind: .confirm, title: "Approval fixture",
+            toolApproval: .init(workingDirectory: "/fixture", operation: .command(text: "echo hi", timeoutSeconds: nil))
+        )
+        controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+        await settleWindow(window)
+        let approvalX = host.bounds.maxX - 14 - 20
+        try clickApproval(in: host, x: approvalX, fromTop: host.bounds.height / 2)
+        XCTAssertTrue(presented)
+        _ = await workspace.disconnectAll()
     }
 
     @MainActor func testStarterCentersHeadingAndComposerAcrossWindowHeights() async throws {
@@ -535,7 +1286,7 @@ final class SessionDetailUITests: XCTestCase {
         let presentation = try XCTUnwrap(workspace.viewed)
         presentation.controller.draft = "abcd"
         let host = NSHostingView(rootView: SessionDetail(
-            workspace: workspace, settings: AppSettings(), presentation: presentation, openSettings: {}, presentConfirmation: { _ in }
+            workspace: workspace, settings: AppSettings(), presentation: presentation, openConnectionSettings: { _ in }, presentConfirmation: { _ in }
         ))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 790, height: 620),
                               styleMask: [.titled], backing: .buffered, defer: false)
@@ -608,7 +1359,7 @@ final class SessionDetailUITests: XCTestCase {
         let workspace = await newConversationWorkspace()
         let presentation = try XCTUnwrap(workspace.viewed)
         let host = NSHostingView(rootView: SessionDetail(
-            workspace: workspace, settings: AppSettings(), presentation: presentation, openSettings: {}, presentConfirmation: { _ in }
+            workspace: workspace, settings: AppSettings(), presentation: presentation, openConnectionSettings: { _ in }, presentConfirmation: { _ in }
         ))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 790, height: 620),
                               styleMask: [.borderless], backing: .buffered, defer: false)
@@ -732,17 +1483,114 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(workspace.selected?.draft, "Keep this draft")
     }
 
-    @MainActor private func newConversationWorkspace(runtime: StubSessionRuntime = StubSessionRuntime()) async -> WorkspaceController {
-        let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
-        let reference = SessionReference(projectID: project.id)
+    @MainActor func testACPThoughtAndTaskPlanDoNotPopulateExtensionStatus() async throws {
+        let runtime = StubSessionRuntime()
+        let workspace = await newConversationWorkspace(runtime: runtime)
+        let presentation = try XCTUnwrap(workspace.viewed)
+        let controller = presentation.controller
+        let activated = await workspace.activate(presentation.id)
+        XCTAssertTrue(activated)
+
+        runtime.emit(.runStarted)
+        runtime.emit(.thought("Analyzing repository structure"))
+        runtime.emit(.plan([
+            .init(id: "0", content: "Inspect code", status: .completed),
+            .init(id: "1", content: "Update UI", status: .inProgress)
+        ]))
+        try await Task.sleep(for: .milliseconds(30))
+
+        XCTAssertTrue(controller.extensionStatus.isEmpty)
+        XCTAssertEqual(controller.activeTurn?.thoughtText, "Analyzing repository structure")
+        XCTAssertEqual(controller.plan.map(\.content), ["Inspect code", "Update UI"])
+        XCTAssertEqual(controller.plan.map(\.status), [.completed, .inProgress])
+
+        let host = NSHostingView(rootView: ComposerView(
+            controller: controller,
+            workspace: workspace,
+            isViewedSessionActive: true,
+            isReadOnlyHistory: false,
+            sessionConfigurationDisabled: false,
+            model: nil,
+            reference: workspace.selected,
+            project: workspace.selectedProject,
+            panelsBlocked: false,
+            onPickFiles: {},
+            onSend: {},
+            onStop: {},
+            presentToolFailures: { _ in },
+            presentTaskPlan: {},
+            sendEnabled: false
+        ))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        await settleWindow(window)
+        let heightWithPlan = host.fittingSize.height
+        XCTAssertGreaterThan(heightWithPlan, 0)
+
+        // Verify TaskPlanDetailsSheet renders plan entries and adjusts when cleared.
+        let sheetHost = NSHostingView(rootView: TaskPlanDetailsSheet(controller: controller, close: {}))
+        let sheetWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420),
+                                   styleMask: [.borderless], backing: .buffered, defer: false)
+        sheetWindow.contentView = sheetHost
+        await settleWindow(sheetWindow)
+        let populatedSheetHeight = sheetHost.fittingSize.height
+        XCTAssertGreaterThan(populatedSheetHeight, 0)
+
+        runtime.emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertTrue(controller.transcriptTurnStarts.allSatisfy { $0.turn.thoughtText.isEmpty })
+        XCTAssertEqual(controller.plan.count, 2)
+
+        runtime.emit(.plan([]))
+        try await Task.sleep(for: .milliseconds(30))
+        await settleWindow(window)
+        await settleWindow(sheetWindow)
+        XCTAssertTrue(controller.plan.isEmpty)
+        XCTAssertLessThan(host.fittingSize.height, heightWithPlan)
+        XCTAssertLessThan(sheetHost.fittingSize.height, populatedSheetHeight)
+    }
+
+    @MainActor func testCollapsibleThinkingRowRendersThoughtDetailsBelowToolCalls() async throws {
+        let turn = TurnRecord(startedAt: .now)
+        turn.thoughtText = "Inspecting ACPEventMapper and TranscriptView"
+        var expanded = false
+        var contentChanges = 0
+        let host = NSHostingView(rootView: TranscriptThinkingRow(
+            turn: turn,
+            expanded: Binding(get: { expanded }, set: { expanded = $0 }),
+            contentChanged: { contentChanges += 1 }
+        ))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 240),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        await settleWindow(window)
+
+        let collapsedHeight = host.fittingSize.height
+        XCTAssertGreaterThan(collapsedHeight, 0)
+
+        expanded = true
+        host.rootView = TranscriptThinkingRow(
+            turn: turn,
+            expanded: Binding(get: { expanded }, set: { expanded = $0 }),
+            contentChanged: { contentChanges += 1 }
+        )
+        await settleWindow(window)
+        XCTAssertGreaterThan(host.fittingSize.height, collapsedHeight)
+    }
+
+    @MainActor private func newConversationWorkspace(runtime: StubSessionRuntime = StubSessionRuntime(),
+                                                       projectPath: String = FileManager.default.temporaryDirectory.path) async -> WorkspaceController {
+        let project = ProjectRecord(path: projectPath)
+        let reference = SessionReference(projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID)
         var snapshot = WorkspaceSnapshot()
         snapshot.projects = [project]
         snapshot.sessions = [reference]
         snapshot.selectedSessionID = reference.id
-        let workspace = WorkspaceController(store: MemoryStore(snapshot), reader: PiHistoryReader(roots: [])) { _, _ in
+        let workspace = WorkspaceController(store: MemoryStore(snapshot)) { _, _ in
             runtime
         }
-        await workspace.start()
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         return workspace
     }
 
@@ -929,101 +1777,6 @@ final class SessionDetailUITests: XCTestCase {
         await fulfillment(of: [staleStateWrite], timeout: 0.2)
     }
 
-    @MainActor func testClockRoundsFollowUpSplitAttributionAndReload() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Pikachu-SD03-Test-\(UUID())")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        let sessionFile = root.appendingPathComponent("session.jsonl")
-        let userTsMs: Int64 = 1_795_000_000_000
-        let assistant1TsMs: Int64 = 1_795_000_002_000
-        let assistant2TsMs: Int64 = 1_795_000_138_000
-
-        let clock = TestClock(wall: Date(timeIntervalSince1970: Double(userTsMs) / 1000.0))
-        let runtime = StubSessionRuntime(sessionID: "sd03-session", file: sessionFile)
-        let store = MemoryStore()
-        let reader = PiHistoryReader(roots: [root])
-        let workspace = WorkspaceController(store: store, reader: reader, clock: clock) { _, _ in runtime }
-        await workspace.start()
-        _ = await workspace.addProject(root)
-        let sessionID = try XCTUnwrap(workspace.selected?.id)
-        let activated = await workspace.activate(sessionID)
-        XCTAssertTrue(activated)
-
-        let controller = try XCTUnwrap(workspace.execution(for: sessionID))
-        let attachment = root.appendingPathComponent("notes.txt")
-        controller.draft = "排查顶栏"
-        controller.draftFiles = [attachment]
-        await workspace.send(sessionID)
-        XCTAssertEqual(controller.transcript.first?.sentAt, Date(timeIntervalSince1970: Double(userTsMs) / 1000.0))
-
-        // Live round 1 with steer + multiple assistant blocks + tool group.
-        controller.receive(.init(instanceID: runtime.instanceID, event: .runStarted))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .userMessageTimestamp(userTsMs)))
-        let a1 = UUID()
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantStarted(a1)))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantTimestamp(a1, assistant1TsMs)))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantCompleted(a1, "第一段分析")))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .tool(.init(id: "t1", name: "read", state: .completed))))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .tool(.init(id: "t2", name: "grep", state: .completed))))
-        let a2 = UUID()
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantStarted(a2)))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantTimestamp(a2, assistant2TsMs)))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantCompleted(a2, "第二段结论")))
-
-        clock.advance(by: 138) // 2 min 18 sec
-        controller.receive(.init(instanceID: runtime.instanceID, event: .settled(aborted: false)))
-        try await Task.sleep(for: .milliseconds(30))
-
-        let liveRows = TranscriptDisplayRow.project(controller.transcript, turnStarts: controller.transcriptTurnStarts)
-        let liveHeaders = projectedTurns(liveRows)
-        XCTAssertEqual(liveHeaders.count, 1)
-        guard case .turnHeader(let round1) = liveRows[1], case .item(let firstReply) = liveRows[2] else {
-            return XCTFail("Expected the current turn header between the user and first reply")
-        }
-        XCTAssertEqual(liveRows[0].id, controller.transcript.first?.id)
-        XCTAssertEqual(firstReply.text, "第一段分析")
-        XCTAssertEqual(round1.status, .completed)
-        XCTAssertEqual(try XCTUnwrap(round1.durationSeconds), 138, accuracy: 0.01)
-        XCTAssertEqual(round1.endedAt, Date(timeIntervalSince1970: Double(userTsMs) / 1000.0 + 138))
-
-        // Persist matching Pi v3 JSONL and reload in a fresh WorkspaceController.
-        let records: [[String: Any]] = [
-            ["type": "session", "version": 3, "id": "sd03-session", "cwd": root.resolvingSymlinksInPath().path, "timestamp": "2026-11-18T12:26:40.000Z"],
-            ["type": "message", "id": "u1", "parentId": NSNull(), "timestamp": "2026-11-18T12:26:40.000Z",
-             "message": ["role": "user", "content": [["type": "text", "text": UserPrompt(text: "排查顶栏", files: [attachment]).runtimeText]], "timestamp": userTsMs]],
-            ["type": "message", "id": "a1", "parentId": "u1", "timestamp": "2026-11-18T12:26:42.000Z",
-             "message": ["role": "assistant", "content": [["type": "text", "text": "第一段分析"], ["type": "toolCall", "id": "t1", "name": "read", "arguments": [:]], ["type": "toolCall", "id": "t2", "name": "grep", "arguments": [:]]], "stopReason": "toolUse", "timestamp": assistant1TsMs]],
-            ["type": "message", "id": "tr1", "parentId": "a1", "timestamp": "2026-11-18T12:26:43.000Z",
-             "message": ["role": "toolResult", "toolCallId": "t1", "toolName": "read", "content": "ok", "isError": false]],
-            ["type": "message", "id": "tr2", "parentId": "tr1", "timestamp": "2026-11-18T12:26:44.000Z",
-             "message": ["role": "toolResult", "toolCallId": "t2", "toolName": "grep", "content": "ok", "isError": false]],
-            ["type": "message", "id": "a2", "parentId": "tr2", "timestamp": "2026-11-18T12:28:58.000Z",
-             "message": ["role": "assistant", "content": [["type": "text", "text": "第二段结论"]], "stopReason": "stop", "timestamp": assistant2TsMs]],
-        ]
-        let jsonl = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }.joined(separator: "\n") + "\n"
-        try jsonl.write(to: sessionFile, atomically: true, encoding: .utf8)
-
-        _ = await workspace.disconnectAll()
-        _ = await workspace.flush()
-
-        let reopened = WorkspaceController(store: store, reader: reader, clock: clock) { _, _ in FakeRuntime() }
-        await reopened.start()
-        let reloadedTranscript = try XCTUnwrap(reopened.viewed?.controller.transcript)
-        let reloadedUser = try XCTUnwrap(reloadedTranscript.first(where: { $0.kind == .user }))
-        XCTAssertEqual(reloadedUser.editableText, "排查顶栏")
-        XCTAssertEqual(reloadedUser.editableFiles, [attachment])
-        XCTAssertEqual(reloadedUser.sentAt, Date(timeIntervalSince1970: Double(userTsMs) / 1000.0))
-
-        let reloadedRows = TranscriptDisplayRow.project(reloadedTranscript)
-        let reloadedHeaders = projectedTurns(reloadedRows)
-        XCTAssertEqual(reloadedHeaders.count, 1)
-        guard case .turnHeader(let restoredRound) = reloadedRows[1] else {
-            return XCTFail("Expected restored header immediately after the user")
-        }
-        XCTAssertEqual(restoredRound.status, .completed)
-        XCTAssertEqual(try XCTUnwrap(restoredRound.durationSeconds), 138, accuracy: 0.01)
-    }
 
     @MainActor func testToolOnlyTurnFollowUpSplitStopAndDisconnectUncertainty() async throws {
         let clock = TestClock()
@@ -1099,10 +1852,10 @@ final class SessionDetailUITests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in
+        let workspace = WorkspaceController(store: MemoryStore()) { _, _ in
             StubSessionRuntime()
         }
-        await workspace.start()
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         let addedProject = await workspace.addProject(root)
         let projectID = try XCTUnwrap(addedProject)
         let running = try XCTUnwrap(workspace.selected?.id)
@@ -1221,39 +1974,6 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertTrue(completed.accessibilityText.hasPrefix("Pika-CHUUU!"))
     }
 
-    func testComposerPermissionsStatesForEffectiveVsNextRun() {
-        let selected = AgentExecutionPolicy(mode: .interactive, approval: .everyCall)
-        let active = AgentExecutionPolicy(mode: .interactive)
-        let idleSwitched = ComposerApprovalPresentation(
-            selected: selected,
-            active: active,
-            isRunning: false,
-            isReadOnlyHistory: false
-        )
-        let everyCall = String(localized: "每次审批")
-        XCTAssertEqual(idleSwitched.buttonText, String(localized: "\(everyCall)（下次执行）"))
-        XCTAssertEqual(idleSwitched.effective, active)
-        XCTAssertEqual(idleSwitched.pending, selected)
-
-        let running = ComposerApprovalPresentation(
-            selected: selected,
-            active: active,
-            isRunning: true,
-            isReadOnlyHistory: false
-        )
-        XCTAssertEqual(running.buttonText, String(localized: "工具审批"))
-        XCTAssertEqual(running.effective, active)
-        XCTAssertNil(running.pending)
-
-        let automatic = ComposerApprovalPresentation(
-            selected: .init(mode: .automatic),
-            active: nil,
-            isRunning: false,
-            isReadOnlyHistory: true
-        )
-        XCTAssertEqual(automatic.buttonText, String(localized: "无需审批"))
-    }
-
     @MainActor func testUsagePresentationAndLateResponseRejection() async {
         let usage = RuntimeUsage(
             sessionID: "s1",
@@ -1310,76 +2030,6 @@ final class SessionDetailUITests: XCTestCase {
         _ = await controller.disconnect()
     }
 
-    @MainActor func testFollowUpStartsNewRoundAndLegacyHistoryPreservesOnlyTrustedFields() async throws {
-        // 1. Follow-up dequeuing starts a distinct round.
-        let clock = TestClock()
-        let runtime = StubSessionRuntime(disposition: { $0.mode == .followUp ? .queued : .started })
-        let controller = SessionController(clock: clock)
-        await controller.connect(runtime)
-
-        controller.draft = "round 1"
-        await controller.sendDraft()
-        controller.receive(.init(instanceID: runtime.instanceID, event: .runStarted))
-        let a1 = UUID()
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantStarted(a1)))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantCompleted(a1, "first reply")))
-        clock.advance(by: 10)
-
-        let followPrompt = UserPrompt(text: "round 2", mode: .followUp)
-        controller.draft = followPrompt.text
-        controller.mode = .followUp
-        await controller.sendDraft(followPrompt)
-        controller.receive(.init(instanceID: runtime.instanceID, event: .queue(.init(followUp: [followPrompt.runtimeText]))))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .tool(.init(id: "previous-turn-tail", name: "read", state: .completed))))
-        let pendingRows = TranscriptDisplayRow.project(controller.transcript, turnStarts: controller.transcriptTurnStarts)
-        XCTAssertEqual(projectedTurns(pendingRows).count, 1)
-        clock.advance(by: 5)
-        controller.receive(.init(instanceID: runtime.instanceID, event: .queue(.init(steering: [], followUp: []))))
-        let a2 = UUID()
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantStarted(a2)))
-        clock.advance(by: 7)
-        controller.receive(.init(instanceID: runtime.instanceID, event: .assistantCompleted(a2, "follow-up reply")))
-        controller.receive(.init(instanceID: runtime.instanceID, event: .settled(aborted: false)))
-
-        let rows = TranscriptDisplayRow.project(controller.transcript, turnStarts: controller.transcriptTurnStarts)
-        let turns = projectedTurns(rows)
-        XCTAssertEqual(turns.count, 2)
-        let tailIndex = try XCTUnwrap(rows.firstIndex { $0.contains("tool:previous-turn-tail") })
-        guard case .turnHeader(let followUpTurn) = rows[tailIndex + 1] else {
-            return XCTFail("Expected follow-up header after previous-turn output")
-        }
-        XCTAssertTrue(followUpTurn === turns[1])
-        XCTAssertEqual(try XCTUnwrap(turns[0].durationSeconds), 15, accuracy: 0.01)
-        XCTAssertEqual(try XCTUnwrap(turns[1].durationSeconds), 7, accuracy: 0.01)
-        _ = await controller.disconnect()
-
-        // 2. Legacy JSONL with synthetic numeric timestamp=1 falls back to ISO entry timestamp and keeps duration nil.
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Pikachu-Legacy-\(UUID())")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let file = root.appendingPathComponent("legacy.jsonl")
-        let records: [[String: Any]] = [
-            ["type": "session", "version": 3, "id": "legacy", "cwd": root.path, "timestamp": "2026-11-18T00:00:00Z"],
-            ["type": "message", "id": "u1", "parentId": NSNull(), "timestamp": "2026-11-18T00:00:01Z",
-             "message": ["role": "user", "content": "hello", "timestamp": 1]],
-            ["type": "message", "id": "a1", "parentId": "u1", "timestamp": "2026-11-18T00:01:00Z",
-             "message": ["role": "assistant", "content": [["type": "text", "text": "world"]], "stopReason": "stop"]]
-        ]
-        let data = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }.joined(separator: "\n") + "\n"
-        try data.write(to: file, atomically: true, encoding: .utf8)
-
-        let history = try await PiHistoryReader(roots: []).read(file)
-        XCTAssertEqual(history.items.first?.sentAt, try Date.ISO8601FormatStyle().parse("2026-11-18T00:00:01Z"))
-        XCTAssertEqual(history.turns.count, 1)
-        XCTAssertEqual(history.turns.first?.status, .completed)
-        XCTAssertEqual(history.turns.first?.endedAt, try Date.ISO8601FormatStyle().parse("2026-11-18T00:01:00Z"))
-        XCTAssertNil(history.turns.first?.durationSeconds)
-
-        let summary = TurnHeaderSummary(turn: TurnRecord(status: .completed, endedAt: history.turns.first?.endedAt, durationSeconds: nil),
-                                        relativeTo: try Date.ISO8601FormatStyle().parse("2026-11-18T00:02:00Z"))
-        XCTAssertEqual(summary.displayText, String(localized: "执行完成"))
-        XCTAssertEqual(summary.tooltipText, summary.displayText)
-    }
 
     @MainActor private func projectedTurns(_ rows: [TranscriptDisplayRow]) -> [TurnRecord] {
         rows.compactMap { row in
@@ -1438,13 +2088,13 @@ final class SessionDetailUITests: XCTestCase {
         try runGit(["worktree", "add", "--lock", "-b", "locked", checkout.path], cwd: repo)
 
         var launchedPaths: [String] = []
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: []), validateWorktree: { project, path in
+        let workspace = WorkspaceController(store: MemoryStore(), validateWorktree: { project, path in
             await GitRepositoryInspector.isUsableWorktree(path, in: project)
         }) { project, session in
             launchedPaths.append(session.workingDirectory(in: project))
             return StubSessionRuntime()
         }
-        await workspace.start()
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         let addedProject = await workspace.addProject(repo)
         let projectID = try XCTUnwrap(addedProject)
         let originalID = try XCTUnwrap(workspace.selected?.id)
@@ -1502,26 +2152,20 @@ final class SessionDetailUITests: XCTestCase {
         try runGit(["worktree", "add", "--lock", "-b", "locked", checkout.path], cwd: repo)
         try runGit(["worktree", "add", "-b", "other", other.path], cwd: repo)
 
-        let historyFile = root.appendingPathComponent("original.jsonl")
-        let header: [String: Any] = ["type": "session", "version": 3, "id": "locked-session",
-                                      "cwd": checkout.path, "timestamp": "2026-11-18T00:00:00Z"]
-        var history = try JSONSerialization.data(withJSONObject: header)
-        history.append(0x0A)
-        try history.write(to: historyFile)
         let store = MemoryStore()
         var launchedPaths: [String] = []
         func makeWorkspace() -> WorkspaceController {
-            WorkspaceController(store: store, reader: PiHistoryReader(roots: []), validateWorktree: { project, path in
+            WorkspaceController(store: store, validateWorktree: { project, path in
                 await GitRepositoryInspector.isUsableWorktree(path, in: project)
             }) { project, session in
                 let path = session.workingDirectory(in: project)
                 launchedPaths.append(path)
-                if path == checkout.path { return StubSessionRuntime(sessionID: "locked-session", file: historyFile) }
+                if path == checkout.path { return StubSessionRuntime(sessionID: "locked-session", resumable: true) }
                 return StubSessionRuntime(sessionID: session.id.uuidString)
             }
         }
         let workspace = makeWorkspace()
-        await workspace.start()
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         let addedProject = await workspace.addProject(repo)
         let projectID = try XCTUnwrap(addedProject)
         let originalID = try XCTUnwrap(workspace.selected?.id)
@@ -1567,10 +2211,10 @@ final class SessionDetailUITests: XCTestCase {
             XCTAssertEqual(original.controller.draftFiles, [attachment])
 
             let reopened = makeWorkspace()
-            await reopened.start()
+            await reopened.start(); reopened.setACPAgents([.antigravityPreset()])
             await reopened.select(originalID)
             XCTAssertEqual(reopened.selected?.worktreePath, checkout.path)
-            XCTAssertEqual(reopened.viewed?.history?.sessionID, "locked-session")
+            XCTAssertEqual(reopened.selected?.runtimeSessionID, "locked-session")
             let activated = await reopened.activate(originalID)
             XCTAssertFalse(activated)
             XCTAssertTrue(reopened.viewed?.executionError?.contains(checkout.path) == true)
@@ -1596,7 +2240,7 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(workspace.viewed?.controller.draftFiles, [attachment])
         XCTAssertEqual(workspace.workingDirectory(for: originalID), checkout.path)
         XCTAssertEqual(original.controller.draft, "keep the draft")
-        XCTAssertEqual(try Data(contentsOf: historyFile), history)
+        XCTAssertEqual(workspace.state.sessions.first { $0.id == originalID }?.runtimeSessionID, "locked-session")
         await workspace.send(recoveryID)
         XCTAssertEqual(launchedPaths, [checkout.path, repo.path])
         _ = await workspace.disconnect(recoveryID)
@@ -1697,6 +2341,46 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertLessThan(sheet.fittingSize.height, 250, "Editing details should start collapsed")
     }
 
+    @MainActor func testApprovalDiffShowsEndingsForEOFNewlineChanges() {
+        typealias Ending = ToolEditDiff.Ending
+        func change(_ old: String?, _ new: String) -> RuntimePermissionContext.FileDiff {
+            .init(path: "/fixture/file", oldText: old, newText: new)
+        }
+        let added = ApprovalDiffLines.changedEndings(for: change("a", "a\n"))
+        XCTAssertEqual(added.old, Ending.none)
+        XCTAssertEqual(added.new, .lf)
+        let removed = ApprovalDiffLines.changedEndings(for: change("a\n", "a"))
+        XCTAssertEqual(removed.old, .lf)
+        XCTAssertEqual(removed.new, Ending.none)
+        let styleChanged = ApprovalDiffLines.changedEndings(for: change("a\r\n", "a\n"))
+        XCTAssertEqual(styleChanged.old, .crlf)
+        XCTAssertEqual(styleChanged.new, .lf)
+        let previousEmpty = ApprovalDiffLines.changedEndings(for: change("", "\n"))
+        XCTAssertEqual(previousEmpty.old, Ending.none)
+        XCTAssertEqual(previousEmpty.new, .lf)
+        let newFile = ApprovalDiffLines.changedEndings(for: change(nil, "a\n"))
+        XCTAssertNil(newFile.old)
+        XCTAssertNil(newFile.new)
+        XCTAssertNil(ApprovalDiffLines.changedEndings(for: change("a\n", "b\n")).new)
+        let emptyRow = ApprovalDiffLines(text: "", isAddition: false, ending: previousEmpty.old)
+        XCTAssertEqual(String(emptyRow.markedText("− ", color: .red).characters), "−  [\(Ending.none.label)]")
+        let addedRow = ApprovalDiffLines(text: "a\n", isAddition: true, ending: added.new)
+        XCTAssertEqual(String(addedRow.markedText("+ ", color: .green).characters), "+ a [LF]")
+    }
+
+    @MainActor func testCommandApprovalSummariesPreserveStandardContentAndDeduplicate() {
+        func summaries(_ standard: String?, _ raw: String?, fallback: String = "") -> [String] {
+            ActiveApprovalDetails(approval: nil, context: .init(toolTitle: "Title", toolKind: "execute",
+                                                               summary: standard, toolSummary: raw),
+                                  message: fallback, projectDirectory: nil).commandSummaries
+        }
+        XCTAssertEqual(summaries("Standard ACP summary", nil), ["Standard ACP summary"])
+        XCTAssertEqual(summaries("Same", "Same"), ["Same"])
+        XCTAssertEqual(summaries("Standard", "Raw"), ["Raw", "Standard"])
+        XCTAssertEqual(summaries("Title", "Raw"), ["Raw"])
+        XCTAssertEqual(summaries(nil, nil, fallback: "Message"), ["Message"])
+    }
+
     @MainActor func testApprovalWidthUsesPrimaryContentAndRestoresThePreferredTier() {
         let standard = PikachuTypography()
         func width(_ command: String, typography: PikachuTypography = .init()) -> CGFloat? {
@@ -1706,7 +2390,7 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(width(Array(repeating: "printf fixture", count: 12).joined(separator: "\n")), 640)
         XCTAssertEqual(width(String(repeating: "x", count: 200)), 700)
         XCTAssertEqual(width(String(repeating: "foo ", count: 28)), 640)
-        XCTAssertEqual(width(String(repeating: "foo ", count: 28), typography: .init(size: .extraLarge)), 700)
+        XCTAssertEqual(width(String(repeating: "foo ", count: 40), typography: .init(size: .extraLarge)), 700)
         XCTAssertEqual(ApprovalSheetLayout.preferredWidth(for: .edit(path: "file.swift", replacements: []), typography: standard), 640)
         XCTAssertEqual(ApprovalSheetLayout.preferredWidth(for: .edit(path: String(repeating: "dir/", count: 30) + "file.swift",
                                                                       replacements: []), typography: standard), 700)
@@ -1716,11 +2400,9 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(ApprovalSheetLayout.width(preferred: 700, available: 860), 700)
     }
 
-    @MainActor func testCommandPreviewWrapTogglePreservesOriginalClipboardText() async throws {
-        let pasteboard = NSPasteboard.withUniqueName()
-        defer { pasteboard.releaseGlobally() }
-        let command = "printf " + String(repeating: "x", count: 200) + "\r\n  printf '尾部'\n"
-        let host = NSHostingView(rootView: CommandApprovalPreview(command: command, wrapsLines: .constant(true), pasteboard: pasteboard)
+    @MainActor func testCommandPreviewWrapsAcrossFullWidth() async throws {
+        let command = "printf " + String(repeating: "x", count: 200) + "\n  printf '尾部'\n"
+        let host = NSHostingView(rootView: CommandApprovalPreview(command: command)
             .frame(width: 592).pikachuTypography(.extraLarge))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 592, height: 240),
                               styleMask: [.titled], backing: .buffered, defer: false)
@@ -1729,18 +2411,44 @@ final class SessionDetailUITests: XCTestCase {
         defer { window.orderOut(nil) }
         await settleWindow(window)
 
-        for wrapsLines in [true, false] {
-            host.rootView = CommandApprovalPreview(command: command, wrapsLines: .constant(wrapsLines), pasteboard: pasteboard)
-                .frame(width: 592).pikachuTypography(.extraLarge)
-            pasteboard.clearContents()
-            await settleWindow(window)
-            let scroll = try XCTUnwrap(approvalScrollViews(in: host).first)
-            try clickApproval(in: host, x: host.bounds.width - ApprovalSheetLayout.previewInset - ApprovalSheetLayout.previewActionSize / 2,
-                              fromTop: approvalTop(of: scroll, in: host) + ApprovalSheetLayout.previewActionSize / 2)
-            await settleWindow(window)
-            let copied = try XCTUnwrap(pasteboard.string(forType: .string))
-            XCTAssertEqual(Array(copied.utf8), Array(command.utf8))
-        }
+        let scroll = try XCTUnwrap(approvalScrollViews(in: host).first)
+        XCTAssertEqual(scroll.contentView.bounds.width, 592 - 2 * ApprovalSheetLayout.previewInset - IconButtonLabel.side - 6, accuracy: 1)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(scroll.documentView).frame.width, scroll.contentView.bounds.width + 1)
+    }
+
+    @MainActor func testApprovalCopySitsAboveScrollableFullWidthText() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let text = "Start\r\n" + String(repeating: "  长行 approval details\n", count: 35) + "End\n"
+        let host = NSHostingView(rootView: ApprovalTextPreview(
+            text: text, copyLabel: "复制详情", identifier: "permission-summary", pasteboard: pasteboard
+        ).frame(width: 440))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 260),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        let scroll = try XCTUnwrap(approvalScrollViews(in: host).first)
+        let scrollFrame = scroll.convert(scroll.bounds, to: host)
+        XCTAssertEqual(scroll.contentView.bounds.width, 420, accuracy: 1)
+        XCTAssertTrue(scroll.verticalScroller?.isHidden ?? true)
+        let overflow = try XCTUnwrap(scroll.documentView).frame.height - scroll.contentView.bounds.height
+        XCTAssertGreaterThan(overflow, 100)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: overflow))
+        XCTAssertEqual(scroll.contentView.bounds.minY, overflow, accuracy: 1)
+
+        // The copy button must be clickable above the preview and aligned to its right edge.
+        let withCopyHeight = host.fittingSize.height
+        try clickApproval(in: host, x: scrollFrame.maxX - 12, fromTop: approvalTop(of: scroll, in: host) - 20)
+        let copied = try XCTUnwrap(pasteboard.string(forType: .string))
+        XCTAssertEqual(Array(copied.utf8), Array(text.utf8))
+
+        // Omitting copyLabel removes the copy button row (used for permission detail summaries).
+        host.rootView = ApprovalTextPreview(text: text, identifier: "permission-summary").frame(width: 440)
+        await settleWindow(window)
+        XCTAssertLessThan(host.fittingSize.height, withCopyHeight)
     }
 
     @MainActor func testAdaptiveApprovalSheetsThroughWorkbench() async throws {
@@ -1780,25 +2488,10 @@ final class SessionDetailUITests: XCTestCase {
         let (commandRequest, commandSheet) = try await present(.command(text: command, timeoutSeconds: 10), id: "long-command")
         XCTAssertEqual(commandSheet.frame.width, 700, accuracy: 1)
         let commandContent = try XCTUnwrap(commandSheet.contentView)
-        let initialHeight = commandSheet.frame.height
-        let wrappedScroll = try XCTUnwrap(approvalScrollViews(in: commandContent).first { !$0.hasHorizontalScroller })
-        addApprovalScreenshot(of: commandContent, name: "Command approval · light · wrap on")
-        let wrapFromRight = ApprovalSheetLayout.inset + ApprovalSheetLayout.previewInset
-            + ApprovalSheetLayout.previewActionSize * 1.5 + ApprovalSheetLayout.previewActionSpacing
-        try clickApproval(in: commandContent, x: commandContent.bounds.width - wrapFromRight,
-                          fromTop: approvalTop(of: wrappedScroll, in: commandContent) + ApprovalSheetLayout.previewActionSize / 2)
-        try await settleApprovalResize(commandSheet, from: initialHeight)
-        XCTAssertEqual(commandSheet.frame.width, 700, accuracy: 1)
-        XCTAssertLessThan(commandSheet.frame.height, initialHeight)
-        let unwrappedScroll = try XCTUnwrap(approvalScrollViews(in: commandContent).first {
-            $0.hasHorizontalScroller && $0.hasVerticalScroller
-        })
-        addApprovalScreenshot(of: commandContent, name: "Command approval · light · wrap off")
-        let document = try XCTUnwrap(unwrappedScroll.documentView)
-        let horizontalOverflow = document.frame.width - unwrappedScroll.contentView.bounds.width
-        XCTAssertGreaterThan(horizontalOverflow, 100)
-        unwrappedScroll.contentView.scroll(to: NSPoint(x: horizontalOverflow, y: 0))
-        XCTAssertGreaterThan(unwrappedScroll.contentView.bounds.minX, 0)
+        let wrappedScroll = try XCTUnwrap(approvalScrollViews(in: commandContent).first)
+        XCTAssertLessThanOrEqual(try XCTUnwrap(wrappedScroll.documentView).frame.width,
+                                 wrappedScroll.contentView.bounds.width + 1)
+        addWindowScreenshot(of: commandContent, name: "Command approval · light")
 
         window.setContentSize(CGSize(width: 720, height: 620))
         await settleWindow(window)
@@ -1833,28 +2526,22 @@ final class SessionDetailUITests: XCTestCase {
         await settleWindow(editSheet)
         let editContent = try XCTUnwrap(editSheet.contentView)
         XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
-        let collapsedHeight = editSheet.frame.height
-        XCTAssertLessThan(collapsedHeight, 250)
+        XCTAssertLessThan(editSheet.frame.height, window.frame.height)
         let targetPath = try XCTUnwrap(approvalScrollViews(in: editContent).first {
             ($0.documentView?.frame.width ?? 0) > $0.contentView.bounds.width + 100
         })
-        addApprovalScreenshot(of: editContent, name: "Edit approval · dark · collapsed")
-        try clickApproval(in: editContent, x: editContent.bounds.midX,
-                          fromTop: approvalTop(of: targetPath, in: editContent) + targetPath.bounds.height + 26)
-        try await settleApprovalResize(editSheet, from: collapsedHeight)
-        XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
-        XCTAssertGreaterThan(editSheet.frame.height, collapsedHeight + 200)
-        XCTAssertLessThan(editSheet.frame.height, window.frame.height)
-        addApprovalScreenshot(of: editContent, name: "Edit approval · dark · expanded")
-        let expandedHeight = editSheet.frame.height
-        let expandedPath = try XCTUnwrap(approvalScrollViews(in: editContent).first {
-            ($0.documentView?.frame.width ?? 0) > $0.contentView.bounds.width + 100
+        let pathOverflow = try XCTUnwrap(targetPath.documentView).frame.width - targetPath.contentView.bounds.width
+        XCTAssertTrue(targetPath.horizontalScroller?.isHidden ?? true)
+        targetPath.contentView.scroll(to: NSPoint(x: pathOverflow, y: 0))
+        XCTAssertEqual(targetPath.contentView.bounds.minX, pathOverflow, accuracy: 1)
+        let diff = try XCTUnwrap(approvalScrollViews(in: editContent).first {
+            ($0.documentView?.frame.height ?? 0) > $0.contentView.bounds.height + 100
         })
-        try clickApproval(in: editContent, x: editContent.bounds.midX,
-                          fromTop: approvalTop(of: expandedPath, in: editContent) + expandedPath.bounds.height + 26)
-        try await settleApprovalResize(editSheet, from: expandedHeight)
-        XCTAssertEqual(editSheet.frame.width, 700, accuracy: 1)
-        XCTAssertEqual(editSheet.frame.height, collapsedHeight, accuracy: 1)
+        let diffOverflow = try XCTUnwrap(diff.documentView).frame.height - diff.contentView.bounds.height
+        XCTAssertTrue(diff.verticalScroller?.isHidden ?? true)
+        diff.contentView.scroll(to: NSPoint(x: 0, y: diffOverflow))
+        XCTAssertEqual(diff.contentView.bounds.minY, diffOverflow, accuracy: 1)
+        addWindowScreenshot(of: editContent, name: "Edit approval · dark")
         runtime.emit(.interactionEnded(editRequest.id, .cancelled))
         try await awaitApprovalSheetDismissal(in: window)
         _ = await workspace.disconnect(id)
@@ -1886,7 +2573,7 @@ final class SessionDetailUITests: XCTestCase {
         await settleWindow(sheet)
     }
 
-    @MainActor private func addApprovalScreenshot(of view: NSView, name: String) {
+    @MainActor private func addWindowScreenshot(of view: NSView, name: String) {
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return }
@@ -1897,8 +2584,8 @@ final class SessionDetailUITests: XCTestCase {
     }
 
     @MainActor private func approvalScrollViews(in view: NSView) -> [NSScrollView] {
-        if let scroll = view as? NSScrollView { return [scroll] }
-        return view.subviews.flatMap { approvalScrollViews(in: $0) }
+        let current = (view as? NSScrollView).map { [$0] } ?? []
+        return current + view.subviews.flatMap { approvalScrollViews(in: $0) }
     }
 
     @MainActor private func approvalTop(of view: NSView, in root: NSView) -> CGFloat {
@@ -1997,71 +2684,131 @@ final class SessionDetailUITests: XCTestCase {
         XCTAssertEqual(sheet.frame.height, compact.height, accuracy: 1)
     }
 
-    @MainActor func testSettingsPanelProjectPiConfigToggleAndLateWorktreeGuard() async throws {
+
+    @MainActor func testSettingsPanelLargeWindowCapsAndReadingColumn() async throws {
+        let workspace = await newConversationWorkspace()
+        let settings = AppSettings()
+
+        XCTAssertEqual(SettingsPanel.panelSize(for: .zero), CGSize(width: 780, height: 460))
+        XCTAssertEqual(SettingsPanel.panelSize(for: CGSize(width: 860, height: 620)), CGSize(width: 788, height: 548))
+        XCTAssertEqual(SettingsPanel.panelSize(for: CGSize(width: 1120, height: 780)), CGSize(width: 1048, height: 708))
+        XCTAssertEqual(SettingsPanel.panelSize(for: CGSize(width: 1740, height: 1130)), CGSize(width: 1600, height: 1058))
+        XCTAssertEqual(SettingsPanel.panelSize(for: CGSize(width: 2560, height: 1440)), CGSize(width: 1600, height: 1060))
+        XCTAssertEqual(SettingsPanel.navigationWidth(for: 788), 157.6, accuracy: 0.1)
+        XCTAssertEqual(SettingsPanel.navigationWidth(for: 1048), 209.6, accuracy: 0.1)
+        XCTAssertEqual(SettingsPanel.navigationWidth(for: 1600), 216, accuracy: 0.1)
+
+        let designPanelWidth: CGFloat = 1600
+        let designPanelHeight: CGFloat = 1060
+        let designNavWidth: CGFloat = 216
+        let designReadingWidth: CGFloat = 880
+        let designRightPaneWidth = designPanelWidth - designNavWidth - 1
+
         let fm = FileManager.default
-        let temp = fm.temporaryDirectory.appendingPathComponent("Pikachu-Settings-UI-\(UUID())")
-        try fm.createDirectory(at: temp, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: temp) }
-        let root = temp.resolvingSymlinksInPath()
-        let projectADir = root.appendingPathComponent("project-a")
-        let projectBDir = root.appendingPathComponent("project-b")
-        let worktreeBDir = root.appendingPathComponent("project-b-wt")
-        try fm.createDirectory(at: projectADir, withIntermediateDirectories: false)
-        try fm.createDirectory(at: projectBDir, withIntermediateDirectories: false)
-        try runGit(["init", "-b", "main"], cwd: projectBDir)
-        try runGit(["-c", "user.email=settings@example.test", "-c", "user.name=Settings Test", "commit", "--allow-empty", "-m", "base"], cwd: projectBDir)
-        try runGit(["worktree", "add", "-b", "feature-wt", worktreeBDir.path], cwd: projectBDir)
-
-        let workspace = WorkspaceController(store: MemoryStore(), reader: PiHistoryReader(roots: [])) { _, _ in
-            StubSessionRuntime()
+        let tempRoot = fm.temporaryDirectory.appendingPathComponent("Pikachu-LargeSettings-\(UUID())")
+        let projectDir1 = tempRoot.appendingPathComponent("Project-" + String(repeating: "w", count: 160))
+        let projectDir2 = tempRoot.appendingPathComponent("Project-Two")
+        let projectDir3 = tempRoot.appendingPathComponent("Project-Three")
+        for dir in [projectDir1, projectDir2, projectDir3] {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         }
-        await workspace.start()
-        let addedProjectA = await workspace.addProject(projectADir, createInitialSession: false)
-        let projectA = try XCTUnwrap(addedProjectA)
-        let addedProjectB = await workspace.addProject(projectBDir, createInitialSession: false)
-        let projectB = try XCTUnwrap(addedProjectB)
-        XCTAssertTrue(workspace.state.sessions.isEmpty)
+        defer { try? fm.removeItem(at: tempRoot) }
+        let selectedProjectID = await workspace.addProject(projectDir1.resolvingSymlinksInPath(), createInitialSession: false)
+        _ = await workspace.addProject(projectDir2.resolvingSymlinksInPath(), createInitialSession: false)
+        _ = await workspace.addProject(projectDir3.resolvingSymlinksInPath(), createInitialSession: false)
 
-        actor LookupGate {
-            private var continuation: CheckedContinuation<[GitWorktree]?, Never>?
-            private var pausedOnce = false
-            func waitForFirstProjectAResult(onStart: @Sendable () -> Void) async -> [GitWorktree]? {
-                guard !pausedOnce else { return nil }
-                pausedOnce = true
-                onStart()
-                return await withCheckedContinuation { continuation = $0 }
-            }
-            func resolveStale(_ value: [GitWorktree]?) {
-                continuation?.resume(returning: value)
-                continuation = nil
-            }
-        }
-        let gate = LookupGate()
-        let startedA = expectation(description: "Started worktree query for project A")
-        let projectState = SettingsProjectState(selectedID: projectA)
-        let settingsPanel = SettingsPanel(
+        let panel = SettingsPanel(
             workspace: workspace,
-            settings: AppSettings(),
+            settings: settings,
             initialSection: .projects,
-            preferredProjectID: projectA,
-            projectState: projectState,
-            worktreesForProject: { path in
-                if WorkspaceController.canonicalPath(path) == projectADir.path {
-                    return await gate.waitForFirstProjectAResult { startedA.fulfill() }
-                }
-                return await GitRepositoryInspector.worktrees(in: path)
-            },
+            preferredProjectID: selectedProjectID,
+            availableSize: CGSize(width: 2560, height: 1440),
+            worktreesForProject: { _ in nil },
             close: {},
             restart: {}
         )
-
-        let host = NSHostingView(rootView: settingsPanel)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 520),
+        let host = NSHostingView(rootView: panel)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1640, height: 1100),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
-        defer { window.orderOut(nil) }
-        await fulfillment(of: [startedA], timeout: 2)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        XCTAssertEqual(host.fittingSize.width, designPanelWidth, accuracy: 1)
+        XCTAssertEqual(host.fittingSize.height, designPanelHeight, accuracy: 1)
+
+        func allScrollViews(in view: NSView) -> [NSScrollView] {
+            var result: [NSScrollView] = []
+            if let scroll = view as? NSScrollView { result.append(scroll) }
+            for subview in view.subviews {
+                result.append(contentsOf: allScrollViews(in: subview))
+            }
+            return result
+        }
+
+        func textInteractionRects(in view: NSView) -> [NSRect] {
+            var rects: [NSRect] = []
+            if String(describing: type(of: view)).contains("AppKitTextInteractionView") {
+                rects.append(view.convert(view.bounds, to: host))
+            }
+            for subview in view.subviews {
+                rects.append(contentsOf: textInteractionRects(in: subview))
+            }
+            return rects
+        }
+
+        let scrollViews = allScrollViews(in: host)
+        let outerScrollView = try XCTUnwrap(scrollViews.max(by: { $0.bounds.height < $1.bounds.height }))
+        let scrollRect = outerScrollView.convert(outerScrollView.bounds, to: host)
+        let panelMinX = host.bounds.minX + (host.bounds.width - designPanelWidth) / 2
+        let panelMaxX = panelMinX + designPanelWidth
+        XCTAssertEqual(scrollRect.minX, panelMinX + designNavWidth + 1, accuracy: 2)
+        XCTAssertEqual(scrollRect.maxX, panelMaxX, accuracy: 2)
+        XCTAssertEqual(scrollRect.width, designRightPaneWidth, accuracy: 2)
+
+        XCTAssertEqual(scrollViews.count, 1, "Projects are listed only when the pinned project menu opens.")
+
+        let rects = textInteractionRects(in: host)
+        let cardLeftEdge = try XCTUnwrap(rects.map(\.minX).min())
+        let cardRightEdge = try XCTUnwrap(rects.map(\.maxX).max())
+        let clipRect = outerScrollView.contentView.convert(outerScrollView.contentView.bounds, to: host)
+        let expectedCardMinX = clipRect.minX + (clipRect.width - designReadingWidth) / 2
+        let expectedCardContentWidth = designReadingWidth - 32
+        XCTAssertEqual(cardLeftEdge, expectedCardMinX + 16, accuracy: 8)
+        XCTAssertLessThanOrEqual(cardRightEdge, expectedCardMinX + designReadingWidth - 12)
+        XCTAssertLessThanOrEqual(cardRightEdge - cardLeftEdge, expectedCardContentWidth + 4)
+        addWindowScreenshot(of: host, name: "Project settings · large window")
+    }
+
+    @MainActor func testPermissionApprovalShowsSummaryAndTogglesRawInput() async throws {
+        let controller = SessionController()
+        let runtime = StubSessionRuntime()
+        await controller.connect(runtime)
+        await controller.sendDraft(UserPrompt(text: "Run command"))
+        let request = RuntimeInteraction(
+            instanceID: runtime.instanceID,
+            requestID: "acp-cmd-approval",
+            kind: .confirm,
+            title: "Run command",
+            toolApproval: .init(workingDirectory: "/fixture", operation: .command(text: "echo hi", timeoutSeconds: 10)),
+            permissionOptions: [
+                .init(id: "reject", name: "Reject once", kind: .rejectOnce),
+                .init(id: "allow", name: "Allow once", kind: .allowOnce)
+            ],
+            permissionContext: .init(toolTitle: "Run command", toolName: "run_command", toolKind: "execute",
+                                     workingDirectory: "/fixture", toolSummary: "Details fixture body",
+                                     rawInputJSON: "{\"RawFixture\": \"/fixture/path\"}")
+        )
+        controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+
+        let host = NSHostingView(rootView: InteractionView(request: request, controller: controller, sessionTitle: "Fixture"))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
         await settleWindow(window)
 
         func selectableTexts(in view: NSView) -> [String] {
@@ -2076,54 +2823,679 @@ final class SessionDetailUITests: XCTestCase {
             return values
         }
 
-        let recordA = try XCTUnwrap(workspace.state.projects.first { $0.id == projectA })
-        let recordB = try XCTUnwrap(workspace.state.projects.first { $0.id == projectB })
+        let initialTexts = try recognizedTexts(in: host)
+        let joinedInitial = initialTexts.map(\.text).joined(separator: "\n")
+        XCTAssertFalse(joinedInitial.contains("取消"), "Unexpected cancel button in: \(joinedInitial)")
+        XCTAssertFalse(joinedInitial.contains("停止任务"), "Unexpected stop button in: \(joinedInitial)")
+        XCTAssertTrue(joinedInitial.contains("拒绝"), "Expected reject button in: \(joinedInitial)")
+        XCTAssertTrue(joinedInitial.contains("允许"), "Expected allow button in: \(joinedInitial)")
+        XCTAssertTrue(selectableTexts(in: host).contains("Details fixture body"))
+        XCTAssertTrue(joinedInitial.contains("run_command"))
+        let detailsObservation = try XCTUnwrap(initialTexts.first { $0.text.contains("原始参数") })
+        XCTAssertFalse(selectableTexts(in: host).contains { $0.contains("RawFixture") })
 
-        XCTAssertEqual(projectState.targetDirectory(for: recordA), projectADir.path)
-        XCTAssertTrue(projectState.extraWorktrees(for: recordA).isEmpty)
-        XCTAssertFalse(workspace.isProjectPiConfigTrusted(for: projectADir.path))
-        XCTAssertTrue(selectableTexts(in: host).contains(projectADir.path))
+        let collapsedHeight = host.fittingSize.height
+        let box = detailsObservation.box
+        let fromTop = (1 - box.midY) * host.bounds.height
 
-        // Switch to project B before project A's worktree lookup completes.
-        projectState.selectedID = projectB
+        // Hovering across the "原始参数" row must not paint a gray hover background.
+        let hoverPoint = NSPoint(x: box.maxX * host.bounds.width + 60, y: (1 - fromTop / host.bounds.height) * host.bounds.height)
+        let beforeHoverColor = try pixelColor(in: host, at: hoverPoint)
+        window.acceptsMouseMovedEvents = true
+        let moveEvent = try XCTUnwrap(NSEvent.mouseEvent(
+            with: .mouseMoved,
+            location: host.convert(hoverPoint, to: nil),
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 0,
+            pressure: 0
+        ))
+        window.sendEvent(moveEvent)
         await settleWindow(window)
+        let afterHoverColor = try pixelColor(in: host, at: hoverPoint)
+        XCTAssertEqual(afterHoverColor.redComponent, beforeHoverColor.redComponent, accuracy: 0.01)
+        XCTAssertEqual(afterHoverColor.greenComponent, beforeHoverColor.greenComponent, accuracy: 0.01)
+        XCTAssertEqual(afterHoverColor.blueComponent, beforeHoverColor.blueComponent, accuracy: 0.01)
 
-        // Deliver a stale worktree result for project A; it must not overwrite project B.
-        await gate.resolveStale([GitWorktree(path: "/stale/worktree/from-a", branch: "stale", commit: nil)])
-        let deadline = Date().addingTimeInterval(2)
-        while projectState.loadedWorktreesProjectID != projectB && Date() < deadline {
-            try await Task.sleep(for: .milliseconds(10))
+        // Click on the "原始参数" text.
+        try clickApproval(in: host, x: box.midX * host.bounds.width, fromTop: fromTop)
+        await settleWindow(window)
+        XCTAssertGreaterThan(host.fittingSize.height, collapsedHeight)
+        XCTAssertTrue(selectableTexts(in: host).contains { $0.contains("RawFixture") })
+
+        // Click on the chevron positioned immediately to the right of "原始参数".
+        let expandedTexts = try recognizedTexts(in: host)
+        let expandedDetails = try XCTUnwrap(expandedTexts.first { $0.text.contains("原始参数") })
+        let expandedBox = expandedDetails.box
+        let expandedFromTop = (1 - expandedBox.midY) * host.bounds.height
+        try clickApproval(in: host, x: expandedBox.maxX * host.bounds.width + 13, fromTop: expandedFromTop)
+        await settleWindow(window)
+        XCTAssertEqual(host.fittingSize.height, collapsedHeight, accuracy: 1)
+        XCTAssertFalse(selectableTexts(in: host).contains { $0.contains("RawFixture") })
+
+        _ = await controller.disconnect()
+    }
+
+    @MainActor func testModelConfigurationPanelHidesAntigravityACPServerSubtitle() async throws {
+        let project = ProjectRecord(path: FileManager.default.temporaryDirectory.path)
+        let acpSession = SessionReference(projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID)
+        var snapshot = WorkspaceSnapshot()
+        snapshot.projects = [project]
+        snapshot.sessions = [acpSession]
+        snapshot.selectedSessionID = acpSession.id
+        snapshot.preferences.acpAgents = [RuntimeAgentProfile.antigravityPreset()]
+
+        let acpModel = RuntimeModel(provider: "Antigravity ACP Server", modelID: "gemini-4-hydrogen", name: "Gemini 4 Hydrogen")
+        let workspace = WorkspaceController(
+            store: MemoryStore(snapshot),
+            inspectRuntimeModels: { runtimeID, _ in
+                if runtimeID == RuntimeAgentProfile.antigravityRuntimeID {
+                    return .init(models: [acpModel], thinkingLevels: ["low", "high"])
+                }
+                return .init(models: [], thinkingLevels: ["low", "high"])
+            },
+            runtimeFactory: { _, _, _ in StubSessionRuntime() }
+        )
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
+
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 480),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        let host = NSHostingView(rootView: ModelConfigurationPanel(
+            workspace: workspace, reference: acpSession, saving: .constant(false), width: 420, close: {}
+        ))
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+
+        var acpTexts = ""
+        for _ in 0..<40 {
+            await settleWindow(window)
+            acpTexts = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+            if acpTexts.contains("Gemini 4 Hydrogen") { break }
+            try await Task.sleep(for: .milliseconds(25))
         }
+        XCTAssertTrue(acpTexts.contains("Gemini 4 Hydrogen"), "Expected Gemini 4 Hydrogen in: \(acpTexts)")
+        XCTAssertFalse(acpTexts.localizedCaseInsensitiveContains("Antigravity ACP Server"), "Unexpected ACP server subtitle in: \(acpTexts)")
+        XCTAssertFalse(acpTexts.localizedCaseInsensitiveContains("ACP Server"), "Unexpected ACP server subtitle in: \(acpTexts)")
+
+    }
+
+    @MainActor func testActiveRunBannerShowsCountdownSecondsOnReviewButton() async throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        XCTAssertEqual(ActiveRunBanner.remainingSeconds(until: now.addingTimeInterval(65), relativeTo: now), 65)
+        XCTAssertEqual(ActiveRunBanner.remainingSeconds(until: now.addingTimeInterval(64.2), relativeTo: now), 65)
+        XCTAssertEqual(ActiveRunBanner.remainingSeconds(until: now, relativeTo: now), 0)
+        XCTAssertEqual(ActiveRunBanner.remainingSeconds(until: now.addingTimeInterval(-5), relativeTo: now), 0)
+
+        XCTAssertEqual(ActiveRunBanner.remainingFraction(from: now, until: now.addingTimeInterval(100), relativeTo: now), 1.0, accuracy: 0.001)
+        XCTAssertEqual(ActiveRunBanner.remainingFraction(from: now, until: now.addingTimeInterval(100), relativeTo: now.addingTimeInterval(40)), 0.6, accuracy: 0.001)
+        XCTAssertEqual(ActiveRunBanner.remainingFraction(from: now, until: now.addingTimeInterval(100), relativeTo: now.addingTimeInterval(120)), 0.0, accuracy: 0.001)
+        XCTAssertEqual(ActiveRunBanner.remainingFraction(from: now, until: now, relativeTo: now), 0.0, accuracy: 0.001)
+
+        let runtime = StubSessionRuntime()
+        let workspace = WorkspaceController(store: MemoryStore()) { _, _ in runtime }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
+        let added = await workspace.addProject(FileManager.default.temporaryDirectory)
+        let project = try XCTUnwrap(added)
+        let created = await workspace.createSession(in: project)
+        let sessionID = try XCTUnwrap(created)
+        await workspace.send(sessionID, submitted: .init(text: "Background fixture"))
+        let controller = try XCTUnwrap(workspace.execution(for: sessionID))
+
+        let requestCreatedAt = Date().addingTimeInterval(-150)
+        let request = RuntimeInteraction(
+            instanceID: runtime.instanceID,
+            requestID: "background-countdown",
+            kind: .confirm,
+            title: "Approval fixture",
+            expiresAt: requestCreatedAt.addingTimeInterval(300),
+            createdAt: requestCreatedAt,
+            toolApproval: .init(workingDirectory: "/fixture", operation: .command(text: "echo hi", timeoutSeconds: nil))
+        )
+        controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+
+        let host = NSHostingView(rootView: ActiveRunBanner(workspace: workspace, sessionID: sessionID) {}
+            .frame(width: 600, height: 38, alignment: .top)
+            .background(PikachuTheme.pageBackground))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 38),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
         await settleWindow(window)
 
-        XCTAssertNotEqual(projectState.loadedWorktreesProjectID, projectA)
-        XCTAssertEqual(projectState.loadedWorktreesProjectID, projectB)
-        XCTAssertEqual(projectState.targetDirectory(for: recordB), projectBDir.path)
-        XCTAssertEqual(projectState.extraWorktrees(for: recordB).map(\.path), [worktreeBDir.path])
-        XCTAssertFalse(workspace.isProjectPiConfigTrusted(for: projectBDir.path))
-        XCTAssertTrue(selectableTexts(in: host).contains(projectBDir.path))
+        let rendered = (try recognizedTexts(in: host)).map(\.text).joined(separator: " ")
+        XCTAssertTrue(rendered.contains("去处理"), "Expected 去处理 in: \(rendered)")
+        XCTAssertTrue(rendered.range(of: #"\b\d+s\b"#, options: .regularExpression) != nil,
+                      "Expected countdown seconds in: \(rendered)")
 
-        // Select worktree in project B: only updates target directory, enables worktree independently.
-        projectState.selectConfigDirectory(worktreeBDir.path, for: recordB)
-        await settleWindow(window)
-        XCTAssertEqual(projectState.targetDirectory(for: recordB), worktreeBDir.path)
-        XCTAssertTrue(selectableTexts(in: host).contains(worktreeBDir.path))
-        let toggleWT = await workspace.setProjectPiConfigTrusted(true, forProject: projectB, directory: worktreeBDir.path)
-        XCTAssertNil(toggleWT)
-        XCTAssertTrue(workspace.isProjectPiConfigTrusted(for: worktreeBDir.path))
-        XCTAssertFalse(workspace.isProjectPiConfigTrusted(for: projectBDir.path))
+        let progressSnapshot = try XCTUnwrap(
+            accessibilityNodes(in: host).first { $0.identifier == "active-run-progress" },
+            "Expected active-run-progress bar element"
+        )
+        let hostScreenFrame = window.convertToScreen(host.convert(host.bounds, to: nil))
+        XCTAssertEqual(progressSnapshot.frame.minX, hostScreenFrame.minX, accuracy: 2)
+        XCTAssertEqual(progressSnapshot.frame.width, hostScreenFrame.width * 0.5, accuracy: 12)
+        _ = await workspace.disconnectAll()
+    }
 
-        // Relocate project A -> target resets to relocated path and ignores stale lookups.
-        let movedADir = root.appendingPathComponent("project-a-moved")
-        try fm.createDirectory(at: movedADir, withIntermediateDirectories: false)
-        projectState.selectedID = projectA
+    @MainActor func testRecentToolFailuresScopesToLatestLiveTurnAndPersistsDismissal() async throws {
+        let runtime = StubSessionRuntime()
+        let workspace = await newConversationWorkspace(runtime: runtime)
+        let presentation = try XCTUnwrap(workspace.viewed)
+        let controller = presentation.controller
+
+        let historicalFailure = HistoryItem(
+            id: "hist-tool-fail",
+            kind: .tool,
+            tool: RuntimeTool(id: "hist-t0", name: "bash", arguments: "{}", output: "old error", state: .failed)
+        )
+        controller.showHistory([historicalFailure])
+        XCTAssertTrue(controller.recentToolFailures.isEmpty)
+
+        let activated = await workspace.activate(presentation.id)
+        XCTAssertTrue(activated)
+
+        let failedTool1 = RuntimeTool(id: "t1", name: "bash", arguments: "{}", output: "err1", state: .failed)
+        runtime.emit(.runStarted)
+        runtime.emit(.tool(failedTool1))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(controller.recentToolFailures.map(\.id), ["tool:t1"])
+
+        func makeComposerHost() -> NSHostingView<ComposerView> {
+            NSHostingView(rootView: ComposerView(
+                controller: controller,
+                workspace: workspace,
+                isViewedSessionActive: true,
+                isReadOnlyHistory: false,
+                sessionConfigurationDisabled: false,
+                model: nil,
+                reference: workspace.selected,
+                project: workspace.selectedProject,
+                panelsBlocked: false,
+                onPickFiles: {},
+                onSend: {},
+                onStop: {},
+                presentToolFailures: { _ in },
+                presentTaskPlan: {},
+                sendEnabled: false
+            ))
+        }
+
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 220),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        var host = makeComposerHost()
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
         await settleWindow(window)
-        let relocatedA = await workspace.relocateProject(projectA, to: movedADir)
-        XCTAssertEqual(relocatedA?.warning, false)
+        let textsWithOneFailure = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertTrue(textsWithOneFailure.contains("工具调用失败 · 1"), "Expected failure count 1 in: \(textsWithOneFailure)")
+
+        // Emitting a second failed tool in the same turn increments the count in the pill.
+        let failedTool1B = RuntimeTool(id: "t1b", name: "read", arguments: "{}", output: "err1b", state: .failed)
+        runtime.emit(.tool(failedTool1B))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(controller.recentToolFailures.map(\.id), ["tool:t1", "tool:t1b"])
         await settleWindow(window)
-        let movedRecordA = try XCTUnwrap(workspace.state.projects.first { $0.id == projectA })
-        XCTAssertEqual(projectState.targetDirectory(for: movedRecordA), movedADir.path)
-        XCTAssertTrue(selectableTexts(in: host).contains(movedADir.path))
+        let textsWithTwoFailures = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertTrue(textsWithTwoFailures.contains("工具调用失败 · 2"), "Expected failure count 2 in: \(textsWithTwoFailures)")
+
+        // Settle the turn; the failures from that turn remain inspectable until dismissed or next turn.
+        runtime.emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(controller.recentToolFailures.map(\.id), ["tool:t1", "tool:t1b"])
+
+        // Dismissing persists on SessionController across ComposerView recreation (e.g. session switch).
+        controller.dismissToolFailures(controller.recentToolFailures)
+        XCTAssertTrue(controller.recentToolFailures.isEmpty)
+        host = makeComposerHost()
+        window.contentView = host
+        await settleWindow(window)
+        let textsAfterDismiss = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertFalse(textsAfterDismiss.contains("工具调用失败"), "Unexpected failure pill after dismiss: \(textsAfterDismiss)")
+
+        // Another failed tool in a new turn surfaces again, then clears when the user sends a new prompt.
+        let failedTool2 = RuntimeTool(id: "t2", name: "bash", arguments: "{}", output: "err2", state: .failed)
+        runtime.emit(.runStarted)
+        runtime.emit(.tool(failedTool2))
+        runtime.emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertEqual(controller.recentToolFailures.map(\.id), ["tool:t2"])
+
+        await controller.sendDraft(UserPrompt(text: "Next question"))
+        XCTAssertTrue(controller.recentToolFailures.isEmpty)
+        await settleWindow(window)
+        let textsNextTurn = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertFalse(textsNextTurn.contains("工具调用失败"), "Unexpected failure pill on next turn: \(textsNextTurn)")
+
+        runtime.emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertTrue(controller.recentToolFailures.isEmpty)
+
+        _ = await workspace.disconnectAll()
+    }
+
+    @MainActor func testToolFailureDetailsSheetHidesScrollbarsAndPagesMultipleFailures() async throws {
+        let longArg = "{\"command\":\"" + String(repeating: "x", count: 240) + "\"}"
+        let longOutput = (1...24).map { "error line \($0): something failed in step \($0)" }.joined(separator: "\n")
+        let failures = [
+            TranscriptItem(
+                id: "tool:f1",
+                kind: .tool,
+                tool: RuntimeTool(id: "f1", name: "first_bash", arguments: longArg, output: longOutput, state: .failed)
+            ),
+            TranscriptItem(
+                id: "tool:f2",
+                kind: .tool,
+                tool: RuntimeTool(id: "f2", name: "second_read", arguments: "{\"path\":\"/tmp/missing.txt\"}", output: "second failure marker", state: .failed)
+            )
+        ]
+
+        let host = NSHostingView(rootView: ToolFailureDetailsSheet(failures: failures, close: {}))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        let scrollViews = approvalScrollViews(in: host)
+        XCTAssertFalse(scrollViews.isEmpty)
+        for scroll in scrollViews {
+            XCTAssertFalse(scroll.hasHorizontalScroller)
+            XCTAssertFalse(scroll.hasVerticalScroller)
+            XCTAssertTrue(scroll.horizontalScroller?.isHidden ?? true)
+            XCTAssertTrue(scroll.verticalScroller?.isHidden ?? true)
+        }
+
+        // Outer horizontal pager must overflow across the 2 pages, while keeping card contents scrollable.
+        let pagerScroll = try XCTUnwrap(scrollViews.first { scroll in
+            guard let doc = scroll.documentView else { return false }
+            return doc.frame.width > scroll.contentView.bounds.width + 200
+                && scroll.contentView.bounds.height >= 200
+        })
+        XCTAssertTrue(try XCTUnwrap(scrollViews.first {
+            guard let doc = $0.documentView else { return false }
+            return doc.frame.height > $0.contentView.bounds.height + 20
+        }).documentView != nil)
+
+        let initialTexts = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertTrue(initialTexts.contains("1 / 2"), "Expected 1 / 2 page counter in: \(initialTexts)")
+        XCTAssertTrue(initialTexts.contains("first_bash"), "Expected first failed tool in: \(initialTexts)")
+
+        let pageWidth = pagerScroll.contentView.bounds.width
+        pagerScroll.contentView.scroll(to: NSPoint(x: pageWidth, y: 0))
+        pagerScroll.reflectScrolledClipView(pagerScroll.contentView)
+        await settleWindow(window)
+
+        let pagedTexts = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertTrue(pagedTexts.contains("second_read"), "Expected second failed tool after horizontal scroll in: \(pagedTexts)")
+        XCTAssertTrue(pagedTexts.contains("second failure marker"), "Expected second tool output in: \(pagedTexts)")
+    }
+
+    @MainActor func testACPModePopoverHidesHeaderFooterAndAdaptsWidthToFullDescription() throws {
+        let modes = [
+            RuntimeModeOption(id: "default", name: "Default", description: "Ask before edits and commands, and confirm changes"),
+            RuntimeModeOption(id: "auto", name: "Auto", description: "Approve edits and safe commands automatically")
+        ]
+        // Simulate ComposerControlsLayout's `.lineLimit(1)` environment inherited by the popover.
+        let host = NSHostingView(rootView: ACPModePopoverContent(
+            availableModes: modes,
+            activeModeID: "auto",
+            maxWidth: 460,
+            select: { _ in }
+        ).lineLimit(1))
+        let width = host.fittingSize.width
+        XCTAssertGreaterThan(width, 280, "Popover should expand beyond the old 280pt fixed width")
+        XCTAssertLessThanOrEqual(width, 460)
+
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: host.fittingSize),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        host.layoutSubtreeIfNeeded()
+
+        let rendered = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertFalse(rendered.contains("ACP 执行模式"), "Unexpected header in: \(rendered)")
+        XCTAssertFalse(rendered.contains("权限审批"), "Unexpected footer in: \(rendered)")
+        XCTAssertTrue(rendered.contains("and confirm changes"), "Expected full description without truncation in: \(rendered)")
+        XCTAssertTrue(rendered.contains("safe commands automatically"), "Expected full description without truncation in: \(rendered)")
+    }
+
+    @MainActor func testExpiredApprovalPillRendersUpdatedTitleAndJumpsTranscriptToExpiredRow() async throws {
+        let runtime = StubSessionRuntime()
+        let workspace = await newConversationWorkspace(runtime: runtime)
+        let presentation = try XCTUnwrap(workspace.viewed)
+        let controller = presentation.controller
+        let activated = await workspace.activate(presentation.id)
+        XCTAssertTrue(activated)
+
+        let expired = RuntimeInteraction(
+            instanceID: runtime.instanceID,
+            requestID: "expired-pill-target",
+            kind: .confirm,
+            title: "Run targeted check",
+            toolApproval: .init(workingDirectory: "/fixture", operation: .command(text: "echo check", timeoutSeconds: 10))
+        )
+        runtime.emit(.runStarted)
+        runtime.emit(.interaction(expired))
+        runtime.emit(.interactionEnded(expired.id, .expired))
+        for index in 1...15 {
+            runtime.emit(.assistantCompleted(UUID(), String(repeating: "Following turn line \(index).\n", count: 4)))
+        }
+        runtime.emit(.settled(aborted: false))
+        try await Task.sleep(for: .milliseconds(50))
+
+        let expiredItem = try XCTUnwrap(controller.transcript.last { $0.expiredInteraction?.requestID == "expired-pill-target" })
+
+        let host = NSHostingView(rootView: SessionDetail(
+            workspace: workspace,
+            settings: AppSettings(),
+            presentation: presentation,
+            openConnectionSettings: { _ in },
+            presentConfirmation: { _ in }
+        ))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 360),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        let transcriptScroll = try XCTUnwrap(approvalScrollViews(in: host).first { $0.documentView is NSTableView })
+        let initialY = transcriptScroll.contentView.bounds.minY
+        XCTAssertGreaterThan(initialY, 100, "Transcript should start scrolled near bottom away from the expired row")
+
+        let texts = try recognizedTexts(in: host)
+        let joined = texts.map(\.text).joined(separator: "\n")
+        XCTAssertFalse(joined.contains("扩展交互已过期"), "Old pill title should not be shown: \(joined)")
+        let pill = try XCTUnwrap(texts.first { $0.text.contains("工具调用审批已过期") },
+                               "Expected updated pill title in: \(joined)")
+        let fromTop = (1 - pill.box.midY) * host.bounds.height
+        try clickApproval(in: host, x: pill.box.midX * host.bounds.width, fromTop: fromTop)
+        await settleWindow(window)
+
+        let jumpedY = transcriptScroll.contentView.bounds.minY
+        XCTAssertLessThan(jumpedY, initialY - 100, "Clicking expired approval pill should scroll transcript to the expired row (\(expiredItem.id))")
+        _ = await workspace.disconnectAll()
+    }
+
+    @MainActor func testGenericToolPermissionApprovalHidesSessionInfo() async throws {
+        let controller = SessionController()
+        let runtime = StubSessionRuntime()
+        await controller.connect(runtime)
+        await controller.sendDraft(UserPrompt(text: "Edit file"))
+        let uniqueSessionTitle = "UniqueApprovalSessionTitle-9482"
+        let request = RuntimeInteraction(
+            instanceID: runtime.instanceID,
+            requestID: "acp-generic-approval",
+            kind: .confirm,
+            title: "Edit file",
+            permissionOptions: [
+                .init(id: "reject", name: "Reject once", kind: .rejectOnce),
+                .init(id: "allow", name: "Allow once", kind: .allowOnce)
+            ],
+            permissionContext: .init(toolTitle: "File SessionController.swift", workingDirectory: "/fixture")
+        )
+        controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+
+        let host = NSHostingView(rootView: InteractionView(request: request, controller: controller, sessionTitle: uniqueSessionTitle)
+            .background(PikachuTheme.pageBackground))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        let rendered = (try recognizedTexts(in: host)).map(\.text).joined(separator: "\n")
+        XCTAssertTrue(rendered.contains("Edit file"), "Expected the approval title in: \(rendered)")
+        XCTAssertFalse(rendered.contains("会话"), "Did not expect session label in: \(rendered)")
+        XCTAssertFalse(rendered.contains(uniqueSessionTitle), "Did not expect session title in: \(rendered)")
+
+        _ = await controller.disconnect()
+    }
+
+    func testApprovalPathsKeepDistinctUTF8BytesForGroupingAndCopy() {
+        let composed = "caf\u{00E9}/file"
+        let decomposed = "cafe\u{0301}/file"
+        XCTAssertEqual(composed, decomposed)
+        let diffs: [RuntimePermissionContext.FileDiff] = [
+            .init(path: composed, oldText: "1", newText: "2"),
+            .init(path: decomposed, oldText: "3", newText: "4"),
+            .init(path: composed, oldText: "5", newText: "6")
+        ]
+        let groups = ApprovalPathFormatter.diffGroups(diffs)
+        XCTAssertEqual(Set(groups.map(\.id)), Set([Data(composed.utf8), Data(decomposed.utf8)]))
+        let copies = groups.map { group in
+            Data(ApprovalPathFormatter.absolutePath(group.path, relativeTo: "/project").utf8)
+        }
+        XCTAssertEqual(Set(copies), Set([Data("/project/\(composed)".utf8), Data("/project/\(decomposed)".utf8)]))
+        XCTAssertEqual(groups.first { $0.id == Data(composed.utf8) }?.changes.map(\.newText), ["2", "6"])
+        XCTAssertEqual(groups.first { $0.id == Data(decomposed.utf8) }?.changes.map(\.newText), ["4"])
+        let related = ApprovalPathFormatter.relatedPaths([composed, decomposed, decomposed], excluding: [diffs[0]])
+        XCTAssertEqual(related.map(\.id), [Data(decomposed.utf8)])
+        XCTAssertEqual(Data(ApprovalPathFormatter.displayPath("/project/\(composed)", projectDirectory: "/project/caf\u{00E9}").utf8),
+                       Data(composed.utf8))
+        XCTAssertEqual(Data(ApprovalPathFormatter.displayPath("/project/\(decomposed)", projectDirectory: "/project/caf\u{00E9}").utf8),
+                       Data("/project/\(decomposed)".utf8))
+    }
+
+    @MainActor func testApprovalDetailsDistinguishCommandScopeAndResolveRelatedCopyPaths() {
+        let session = "/fixture/caf\u{00E9}"
+        let explicitDirectory = "/fixture/cafe\u{0301}"
+        let path = "src/main.swift"
+        let absolutePath = session + "/" + path
+        for directory in [session, explicitDirectory] {
+            let context = RuntimePermissionContext(toolTitle: "Run", toolKind: "execute", workingDirectory: directory,
+                                                   sessionDirectory: session, paths: [path, "/outside/file"])
+            let approval = RuntimeToolApproval(workingDirectory: directory,
+                                               operation: .command(text: "pwd", timeoutSeconds: nil))
+            let request = RuntimeInteraction(instanceID: UUID(), requestID: "command", kind: .select, title: "Run",
+                                             toolApproval: approval, permissionContext: context)
+            let active = ActiveApprovalDetails(approval: approval, context: context, message: "", projectDirectory: nil)
+            let expired = ExpiredInteractionDetails(request: request)
+            let expectedDirectory = directory.utf8.elementsEqual(session.utf8) ? nil : Data(directory.utf8)
+            XCTAssertEqual(active.commandDirectory.map { Data($0.utf8) }, expectedDirectory)
+            XCTAssertEqual(expired.additionalWorkingDirectory.map { Data($0.utf8) }, expectedDirectory)
+
+            let contextDetails = PermissionContextDetails(context: context, projectDirectory: nil,
+                                                          excludingWorkingDirectory: session)
+            XCTAssertNil(contextDetails.displayedWorkingDirectory)
+            let copyValues = Set([absolutePath, "/outside/file"].map { Data($0.utf8) })
+            XCTAssertEqual(Set(active.relatedPaths.map { Data($0.path.utf8) }), copyValues)
+            XCTAssertEqual(Set(contextDetails.relatedPaths.map { Data($0.path.utf8) }), copyValues)
+        }
+    }
+
+    func testApprovalPathFormatterPrefixesProjectPathsAndKeepsOutsidePathsAbsolute() {
+        let root = "/Users/fixture/Documents/pikachu"
+        XCTAssertEqual(ApprovalPathFormatter.displayPath(root, projectDirectory: root), "pikachu")
+        XCTAssertEqual(ApprovalPathFormatter.displayPath("\(root)/Verification", projectDirectory: root), "pikachu/Verification")
+        XCTAssertEqual(ApprovalPathFormatter.displayPath("\(root)/Pikachu/App.swift", projectDirectory: root), "pikachu/Pikachu/App.swift")
+        XCTAssertEqual(ApprovalPathFormatter.displayPath("\(root)-other/file", projectDirectory: root), "\(root)-other/file")
+        XCTAssertEqual(ApprovalPathFormatter.displayPath("/tmp/outside.txt", projectDirectory: root), "/tmp/outside.txt")
+        XCTAssertEqual(ApprovalPathFormatter.displayPath("\(root)/../out.txt", projectDirectory: root), "\(root)/../out.txt")
+        XCTAssertEqual(ApprovalPathFormatter.absolutePath("Pikachu/App.swift", relativeTo: root), "\(root)/Pikachu/App.swift")
+    }
+
+    @MainActor func testApprovalMetadataPrefixesProjectPaths() async throws {
+        let project = "/fixture/pikachu"
+        let controller = SessionController()
+        let runtime = StubSessionRuntime()
+        await controller.connect(runtime)
+        await controller.sendDraft(UserPrompt(text: "Edit file"))
+        let affectedFile = "\(project)/Modules/OrchestrationCore/SessionController.swift"
+        let request = RuntimeInteraction(
+            instanceID: runtime.instanceID,
+            requestID: "acp-relative-paths",
+            kind: .confirm,
+            title: "Edit file",
+            permissionOptions: [
+                .init(id: "reject", name: "Reject once", kind: .rejectOnce),
+                .init(id: "allow", name: "Allow once", kind: .allowOnce)
+            ],
+            permissionContext: .init(
+                toolTitle: "File Modules/OrchestrationCore/SessionController.swift",
+                workingDirectory: project,
+                paths: [affectedFile]
+            )
+        )
+        controller.receive(.init(instanceID: runtime.instanceID, event: .interaction(request)))
+
+        let host = NSHostingView(
+            rootView: InteractionView(
+                request: request,
+                controller: controller,
+                sessionTitle: "Fixture",
+                projectDirectory: project
+            ).background(PikachuTheme.pageBackground)
+        )
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); window.contentView = nil }
+        await settleWindow(window)
+
+        func selectableTexts(in view: NSView) -> [String] {
+            var values: [String] = []
+            if String(describing: type(of: view)).contains("AppKitTextInteractionView"),
+               let text = view.accessibilityValue() as? String {
+                values.append(text)
+            }
+            for child in view.subviews {
+                values.append(contentsOf: selectableTexts(in: child))
+            }
+            return values
+        }
+
+        let displayedValues = selectableTexts(in: host)
+        XCTAssertTrue(displayedValues.contains("pikachu"), "Expected the project-root prefix in: \(displayedValues)")
+        XCTAssertTrue(displayedValues.contains("pikachu/Modules/OrchestrationCore/SessionController.swift"),
+                      "Expected the project-root prefix in: \(displayedValues)")
+        XCTAssertFalse(displayedValues.contains(project), "Did not expect absolute working directory in: \(displayedValues)")
+        XCTAssertFalse(displayedValues.contains(affectedFile), "Did not expect absolute affected path in: \(displayedValues)")
+
+        _ = await controller.disconnect()
+    }
+
+    @MainActor private func recognizedTexts(in view: NSView) throws -> [(text: String, box: CGRect)] {
+        view.layoutSubtreeIfNeeded()
+        let bounds = view.bounds
+        let scale: CGFloat = 2
+        let width = max(1, Int(ceil(bounds.width * scale)))
+        let height = max(1, Int(ceil(bounds.height * scale)))
+        let rep = try XCTUnwrap(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ))
+        rep.size = bounds.size
+        view.cacheDisplay(in: bounds, to: rep)
+        let cgImage = try XCTUnwrap(rep.cgImage)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["zh-Hans", "en-US"]
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        try handler.perform([request])
+        return (request.results ?? []).compactMap { observation in
+            guard let candidate = observation.topCandidates(1).first else { return nil }
+            return (candidate.string, observation.boundingBox)
+        }
+    }
+
+    @MainActor private func pixelColor(in view: NSView, at point: NSPoint) throws -> NSColor {
+        view.layoutSubtreeIfNeeded()
+        let bounds = view.bounds
+        let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: bounds))
+        view.cacheDisplay(in: bounds, to: bitmap)
+        let x = max(0, min(bitmap.pixelsWide - 1, Int(round(point.x * CGFloat(bitmap.pixelsWide) / max(1, bounds.width)))))
+        let y = max(0, min(bitmap.pixelsHigh - 1, Int(round((bounds.height - point.y) * CGFloat(bitmap.pixelsHigh) / max(1, bounds.height)))))
+        return try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB))
+    }
+
+    private struct AccessibilityNodeSnapshot {
+        let identifier: String?
+        let label: String?
+        let title: String?
+        let value: Any?
+        let frame: NSRect
+    }
+
+    @MainActor private func accessibilityNodes(in root: NSObject) -> [AccessibilityNodeSnapshot] {
+        var result: [AccessibilityNodeSnapshot] = []
+        var visited: Set<ObjectIdentifier> = []
+        func stringSelector(_ node: NSObject, _ name: String) -> String? {
+            let sel = Selector(name)
+            guard node.responds(to: sel),
+                  let value = node.perform(sel)?.takeUnretainedValue() as? String,
+                  !value.isEmpty else { return nil }
+            return value
+        }
+        func anySelector(_ node: NSObject, _ name: String) -> Any? {
+            let sel = Selector(name)
+            guard node.responds(to: sel) else { return nil }
+            return node.perform(sel)?.takeUnretainedValue()
+        }
+        func visit(_ node: NSObject) {
+            let key = ObjectIdentifier(node)
+            guard visited.insert(key).inserted else { return }
+            let proto = node as? any NSAccessibilityProtocol
+            let identifier = stringSelector(node, "accessibilityIdentifier")
+                ?? (node.accessibilityAttributeValue(.identifier) as? String)
+            let label = stringSelector(node, "accessibilityLabel")
+                ?? (node.accessibilityAttributeValue(.description) as? String)
+            let title = stringSelector(node, "accessibilityTitle")
+                ?? (node.accessibilityAttributeValue(.title) as? String)
+            let value = anySelector(node, "accessibilityValue")
+                ?? node.accessibilityAttributeValue(.value)
+            let frame: NSRect
+            if let f = proto?.accessibilityFrame() {
+                frame = f
+            } else if let f = (node as? any NSAccessibilityElementProtocol)?.accessibilityFrame() {
+                frame = f
+            } else if let pos = (node.accessibilityAttributeValue(.position) as? NSValue)?.pointValue,
+                      let size = (node.accessibilityAttributeValue(.size) as? NSValue)?.sizeValue {
+                frame = NSRect(origin: pos, size: size)
+            } else {
+                frame = .zero
+            }
+            result.append(AccessibilityNodeSnapshot(identifier: identifier, label: label, title: title, value: value, frame: frame))
+            var children: [Any] = []
+            if let axChildren = anySelector(node, "accessibilityChildren") as? [Any] {
+                children.append(contentsOf: axChildren)
+            }
+            if let navChildren = anySelector(node, "accessibilityChildrenInNavigationOrder") as? [Any] {
+                children.append(contentsOf: navChildren)
+            }
+            if let attrChildren = node.accessibilityAttributeValue(.children) as? [Any] {
+                children.append(contentsOf: attrChildren)
+            }
+            if let view = node as? NSView {
+                children.append(contentsOf: view.subviews)
+            }
+            for child in children {
+                if let childObject = child as? NSObject {
+                    visit(childObject)
+                }
+            }
+        }
+        visit(root)
+        return result
     }
 
     private func runGit(_ args: [String], cwd: URL) throws {

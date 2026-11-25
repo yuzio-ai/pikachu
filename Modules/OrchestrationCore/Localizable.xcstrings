@@ -1,6 +1,66 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "请先在「设置 → 智能体」中添加或启用智能体。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add or enable an agent in Settings → Agents first."
+          }
+        }
+      }
+    },
+    "文件改动\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File changes\n%@"
+          }
+        }
+      }
+    },
+    "Agent 历史已删除。原有记录可只读查看。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent history was deleted. The local record is read-only."
+          }
+        }
+      }
+    },
+    "会话当前无法删除远端历史。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent history cannot be deleted for this session right now."
+          }
+        }
+      }
+    },
+    "无法断开 ACP 会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not disconnect the ACP session."
+          }
+        }
+      }
+    },
+    "远端历史已删除，但本地状态未能保存。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent history was deleted. The local state could not be saved. Try again."
+          }
+        }
+      }
+    },
     " 下方保留上次可读内容，可能已过期。" : {
       "localizations" : {
         "en" : {
@@ -77,16 +137,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The session is not connected."
-          }
-        }
-      }
-    },
-    "会话尾部尚未写完，请稍后重新读取。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The session file is still being written. Reload it later."
           }
         }
       }
@@ -231,6 +281,16 @@
         }
       }
     },
+    "工作目录不可用或不属于当前项目。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The working directory is unavailable or does not belong to the selected project."
+          }
+        }
+      }
+    },
     "工作目录已更新。" : {
       "localizations" : {
         "en" : {
@@ -241,22 +301,42 @@
         }
       }
     },
-    "已有执行实例使用此会话历史，草稿已保留。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Another runtime is using this session history. Your draft is saved."
-          }
-        }
-      }
-    },
     "当前任务及队列完成后才能使用待应用模型，草稿已保留。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The pending model can be used once the task and queue finish. Your draft was kept."
+          }
+        }
+      }
+    },
+    "当前无法修改该目录的项目配置设置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project configuration setting for this directory cannot be changed right now."
+          }
+        }
+      }
+    },
+    "该 ACP 会话无法恢复。请新建会话继续，原有历史可只读查看。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP session cannot be resumed. Start a new session to continue. The existing history is available to read."
+          }
+        }
+      }
+    },
+    "当前处于离线状态，展示缓存内容。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Currently offline. Showing cached content."
           }
         }
       }
@@ -318,12 +398,32 @@
         }
       }
     },
+    "无法删除项目。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not delete the project. Try again."
+          }
+        }
+      }
+    },
     "未配置模型目录。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No model catalog is configured."
+          }
+        }
+      }
+    },
+    "未配置该运行时的模型目录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No model catalog is configured for this runtime."
           }
         }
       }
@@ -398,12 +498,42 @@
         }
       }
     },
-    "此历史会话使用的运行时尚未接入，原记录已保留。" : {
+    "模式切换暂时无法应用。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This historical session uses an unsupported runtime. The original history was kept."
+            "value" : "Could not apply the mode change."
+          }
+        }
+      }
+    },
+    "模式切换结果不明，请重新连接核对。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The mode change could not be confirmed. Reconnect to check it."
+          }
+        }
+      }
+    },
+    "正在保存该目录的项目配置设置，请稍后再试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving the project configuration setting for this directory. Please try again shortly."
+          }
+        }
+      }
+    },
+    "正在保存该目录的项目配置设置，请稍后再试。草稿已保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving the project configuration setting for this directory. Your draft was kept; please try again shortly."
           }
         }
       }
@@ -417,6 +547,9 @@
           }
         }
       }
+    },
+    "该 ACP 会话无法恢复。请新建会话继续，原有历史可只读查看。" : {
+
     },
     "该会话有未核实的发送记录。请先核对执行结果，避免重复操作。" : {
       "localizations" : {
@@ -504,6 +637,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Confirm that the runtime processes have been cleaned up first."
+          }
+        }
+      }
+    },
+    "请先等待项目配置设置保存完成，再重新定位。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait for the project configuration setting to finish saving before relocating."
+          }
+        }
+      }
+    },
+    "请先结束该项目的任务并断开会话，再删除项目。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish the project's tasks and disconnect its sessions before deleting it."
+          }
+        }
+      }
+    },
+    "请先结束运行并断开会话，再归档。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish the current work and disconnect the session before archiving."
           }
         }
       }
@@ -618,6 +781,16 @@
         }
       }
     },
+    "项目或会话列表已有变化，请重新确认删除。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The project or its sessions changed. Review the deletion details and confirm again."
+          }
+        }
+      }
+    },
     "项目目录不存在。" : {
       "localizations" : {
         "en" : {
@@ -628,52 +801,82 @@
         }
       }
     },
-    "请先等待项目配置设置保存完成，再重新定位。" : {
+    "项目设置或会话列表正在更新，请稍后再试。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wait for the project configuration setting to finish saving before relocating."
+            "value" : "Project settings or session lists are updating. Try again shortly."
           }
         }
       }
     },
-    "当前无法修改该目录的项目配置设置。" : {
+    "当前无法切换智能体。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The project configuration setting for this directory cannot be changed right now."
+            "value" : "The agent cannot be switched right now."
           }
         }
       }
     },
-    "工作目录不可用或不属于当前项目。" : {
+    "请先核对未确认的消息，再切换智能体。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The working directory is unavailable or does not belong to the selected project."
+            "value" : "Verify the pending message before switching agents."
           }
         }
       }
     },
-    "正在保存该目录的项目配置设置，请稍后再试。" : {
+    "请等待当前运行、排队消息及审批全部结束后再切换。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving the project configuration setting for this directory. Please try again shortly."
+            "value" : "Wait until the current run, queued messages, and approvals have finished."
           }
         }
       }
     },
-    "正在保存该目录的项目配置设置，请稍后再试。草稿已保留。" : {
+    "会话或目标已变化，请重新预览交接。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving the project configuration setting for this directory. Your draft was kept; please try again shortly."
+            "value" : "The conversation or target changed. Preview the handoff again."
+          }
+        }
+      }
+    },
+    "无法读取这一段已保存的会话历史。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This saved conversation segment could not be read."
+          }
+        }
+      }
+    },
+    "最近的用户请求\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest user request\n%@"
+          }
+        }
+      }
+    },
+    "最近的智能体回复\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest agent response\n%@"
           }
         }
       }

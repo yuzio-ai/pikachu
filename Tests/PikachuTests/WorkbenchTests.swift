@@ -2,7 +2,6 @@ import XCTest
 import Foundation
 import AgentRuntimeCore
 @testable import OrchestrationCore
-@testable import PiRuntimeAdapter
 
 private final class BrokerRecorder: @unchecked Sendable {
     let lock = NSLock()
@@ -20,23 +19,6 @@ final class WorkbenchTests: XCTestCase {
         var instances: [UUID] = []
         for await event in channel.stream() { instances.append(event.instanceID) }
         XCTAssertEqual(instances,[first,second])
-    }
-    func testBrokerDoesNotRetainOversizedRequestIDs() throws {
-        let recorder = BrokerRecorder(), broker = PiInteractionBroker(instanceID:UUID(),native:true,write:recorder.write,emit:recorder.emit)
-        XCTAssertThrowsError(try broker.accept(["method":"input","id":String(repeating:"x",count:4097)]))
-        XCTAssertTrue(recorder.events.isEmpty); XCTAssertTrue(recorder.writes.isEmpty)
-    }
-    func testOrdinaryRequestDeadlineExtendsOnlyForNewInteractions() throws {
-        let recorder = BrokerRecorder(), broker = PiInteractionBroker(instanceID:UUID(),native:true,write:recorder.write,emit:recorder.emit)
-        let start = broker.interactionRevision
-        XCTAssertNil(broker.acknowledgementDeadline(since:start))
-        try broker.accept(["method":"input","id":"dialog","timeout":10000])
-        let deadline = try XCTUnwrap(broker.acknowledgementDeadline(since:start))
-        XCTAssertGreaterThan(deadline.timeIntervalSinceNow,10)
-        guard case .interaction(let request) = recorder.events.first else { return XCTFail() }
-        try broker.respond(request,.cancelled)
-        XCTAssertLessThan(broker.acknowledgementDeadline(since:start)!.timeIntervalSinceNow,6)
-        XCTAssertNil(broker.acknowledgementDeadline(since:broker.interactionRevision))
     }
     @MainActor func testWaitingInputCompactionAndForeignRequestIsolation() async {
         let runtime = FakeRuntime(), host = SessionController(); await host.connect(runtime)
@@ -102,154 +84,18 @@ final class WorkbenchTests: XCTestCase {
         _ = await host.disconnect(force: true)
     }
 
-    func testAllFourDialogRepliesAndDuplicateAreBoundToInstance() throws {
-        let recorder = BrokerRecorder(), instance = UUID()
-        let broker = PiInteractionBroker(instanceID: instance, native: true, write: recorder.write, emit: recorder.emit)
-        for method in ["select", "confirm", "input", "editor"] {
-            let raw: [String: Any] = ["method":method,"id":method,"title":"Fixture", "options":["A","B"],"prefill":"one\ntwo"]
-            try broker.accept(raw); try broker.accept(raw)
-        }
-        let requests = recorder.events.compactMap { if case .interaction(let value) = $0 { value } else { nil } }
-        XCTAssertEqual(requests.count, 4)
-        for request in requests {
-            let response: InteractionResponse = request.kind == .confirm ? .confirmed(false) : .value(request.kind == .select ? "B" : "中文\nreply")
-            try broker.respond(request, response)
-            XCTAssertThrowsError(try broker.respond(request, response))
-        }
-        XCTAssertEqual(recorder.writes.count, 4)
-        XCTAssertEqual(recorder.writes.first?["value"] as? String, "B")
-        XCTAssertEqual(recorder.writes[1]["confirmed"] as? Bool, false)
-    }
-    func testDialogExpirationAndStopCannotReplyTwice() throws {
-        let recorder = BrokerRecorder(), instance = UUID(), started = Date()
-        let broker = PiInteractionBroker(instanceID: instance, native: true, write: recorder.write, emit: recorder.emit)
-        try broker.accept(["method":"input", "id":"timeout", "title":"Fixture", "timeout":200], now:started)
-        guard case .interaction(let request) = recorder.events[0] else { return XCTFail() }
-        try broker.expire(now:started.addingTimeInterval(1)); broker.cancelAll()
-        XCTAssertThrowsError(try broker.respond(request,.value("late"),now:started.addingTimeInterval(1)))
-        XCTAssertEqual(recorder.writes.count,1); XCTAssertEqual(recorder.writes[0]["cancelled"] as? Bool,true)
-    }
-    func testInvalidSelectionKeepsRequestAndOldInstanceCannotReply() throws {
-        let recorder = BrokerRecorder(), instance = UUID()
-        let broker = PiInteractionBroker(instanceID: instance, native: true, write: recorder.write, emit: recorder.emit)
-        try broker.accept(["method":"select", "id":"one", "title":"Fixture", "options":["A"]])
-        guard case .interaction(let request) = recorder.events[0] else { return XCTFail() }
-        XCTAssertThrowsError(try broker.respond(request,.value("B")))
-        let old = RuntimeInteraction(instanceID:UUID(),requestID:"one",kind:.select,title:"Fixture",options:["A"])
-        XCTAssertThrowsError(try broker.respond(old,.value("A")))
-        try broker.respond(request,.value("A")); XCTAssertEqual(recorder.writes.count,1)
-    }
-    func testOversizedConfirmationIsCancelledRatherThanTruncated() throws {
-        let recorder = BrokerRecorder(), broker = PiInteractionBroker(instanceID:UUID(),native:true,write:recorder.write,emit:recorder.emit)
-        try broker.accept(["method":"confirm", "id":"huge", "title":"Fixture", "message":String(repeating:"x",count:70_000)])
-        XCTAssertEqual(recorder.writes.first?["cancelled"] as? Bool,true)
-        XCTAssertFalse(recorder.events.contains { if case .interaction = $0 { true } else { false } })
-    }
-    func testBundledCommandApprovalPreservesOriginalCommandAndScope() throws {
-        let command = "  printf '%s\\n' \"a; b\"\r\n\t# e\u{301} 🐈\n"
-        let directory = "/tmp/Project With \"Quotes\""
-        let payload = try JSONSerialization.data(withJSONObject: [
-            "tool": "bash",
-            "workingDirectory": directory,
-            "parameters": ["command": command, "timeout": 1.5]
-        ])
-        let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
-        let raw: [String: Any] = ["method": "confirm", "id": "shell", "message": message, "timeout": 120_000]
+    @MainActor func testCachedHistoryNoticeIsExcludedFromBannerWhenShowingCachedHistory() {
+        let host = SessionController()
+        let cached = [CachedTranscriptItem(id: "u1", kind: .user, text: "Hello")]
+        host.showCachedHistory(cached, notice: "当前处于离线状态，展示缓存内容。")
+        XCTAssertTrue(host.showingCachedHistory)
+        XCTAssertEqual(host.notice, "当前处于离线状态，展示缓存内容。")
+        XCTAssertNil(host.noticeExcludingComposerPills, "The composer shows a cached-history pill instead of a duplicate banner")
 
-        for isBundledPolicy in [true, false] {
-            let recorder = BrokerRecorder()
-            let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: isBundledPolicy,
-                                             write: recorder.write, emit: recorder.emit)
-            try broker.accept(raw)
-            guard case .interaction(let request) = try XCTUnwrap(recorder.events.first) else { return XCTFail() }
-            if isBundledPolicy {
-                let approval = try XCTUnwrap(request.toolApproval)
-                guard case .command(let text, let timeout) = approval.operation else { return XCTFail() }
-                XCTAssertEqual(Array(text.utf8), Array(command.utf8))
-                XCTAssertEqual(approval.workingDirectory, directory)
-                XCTAssertEqual(timeout, 1.5)
-            } else {
-                XCTAssertNil(request.toolApproval)
-                XCTAssertEqual(request.message, message)
-            }
-            try broker.respond(request, .confirmed(false))
-            XCTAssertEqual(recorder.writes.first?["confirmed"] as? Bool, false)
-        }
+        host.showHistory([HistoryItem(id: "u1", kind: .user, text: "Hello", messageTimestampMs: 1_000)])
+        XCTAssertFalse(host.showingCachedHistory)
     }
-    func testBundledFileApprovalsDecodeContentAndOrderedReplacements() throws {
-        let recorder = BrokerRecorder()
-        let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: true,
-                                         write: recorder.write, emit: recorder.emit)
-        let path = "Sources/File \"A\".swift"
-        let content = "import Foundation\r\n\tlet literal = \"\\n\"\n"
-        let replacement = "e\u{301}\t🐈\n"
-        let edits = [
-            ["oldText": content, "newText": ""],
-            ["oldText": "unchanged", "newText": replacement]
-        ]
-        let cases: [(String, [String: Any])] = [
-            ("write", ["path": path, "content": content]),
-            ("edit", ["path": path, "edits": edits])
-        ]
-        for (tool, parameters) in cases {
-            let payload = try JSONSerialization.data(withJSONObject: [
-                "tool": tool, "workingDirectory": "/tmp/Project", "parameters": parameters
-            ])
-            let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
-            try broker.accept(["method": "confirm", "id": tool, "message": message])
-        }
-        let approvals = recorder.events.compactMap { event -> RuntimeToolApproval? in
-            guard case .interaction(let request) = event else { return nil }
-            return request.toolApproval
-        }
-        XCTAssertEqual(approvals.count, 2)
-        guard case .write(let writePath, let writeText) = try XCTUnwrap(approvals.first).operation,
-              case .edit(let editPath, let replacements) = try XCTUnwrap(approvals.last).operation else { return XCTFail() }
-        XCTAssertEqual(writePath, path)
-        XCTAssertEqual(Array(writeText.utf8), Array(content.utf8))
-        XCTAssertEqual(editPath, path)
-        XCTAssertEqual(replacements.map(\.oldText), [content, "unchanged"])
-        XCTAssertEqual(replacements.map { Array($0.newText.utf8) }, [[], Array(replacement.utf8)])
-    }
-    func testBundledSearchApprovalDecodesArguments() throws {
-        let recorder = BrokerRecorder()
-        let broker = PiInteractionBroker(instanceID: UUID(), native: true, toolApprovals: true,
-                                         write: recorder.write, emit: recorder.emit)
-        let payload = try JSONSerialization.data(withJSONObject: [
-            "tool": "grep", "workingDirectory": "/tmp/Project",
-            "parameters": ["path": "Sources", "pattern": "a\\nb", "limit": 40, "literal": true]
-        ])
-        let message = "pikachu.tool-approval.v1\n" + String(decoding: payload, as: UTF8.self)
-        try broker.accept(["method": "confirm", "id": "search", "message": message])
-        guard case .interaction(let request) = try XCTUnwrap(recorder.events.first),
-              case .inspect(.grep, let arguments) = request.toolApproval?.operation else { return XCTFail() }
-        XCTAssertEqual(arguments, [
-            .init(name: "path", value: "Sources"),
-            .init(name: "pattern", value: "a\\nb"),
-            .init(name: "limit", value: "40"),
-            .init(name: "literal", value: "true")
-        ])
-    }
-    func testUsageUnknownPriceAndCompactedContextStayUnknown() throws {
-        let stats: [String:Any] = ["sessionId":"s","tokens":["input":2,"output":3,"cacheRead":4,"cacheWrite":5,"total":14],"cost":0,"contextUsage":["tokens":NSNull(),"contextWindow":200_000,"percent":NSNull()]]
-        let value = try PiUsageMapper.live(stats,model:["cost":["input":0,"output":0]],coverage:nil)
-        XCTAssertEqual(value.tokens.total,14); XCTAssertNil(value.estimatedCostUSD)
-        XCTAssertNil(value.context?.tokens); XCTAssertEqual(value.context?.window,200_000); XCTAssertNil(value.context?.percent)
-    }
-    func testHistoryUsageCountsAbandonedBranchesAndCompactionButRejectsMissingCosts() {
-        var accumulator = UsageAccumulator()
-        let usage: [String:Any] = ["input":10,"output":2,"cacheRead":0,"cacheWrite":0,"totalTokens":12,"cost":["total":0.01]]
-        accumulator.add(["type":"message","message":["role":"assistant","usage":usage]])
-        accumulator.add(["type":"compaction","usage":usage]); accumulator.add(["type":"usage","usage":usage])
-        let snapshot = accumulator.snapshot(id:"s")
-        XCTAssertEqual(snapshot.tokens.total,36); XCTAssertEqual(snapshot.estimatedCostUSD!,0.03,accuracy:0.0001)
-        accumulator.add(["type":"message","message":["role":"assistant","content":[]]])
-        XCTAssertNil(accumulator.snapshot(id:"s").estimatedCostUSD); XCTAssertNil(accumulator.snapshot(id:"s").tokens.total)
-    }
-    func testUsageRejectsBooleansNegativeAndNonfiniteValues() {
-        XCTAssertNil(PiUsageMapper.integer(true)); XCTAssertNil(PiUsageMapper.integer(-1)); XCTAssertNil(PiUsageMapper.number(Double.infinity))
-        XCTAssertEqual(PiUsageMapper.integer(0),0)
-    }
+
     func testBoundedEventChannelPreservesLifecycleAndFinalText() async {
         let channel = RuntimeEventChannel(capacity:4), instance = UUID(), message = UUID()
         let producer = Task.detached {

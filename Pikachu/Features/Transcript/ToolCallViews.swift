@@ -7,6 +7,7 @@ struct ToolRow: View {
     let item: TranscriptItem
     @Binding var expanded: Bool
     var onShowOutput: ((ToolOutputSelection) -> Void)? = nil
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     var showsRunningEffect = false
     var contentChanged: () -> Void = {}
 
@@ -15,7 +16,7 @@ struct ToolRow: View {
             let presentation = ToolCallPresentation(tool)
             ToolCallDisclosure(isExpanded: $expanded, isRunning: showsRunningEffect && tool.state == .running) {
                 TranscriptToolDetails(item: item, presentation: presentation, onShowOutput: onShowOutput,
-                                      contentChanged: contentChanged)
+                                      onPreviewImage: onPreviewImage, contentChanged: contentChanged)
             } label: { emphasized in
                 ToolRowLabel(presentation: presentation, expanded: expanded, emphasized: emphasized)
             }
@@ -219,6 +220,7 @@ private struct TranscriptToolDetails: View {
     let item: TranscriptItem
     let presentation: ToolCallPresentation
     let onShowOutput: ((ToolOutputSelection) -> Void)?
+    let onPreviewImage: ((ImagePreviewSelection) -> Void)?
     let contentChanged: () -> Void
     @State private var rawExpanded = false
 
@@ -295,7 +297,8 @@ private struct TranscriptToolDetails: View {
                     Text("无输出").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
                 }
                 if let image = tool.outputImage {
-                    ToolReadImageThumbnail(data: image, name: presentation.object, contentChanged: contentChanged)
+                    ToolReadImageThumbnail(data: image, name: presentation.object,
+                                           onPreviewImage: onPreviewImage, contentChanged: contentChanged)
                 }
 
                 if !tool.arguments.isEmpty {
@@ -333,10 +336,10 @@ private struct TranscriptToolDetails: View {
 private struct ToolReadImageThumbnail: View {
     let data: Data
     let name: String
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     let contentChanged: () -> Void
     @State private var thumbnail: CGImage?
     @State private var thumbnailFailed = false
-    @State private var showingPreview = false
 
     private struct Request: Equatable {
         let data: Data
@@ -349,24 +352,28 @@ private struct ToolReadImageThumbnail: View {
         let request = Request(data: data, maxPixels: Int((size * displayScale).rounded(.up)))
         VStack(alignment: .leading, spacing: 0) {
             if let thumbnail {
-                Button { showingPreview = true } label: {
-                    Image(decorative: thumbnail, scale: displayScale)
-                        .resizable().scaledToFit()
-                        .frame(width: size, height: size)
-                        .flatSurface(PikachuTheme.surface, radius: 8)
-                        .contentShape(.rect(cornerRadius: 8))
+                let imageView = Image(decorative: thumbnail, scale: displayScale)
+                    .resizable().scaledToFit()
+                    .frame(width: size, height: size)
+                    .flatSurface(PikachuTheme.surface, radius: 8)
+                    .contentShape(.rect(cornerRadius: 8))
+                if let onPreviewImage {
+                    Button { onPreviewImage(.toolResult(data, name: name)) } label: {
+                        imageView
+                    }
+                    .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: 8)))
+                    .accessibilityLabel("预览 \(name)")
+                    .accessibilityIdentifier("tool-image-thumbnail")
+                } else {
+                    imageView
+                        .accessibilityLabel(name)
+                        .accessibilityIdentifier("tool-image-thumbnail")
                 }
-                .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: 8)))
-                .accessibilityLabel("预览 \(name)")
-                .accessibilityIdentifier("tool-image-thumbnail")
             } else if thumbnailFailed {
                 Text("无法预览此图片。")
                     .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.secondaryText)
             }
-        }
-        .sheet(isPresented: $showingPreview) {
-            AttachmentImagePreview(toolResult: data, name: name)
         }
         .task(id: request) {
             let image = await Task.detached(priority: .utility) {
@@ -420,7 +427,7 @@ private struct ToolDiffBlock: View {
     @State private var viewportWidth: CGFloat = 0
 
     var body: some View {
-        ScrollView(.horizontal) {
+        TranscriptHorizontalScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // A diff snapshot is immutable. Offsets distinguish duplicate context lines.
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
@@ -478,7 +485,7 @@ private struct ToolMonospaceText: View {
     let text: String
 
     var body: some View {
-        ScrollView(.horizontal) {
+        TranscriptHorizontalScrollView {
             Text(verbatim: text).pikachuFont(.caption, design: .monospaced)
                 .fixedSize(horizontal: true, vertical: false).textSelection(.enabled)
         }
@@ -545,7 +552,7 @@ struct ToolOutputPanel: View {
                 Spacer(minLength: 0)
                 Button("自动换行") { wrapsLines.toggle() }
                     .pikachuFont(.caption)
-                    .buttonStyle(FlatControlButtonStyle(isOpen: wrapsLines))
+                    .buttonStyle(FlatControlButtonStyle(isSelected: wrapsLines))
                     .accessibilityValue(wrapsLines ? Text("已开启") : Text("已关闭"))
                     .accessibilityAddTraits(wrapsLines ? .isSelected : [])
                     .accessibilityIdentifier("tool-output-wrap-lines")
@@ -566,7 +573,8 @@ struct ToolOutputPanel: View {
         }
         .padding(16)
         .frame(minWidth: 360, idealWidth: 680, minHeight: 260, idealHeight: 440)
-        .background(PikachuTheme.surface)
+        .background(PikachuTheme.pageBackground)
+        .presentationBackground(PikachuTheme.pageBackground)
     }
 }
 

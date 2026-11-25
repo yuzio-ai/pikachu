@@ -289,23 +289,14 @@ import XCTest
         XCTAssertEqual(scroll.contentView.bounds.minY, afterGesture - 4, accuracy: 1)
     }
 
-    func testVerticalTrackpadGestureOverCodeBlockScrollerScrollsTranscript() async throws {
+    func testCodeBlockHidesItsScrollerAndKeepsTheMainTranscriptScroller() async throws {
         let fixture = try await makeCodeBlockFixture()
         defer { fixture.window.contentView = nil }
         fixture.codeScroll.scrollerStyle = .legacy
-        fixture.codeScroll.autohidesScrollers = false
         await settleLayout(fixture.scroll)
 
-        let scroller = try XCTUnwrap(fixture.codeScroll.horizontalScroller)
-        let point = scroller.convert(NSPoint(x: scroller.bounds.midX, y: scroller.bounds.midY), to: nil)
-        let hitPoint = fixture.scroll.superview?.convert(point, from: nil) ?? point
-        XCTAssertTrue(fixture.scroll.hitTest(hitPoint) === scroller)
-
-        let initialY = fixture.scroll.contentView.bounds.minY
-        let initialX = fixture.codeScroll.contentView.bounds.minX
-        XCTAssertTrue(fixture.scroll.routeScrollEvent(try wheelEvent(vertical: -24, phase: .began), at: point))
-        XCTAssertEqual(fixture.scroll.contentView.bounds.minY, initialY + 24, accuracy: 1)
-        XCTAssertEqual(fixture.codeScroll.contentView.bounds.minX, initialX, accuracy: 1)
+        XCTAssertTrue(fixture.codeScroll.horizontalScroller?.isHidden ?? true)
+        XCTAssertTrue(fixture.scroll.verticalScroller is WorkbenchScroller)
     }
 
     func testHorizontalTrackpadGestureOverCodeBlockKeepsNativeScrolling() async throws {
@@ -389,31 +380,48 @@ import XCTest
     }
 
     func testSlowVerticalTrackpadMovementAccumulatesAndResetsBetweenGestures() async throws {
-        let fixture = try await makeCodeBlockFixture()
-        defer { fixture.window.contentView = nil }
-        let scroll = fixture.scroll
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 340),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        defer { window.contentView = nil }
+        let document = FlippedDocument(frame: NSRect(x: 0, y: 0, width: 580, height: 900))
+        scroll.documentView = document
+        let host = NSHostingView(rootView: TranscriptHorizontalScrollView {
+            Text(String(repeating: "long code ", count: 100)).fixedSize()
+        })
+        host.frame = NSRect(x: 20, y: 250, width: 540, height: 40)
+        document.addSubview(host)
+        await settleLayout(scroll)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: 200))
+        await settleLayout(scroll)
+        let codeScroll = try XCTUnwrap(horizontalScroll(in: host))
+        let clip = codeScroll.contentView
+        let point = clip.convert(NSPoint(x: 20, y: clip.bounds.midY), to: nil)
         let initialY = scroll.contentView.bounds.minY
         let start = try wheelEvent(vertical: 0, phase: .began)
         let step = try wheelEvent(vertical: -1, phase: .changed)
         let cancel = try wheelEvent(vertical: 0, phase: .cancelled)
         let momentum = try wheelEvent(vertical: -12, momentum: .begin)
 
-        XCTAssertTrue(scroll.routeScrollEvent(start, at: fixture.codePoint))
-        XCTAssertTrue(scroll.routeScrollEvent(step, at: fixture.codePoint))
-        XCTAssertFalse(scroll.routeScrollEvent(cancel, at: fixture.codePoint))
-        XCTAssertFalse(scroll.routeScrollEvent(momentum, at: fixture.codePoint))
+        XCTAssertTrue(scroll.routeScrollEvent(start, at: point))
+        XCTAssertTrue(scroll.routeScrollEvent(step, at: point))
+        XCTAssertFalse(scroll.routeScrollEvent(cancel, at: point))
+        XCTAssertFalse(scroll.routeScrollEvent(momentum, at: point))
 
-        XCTAssertTrue(scroll.routeScrollEvent(start, at: fixture.codePoint))
+        XCTAssertTrue(scroll.routeScrollEvent(start, at: point))
         for _ in 0..<3 {
-            XCTAssertTrue(scroll.routeScrollEvent(step, at: fixture.codePoint))
+            XCTAssertTrue(scroll.routeScrollEvent(step, at: point))
         }
         XCTAssertEqual(scroll.contentView.bounds.minY, initialY, accuracy: 0.01)
-        XCTAssertTrue(scroll.routeScrollEvent(step, at: fixture.codePoint))
+        XCTAssertTrue(scroll.routeScrollEvent(step, at: point))
         XCTAssertEqual(scroll.contentView.bounds.minY, initialY + 4, accuracy: 0.01)
 
-        fixture.window.contentView = nil
-        XCTAssertFalse(scroll.routeScrollEvent(momentum, at: fixture.codePoint))
+        window.contentView = nil
+        XCTAssertFalse(scroll.routeScrollEvent(momentum, at: point))
         XCTAssertEqual(scroll.contentView.bounds.minY, initialY + 4, accuracy: 0.01)
+        withExtendedLifetime(coordinator) {}
     }
 
     func testTrackpadGesturesOverExpandedToolOutput() async throws {
@@ -620,7 +628,9 @@ import XCTest
         for horizontal in [true, false] {
             try clickToolFixture(in: host, x: host.bounds.width - 118, y: toolbarY)
             await settleLayout(host)
-            XCTAssertEqual(scroll.hasHorizontalScroller, horizontal)
+            XCTAssertFalse(scroll.hasHorizontalScroller)
+            XCTAssertFalse(scroll.hasVerticalScroller)
+            XCTAssertEqual(text.frame.width > scroll.contentView.bounds.width + 1, horizontal)
             XCTAssertEqual(visibleLineStart(), target.location)
             XCTAssertEqual(text.selectedRange(), selection)
         }
@@ -674,7 +684,7 @@ import XCTest
         XCTAssertTrue(scroll.documentVisibleRect.intersects(markerRect()))
     }
 
-    func testToolOutputWrappingFitsTheViewportWithLegacyScrollbars() async throws {
+    func testToolOutputWrappingFitsTheViewportWithoutScrollbarGutters() async throws {
         let marker = "VISIBLE-COLUMN-MARKER"
         let earlier = "EARLIER-COLUMN-MARKER"
         let source = String(repeating: "X", count: 8_000) + earlier
@@ -710,7 +720,9 @@ import XCTest
             XCTAssertTrue(scroll.documentVisibleRect.intersects(markerRect(marker)), "Reader moved when wrapsLines was \(wraps)")
         }
         let visible = scroll.documentVisibleRect
-        XCTAssertLessThan(visible.width, originalWidth, "The newly visible scrollbar should narrow the viewport")
+        XCTAssertFalse(scroll.hasHorizontalScroller)
+        XCTAssertFalse(scroll.hasVerticalScroller)
+        XCTAssertEqual(visible.width, originalWidth, accuracy: 0.5)
         XCTAssertEqual(container.containerSize.width, visible.width - 2 * text.textContainerInset.width, accuracy: 0.5)
         var rightEdge: CGFloat = 0
         layout.enumerateLineFragments(forGlyphRange: NSRange(location: 0, length: layout.numberOfGlyphs)) { line, used, _, _, _ in
@@ -733,7 +745,8 @@ import XCTest
 
         scroll.update(text: "New output", font: font, wrapsLines: true)
         await settleLayout(scroll)
-        XCTAssertEqual(scroll.documentVisibleRect.origin, .zero)
+        XCTAssertEqual(scroll.documentVisibleRect.minX, 0, accuracy: 0.5)
+        XCTAssertEqual(scroll.documentVisibleRect.minY, 0, accuracy: 0.5)
     }
 
     func testToolDiffHunksKeepIndependentHorizontalOffsets() async throws {
@@ -747,8 +760,9 @@ import XCTest
         defer { window.contentView = nil }
         await settleLayout(host)
 
-        let horizontal = scrollViews(in: host).filter { $0.hasHorizontalScroller }
+        let horizontal = scrollViews(in: host).filter(TranscriptHorizontalScrollMarker.matches)
         XCTAssertEqual(horizontal.count, 3, "Expected the file path and two independently scrollable hunks")
+        XCTAssertTrue(horizontal.allSatisfy { $0.horizontalScroller?.isHidden ?? true })
         let longHunk = try XCTUnwrap(horizontal.first {
             ($0.documentView?.bounds.width ?? 0) > $0.documentVisibleRect.width + 500
         })
@@ -1071,6 +1085,40 @@ import XCTest
         }
     }
 
+    func testCachedHistoryTopHintTracksScrollTopWithOverflow() async throws {
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 300),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+
+        var scrolledToTop = false
+        coordinator.scrolledToTopBinding = Binding(get: { scrolledToTop }, set: { scrolledToTop = $0 })
+        let items = (0..<24).map {
+            TranscriptDisplayRow.item(TranscriptItem(id: "cached-\($0)", kind: .assistant, text: "Message line \($0)\nSecond line"))
+        }
+        coordinator.update(items, follow: .constant(false))
+        coordinator.updateViewport(topClearance: 36, composerClearance: 0, jump: nil)
+        await settleLayout(scroll)
+
+        // Move explicitly to the top inset and verify top hint turns on.
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        await settleLayout(scroll)
+        XCTAssertTrue(scrolledToTop)
+
+        // Scrolling down away from the top hides the top hint.
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: 300))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        await settleLayout(scroll)
+        XCTAssertFalse(scrolledToTop)
+    }
+
     @MainActor private struct CodeBlockFixture {
         let window: NSWindow
         let coordinator: NativeTranscript.Coordinator
@@ -1266,12 +1314,152 @@ import XCTest
         XCTAssertEqual(table.numberOfRows, 2)
     }
 
+    func testScrollPreloadingAndUpwardScrollPreventsViewportJump() async throws {
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let table = try XCTUnwrap(coordinator.table)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 360),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+
+        let longParagraph = String(repeating: "这是用于测试向上滚动防跳变的长段落内容。", count: 14)
+        let rows: [TranscriptDisplayRow] = (0..<36).map { index in
+            let body = (0..<6).map { "第 \(index)-\($0) 段：\(longParagraph)" }.joined(separator: "\n\n")
+            return .item(TranscriptItem(id: "long-\(index)", kind: .assistant, text: body))
+        }
+        var follow = true
+        let followBinding = Binding(get: { follow }, set: { follow = $0 })
+        coordinator.update(rows, follow: followBinding)
+        await settleLayout(scroll)
+
+        // Pause following near the bottom, then step upward so buffered rows above
+        // visibleRect are preloaded and measured before entering the viewport.
+        follow = false
+        coordinator.update(rows, follow: followBinding)
+        await settleLayout(scroll)
+
+        let startY = scroll.contentView.bounds.minY
+        XCTAssertGreaterThan(startY, 1_500)
+        coordinator.scrollByUser(240)
+        await settleLayout(scroll)
+
+        let visibleBefore = table.rows(in: table.visibleRect)
+        XCTAssertNotEqual(visibleBefore.location, NSNotFound)
+        let bufferedAbove = max(0, visibleBefore.location - 1)
+        let premeasuredHeight = coordinator.tableView(table, heightOfRow: bufferedAbove)
+        if bufferedAbove < visibleBefore.location {
+            XCTAssertGreaterThan(premeasuredHeight, 220,
+                                 "Row in hostingRect above visibleRect should be premeasured before entering viewport")
+        }
+
+        // Scroll another screen upward so `bufferedAbove` enters or passes the top edge,
+        // and confirm its height was already accurate and the top visible row stays anchored.
+        coordinator.scrollByUser(320)
+        await settleLayout(scroll)
+        if bufferedAbove < visibleBefore.location {
+            XCTAssertEqual(coordinator.tableView(table, heightOfRow: bufferedAbove), premeasuredHeight, accuracy: 1)
+        }
+        let topVisibleAfterScroll = table.rows(in: table.visibleRect).location
+        let anchoredOffset = scroll.contentView.bounds.minY - table.rect(ofRow: topVisibleAfterScroll).minY
+        try await Task.sleep(for: .milliseconds(80))
+        await settleLayout(scroll)
+        let settledOffset = scroll.contentView.bounds.minY - table.rect(ofRow: topVisibleAfterScroll).minY
+        XCTAssertEqual(settledOffset, anchoredOffset, accuracy: 1)
+    }
+
+    func testFarOffscreenRowsRemainSummaryCellsInLongTranscript() async throws {
+        let coordinator = NativeTranscript.Coordinator()
+        let scroll = NativeTranscript.makeScrollView(coordinator: coordinator)
+        let table = try XCTUnwrap(coordinator.table)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 340),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = scroll
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+
+        let rows: [TranscriptDisplayRow] = (0..<5_000).map {
+            .item(TranscriptItem(id: "row-\($0)", kind: .assistant, text: "Message \($0)"))
+        }
+        coordinator.update(rows, follow: .constant(true))
+        await settleLayout(scroll)
+
+        let farOffscreen = coordinator.tableView(table, viewFor: table.tableColumns.first, row: 0)
+        XCTAssertTrue(farOffscreen is NativeTranscript.SummaryCell)
+        let visibleRow = max(0, rows.count - 1)
+        let nearVisible = table.view(atColumn: 0, row: visibleRow, makeIfNecessary: false)
+        XCTAssertTrue(nearVisible is NativeTranscript.HostCell)
+    }
+
+    func testVisibleWindowVerticalTrackpadGestureOverCodeBlockScrollsTranscript() async throws {
+        let fixture = try await makeCodeBlockFixture()
+        fixture.window.orderFront(nil)
+        defer {
+            fixture.window.orderOut(nil)
+            fixture.window.contentView = nil
+        }
+        await settleLayout(fixture.scroll)
+
+        let scroll = fixture.scroll
+        let initialOffset = scroll.contentView.bounds.minY
+        try await fixture.replay([
+            wheelEvent(vertical: 0, phase: .mayBegin),
+            wheelEvent(vertical: 0, phase: .began),
+            wheelEvent(vertical: -20, horizontal: 1, phase: .changed),
+            wheelEvent(vertical: -8, phase: .changed),
+            wheelEvent(vertical: 0, phase: .ended)
+        ])
+
+        await settleLayout(scroll)
+        XCTAssertEqual(scroll.contentView.bounds.minY, initialOffset + 28, accuracy: 1)
+        XCTAssertEqual(fixture.codeScroll.contentView.bounds.minX, 0, accuracy: 1)
+    }
+
+    func testTranscriptScrollStateTransitionsKeepMountedRowsWithoutRemount() async throws {
+        let items = (0..<24).map {
+            TranscriptItem(id: "stable-\($0)", kind: .assistant, text: "Message \($0)\nLine two")
+        }
+        let host = NSHostingView(rootView: TranscriptView(items: items, showingCachedHistory: true)
+            .background(PikachuTheme.workspace))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        await settleLayout(host)
+
+        let table = try XCTUnwrap(findTable(in: host))
+        let scroll = try XCTUnwrap(table.enclosingScrollView)
+        let trackedRow = 22
+        let initialCell = try XCTUnwrap(table.view(atColumn: 0, row: trackedRow, makeIfNecessary: false))
+
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, scroll.contentView.bounds.minY - 80)))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        NotificationCenter.default.post(name: NSScrollView.didLiveScrollNotification, object: scroll)
+        await settleLayout(host)
+
+        XCTAssertTrue(table.view(atColumn: 0, row: trackedRow, makeIfNecessary: false) === initialCell,
+                      "Flipping follow state must not remount mounted transcript rows")
+    }
+
     private var messages: [TranscriptDisplayRow] {
         (0..<40).map { .item(.init(id: "message-\($0)", kind: .assistant, text: "Message \($0)")) }
     }
 
     private func horizontalScroll(in view: NSView) -> NSScrollView? {
-        if let scroll = view as? NSScrollView, scroll.hasHorizontalScroller { return scroll }
+        if let scroll = view as? NSScrollView, TranscriptHorizontalScrollMarker.matches(scroll) { return scroll }
+        if let scroll = view as? ToolOutputScrollView,
+           let document = scroll.documentView, document.frame.width > scroll.contentView.bounds.width + 1 { return scroll }
         return view.subviews.lazy.compactMap { self.horizontalScroll(in: $0) }.first
     }
 
@@ -1285,6 +1473,7 @@ import XCTest
         let units: CGScrollEventUnit = phase == nil && momentum == .none ? .line : .pixel
         let event = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: units, wheelCount: 2,
                                          wheel1: vertical, wheel2: horizontal, wheel3: 0))
+        event.flags = []
         if let phase {
             event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(phase.rawValue))
         }

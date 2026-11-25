@@ -1,0 +1,186 @@
+[
+  {
+    "id": "agoragentic-acp",
+    "name": "Agoragentic"
+  },
+  {
+    "id": "amp-acp",
+    "name": "Amp"
+  },
+  {
+    "id": "antigravity-acp",
+    "name": "Google Antigravity"
+  },
+  {
+    "id": "auggie",
+    "name": "Auggie CLI"
+  },
+  {
+    "id": "autohand",
+    "name": "Autohand Code"
+  },
+  {
+    "id": "bob",
+    "name": "Bob"
+  },
+  {
+    "id": "claude-acp",
+    "name": "Claude Agent"
+  },
+  {
+    "id": "cline",
+    "name": "Cline"
+  },
+  {
+    "id": "codebuddy-code",
+    "name": "Codebuddy Code"
+  },
+  {
+    "id": "codex-acp",
+    "name": "Codex"
+  },
+  {
+    "id": "cortex-code",
+    "name": "Cortex Code"
+  },
+  {
+    "id": "corust-agent",
+    "name": "Corust Agent"
+  },
+  {
+    "id": "crow-cli",
+    "name": "crow-cli"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor"
+  },
+  {
+    "id": "deepagents",
+    "name": "DeepAgents"
+  },
+  {
+    "id": "devin",
+    "name": "Devin"
+  },
+  {
+    "id": "dimcode",
+    "name": "DimCode"
+  },
+  {
+    "id": "dirac",
+    "name": "Dirac"
+  },
+  {
+    "id": "factory-droid",
+    "name": "Factory Droid"
+  },
+  {
+    "id": "fast-agent",
+    "name": "fast-agent"
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini CLI"
+  },
+  {
+    "id": "github-copilot-cli",
+    "name": "GitHub Copilot"
+  },
+  {
+    "id": "glm-acp-agent",
+    "name": "GLM Agent"
+  },
+  {
+    "id": "goose",
+    "name": "goose"
+  },
+  {
+    "id": "grok-build",
+    "name": "Grok Build"
+  },
+  {
+    "id": "harn",
+    "name": "Harn"
+  },
+  {
+    "id": "junie",
+    "name": "Junie"
+  },
+  {
+    "id": "kilo",
+    "name": "Kilo"
+  },
+  {
+    "id": "kimchi",
+    "name": "Kimchi"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi CLI (Legacy)"
+  },
+  {
+    "id": "kimi-code",
+    "name": "Kimi Code"
+  },
+  {
+    "id": "kiro",
+    "name": "Kiro CLI"
+  },
+  {
+    "id": "minimax-code",
+    "name": "MiniMax Code"
+  },
+  {
+    "id": "minion-code",
+    "name": "Minion Code"
+  },
+  {
+    "id": "mistral-vibe",
+    "name": "Mistral Vibe"
+  },
+  {
+    "id": "muse-code",
+    "name": "Muse Code"
+  },
+  {
+    "id": "nova",
+    "name": "Nova"
+  },
+  {
+    "id": "opencode",
+    "name": "OpenCode"
+  },
+  {
+    "id": "opencode-v2",
+    "name": "OpenCode (legacy ID)"
+  },
+  {
+    "id": "pi-acp",
+    "name": "pi ACP"
+  },
+  {
+    "id": "poolside",
+    "name": "Poolside"
+  },
+  {
+    "id": "qoder",
+    "name": "Qoder CLI"
+  },
+  {
+    "id": "qwen-code",
+    "name": "Qwen Code"
+  },
+  {
+    "id": "sigit",
+    "name": "siGit Code"
+  },
+  {
+    "id": "stakpak",
+    "name": "Stakpak"
+  },
+  {
+    "id": "vtcode",
+    "name": "VT Code"
+  }
+]

@@ -8,24 +8,24 @@ final class ProtocolTests: XCTestCase {
         import json,sys
         c=json.loads(sys.stdin.readline())
         for i in range(5000): print(json.dumps({'type':'notice','number':i}),flush=True)
-        print(json.dumps({'type':'response','id':c['id'],'success':True}),flush=True)
+        print(json.dumps({'id':c['id'],'result':{}}),flush=True)
         sys.stdin.read()
         """
         let p = try RPCProcess(executable:"/usr/bin/python3",arguments:["-u","-c",source],cwd:FileManager.default.temporaryDirectory,environment:ProcessInfo.processInfo.environment,streaming:true)
         defer { try? p.close() }
-        let id = try p.submit("fixture")
-        let response = Task.detached { try p.response(id,timeout:10)["id"] as? String }
+        try p.send(["id": 1, "method": "fixture"])
+        var responseID: Int?
         var received = 0, cursor = 0
         let deadline = Date().addingTimeInterval(10)
-        while received < 5000 && Date() < deadline {
+        while responseID == nil && Date() < deadline {
             XCTAssertLessThanOrEqual(p.bufferStatus.events,128)
-            let observation = p.observation(after:cursor); cursor = observation.nextCursor; received += observation.records.count
+            let observation = p.observation(after:cursor); cursor = observation.nextCursor
+            received += observation.records.filter { $0["type"] as? String == "notice" }.count
+            responseID = observation.records.compactMap { $0["id"] as? Int }.first
             try await Task.sleep(for:.milliseconds(1))
         }
         XCTAssertEqual(received,5000)
-        let result = try await response.value
-        XCTAssertEqual(result,id)
-        XCTAssertEqual(p.bufferStatus.responses,0)
+        XCTAssertEqual(responseID, 1)
     }
     func testProductionRecordLimitRejectsWholeRecord() throws {
         var decoder = JSONLDecoder(maximumRecordBytes:32)
@@ -46,23 +46,24 @@ final class ProtocolTests: XCTestCase {
         let source = """
         import json,sys
         a=json.loads(sys.stdin.readline()); b=json.loads(sys.stdin.readline())
-        for r in [{'type':'response','id':b['id'],'success':True}, {'type':'agent_start'}, {'type':'response','id':a['id'],'success':True}]:
+        for r in [{'id':b['id'],'result':{}}, {'method':'notice'}, {'id':a['id'],'result':{}}]:
             print(json.dumps(r),flush=True)
         sys.stdin.read()
         """
         let p = try RPCProcess(executable: "/usr/bin/python3", arguments: ["-u", "-c", source], cwd: FileManager.default.temporaryDirectory, environment: ProcessInfo.processInfo.environment)
         defer { try? p.close() }
-        let a = try p.submit("first"), b = try p.submit("second")
-        XCTAssertEqual(try p.response(a)["id"] as? String, a)
-        XCTAssertEqual(try p.response(b)["id"] as? String, b)
-        XCTAssertEqual(p.allRecords.first?["id"] as? String, b)
-        XCTAssertEqual(try p.event("agent_start")["type"] as? String, "agent_start")
+        try p.send(["id": 1, "method": "first"])
+        try p.send(["id": 2, "method": "second"])
+        XCTAssertEqual(try p.wait { $0["id"] as? Int == 1 }["id"] as? Int, 1)
+        XCTAssertEqual(try p.wait { $0["id"] as? Int == 2 }["id"] as? Int, 2)
+        XCTAssertEqual(p.allRecords.first?["id"] as? Int, 2)
+        XCTAssertEqual(try p.wait { $0["method"] as? String == "notice" }["method"] as? String, "notice")
     }
     func testMalformedOutputAndEOFEndPendingCalls() throws {
         for source in ["print('{bad}',flush=True)", "pass"] {
             let p = try RPCProcess(executable: "/usr/bin/python3", arguments: ["-u", "-c", source], cwd: FileManager.default.temporaryDirectory, environment: ProcessInfo.processInfo.environment)
             defer { try? p.close() }
-            XCTAssertThrowsError(try p.response("unresolved", timeout: 2))
+            XCTAssertThrowsError(try p.wait(timeout: 2) { $0["id"] as? Int == 1 })
         }
     }
     func testEveryByteBoundaryAndUnicodeSeparators() throws {
@@ -90,49 +91,5 @@ final class ProtocolTests: XCTestCase {
             var decoder = JSONLDecoder()
             XCTAssertThrowsError(try decoder.feed(Data(text.utf8)))
         }
-    }
-    func testMessageIndexesResetAndFinalOverrides() {
-        var projection = MessageProjection()
-        for name in ["first", "second"] {
-            projection.apply(["type": "message_start"])
-            projection.apply(["type": "message_update", "assistantMessageEvent": ["type": "text_delta", "contentIndex": 0, "delta": "wrong"]])
-            projection.apply(["type": "message_update", "assistantMessageEvent": ["type": "text_delta", "contentIndex": 1, "delta": " block"]])
-            XCTAssertEqual(projection.currentText, "wrong block")
-            projection.apply(["type": "message_end", "message": ["role": "assistant", "content": [["type": "text", "text": name]]]])
-            XCTAssertEqual(projection.currentText, name)
-        }
-        XCTAssertEqual(projection.messages.count, 2)
-    }
-    func testHistoryBranchTailAndCorruption() throws {
-        let fixture = """
-        {"type":"session","version":3,"id":"test"}
-        {"type":"message","id":"a","parentId":null,"message":{"role":"user","content":"root"}}
-        {"type":"message","id":"b","parentId":"a","message":{"role":"assistant","content":[]}}
-        {"type":"message","id":"c","parentId":"a","message":{"role":"user","content":"other branch"}}
-
-        """
-        let history = try HistoryProbe.read(Data(fixture.utf8))
-        XCTAssertEqual(history.branch.compactMap { $0["id"] as? String }, ["a", "c"])
-        let partial = try HistoryProbe.read(Data((fixture + "{unfinished").utf8))
-        XCTAssertTrue(partial.incompleteTail)
-        XCTAssertEqual(partial.branch.count, 2)
-        XCTAssertThrowsError(try HistoryProbe.read(Data((fixture + "bad\n").utf8)))
-        XCTAssertThrowsError(try HistoryProbe.read(Data(fixture.replacingOccurrences(of: "\"version\":3", with: "\"version\":99").utf8)))
-        XCTAssertThrowsError(try HistoryProbe.read(Data(fixture.replacingOccurrences(of: "\"parentId\":\"a\"", with: "\"parentId\":\"missing\"").utf8)))
-    }
-    func testLargeOutputAndLongHistory() throws {
-        let text = String(repeating: "x", count: 10 * 1024 * 1024)
-        var bytes = try JSONSerialization.data(withJSONObject: ["text": text]); bytes.append(10)
-        var decoder = JSONLDecoder(), records: [Record] = []
-        for offset in stride(from: 0, to: bytes.count, by: 8192) {
-            records += try decoder.feed(Data(bytes[offset..<min(offset+8192, bytes.count)]))
-        }
-        XCTAssertEqual((records.first?["text"] as? String)?.count, text.count)
-        var lines = "{\"type\":\"session\",\"version\":3,\"id\":\"large\"}\n"
-        for i in 0..<5000 {
-            let parent = i == 0 ? "null" : "\"\(i-1)\""
-            lines += "{\"type\":\"message\",\"id\":\"\(i)\",\"parentId\":\(parent),\"message\":{\"role\":\"user\",\"content\":\"fixture\"}}\n"
-        }
-        XCTAssertEqual(try HistoryProbe.read(Data(lines.utf8)).branch.count, 5000)
     }
 }

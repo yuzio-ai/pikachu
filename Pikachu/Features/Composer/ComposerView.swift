@@ -2,121 +2,175 @@ import SwiftUI
 import AgentRuntimeCore
 import OrchestrationCore
 
-struct ComposerApprovalPresentation: Equatable {
-    let effective: AgentExecutionPolicy
-    let pending: AgentExecutionPolicy?
-    let status: String
-    let note: String?
+private struct ComposerIssuePills: View {
+    let controller: SessionController
+    let isReadOnlyHistory: Bool
+    let panelsBlocked: Bool
+    let presentToolFailures: ([TranscriptItem]) -> Void
+    let presentTaskPlan: () -> Void
+    let onSyncCachedHistory: (() -> Void)?
+    let onJumpToMessage: ((String) -> Void)?
+    @State private var isPlanDismissed = false
+    @State private var isCachedHistoryDismissed = false
 
-    var displayed: AgentExecutionPolicy { pending ?? effective }
-    var buttonText: String {
-        if pending != nil, pending != effective {
-            return String(localized: "\(displayed.approval.titleText)（下次执行）")
-        }
-        return displayed.approval.titleText
-    }
-
-    init(selected: AgentExecutionPolicy, active: AgentExecutionPolicy?, isRunning: Bool, isReadOnlyHistory: Bool) {
-        effective = active ?? selected
-        if isRunning {
-            pending = nil
-            status = String(localized: "当前执行已生效")
-            note = String(localized: "任务和队列结束后可调整工具审批。")
-        } else if active == selected {
-            pending = nil
-            status = String(localized: "已连接生效")
-            note = nil
-        } else {
-            pending = selected
-            status = String(localized: "下次执行生效")
-            if let active {
-                let mode = String(localized: active.mode.title)
-                note = String(localized: "当前连接使用「\(mode) · \(active.approval.titleText)」，下次发送时重连。")
-            } else if isReadOnlyHistory {
-                note = String(localized: "当前为只读历史视图；配置将在可执行的下次运行时生效。")
+    var body: some View {
+        let expiredItem = controller.transcript.last { $0.expiredInteraction != nil }
+        let failures = controller.recentToolFailures
+        let showsPlan = !controller.plan.isEmpty && !isPlanDismissed
+        let showsCachedHistory = controller.showingCachedHistory && !isReadOnlyHistory && !isCachedHistoryDismissed
+        Group {
+            if expiredItem != nil || !failures.isEmpty || showsPlan || showsCachedHistory {
+                HStack(spacing: 6) {
+                    if let expiredItem {
+                        Button {
+                            onJumpToMessage?(expiredItem.timelineID)
+                        } label: {
+                            Text("工具调用审批已过期")
+                                .pikachuFont(.callout)
+                                .foregroundStyle(PikachuTheme.warningText)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                        }
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 16))
+                        .disabled(panelsBlocked || onJumpToMessage == nil)
+                        .accessibilityIdentifier("composer-expired-interaction")
+                    }
+                    if showsCachedHistory { cachedHistoryPill() }
+                    if showsPlan { planPill(controller.plan) }
+                    if !failures.isEmpty { failurePill(failures) }
+                }
+                .padding(.bottom, 8)
             } else {
-                note = nil
+                Color.clear
+                    .frame(width: 0, height: 0)
             }
         }
+        .onChange(of: controller.plan) { _, _ in
+            isPlanDismissed = false
+        }
+        .onChange(of: controller.showingCachedHistory) { _, showing in
+            if !showing { isCachedHistoryDismissed = false }
+        }
+        .onChange(of: ObjectIdentifier(controller)) { _, _ in
+            isCachedHistoryDismissed = false
+        }
+    }
+
+    private func cachedHistoryPill() -> some View {
+        let helpText = onSyncCachedHistory != nil
+            ? String(localized: "点击重新连接并同步最新会话历史。")
+            : nil
+        return ComposerDismissiblePill(
+            title: String(localized: "当前处于离线状态，展示缓存内容。"),
+            systemImage: "info.circle",
+            color: PikachuTheme.mutedWarningText,
+            panelsBlocked: panelsBlocked,
+            identifier: "composer-cached-history",
+            dismissIdentifier: "dismiss-composer-cached-history",
+            dismissLabel: "关闭离线缓存提示",
+            helpText: helpText,
+            open: { onSyncCachedHistory?() },
+            dismiss: { isCachedHistoryDismissed = true }
+        )
+    }
+
+    private func planPill(_ entries: [RuntimePlanEntry]) -> some View {
+        let completed = entries.count { $0.status == .completed }
+        let title = String(localized: "任务计划 · \(completed)/\(entries.count)")
+        return ComposerDismissiblePill(
+            title: title,
+            color: PikachuTheme.secondaryText,
+            panelsBlocked: panelsBlocked,
+            identifier: "composer-task-plan",
+            dismissIdentifier: "dismiss-composer-task-plan",
+            dismissLabel: "关闭任务计划提示",
+            open: presentTaskPlan,
+            dismiss: { isPlanDismissed = true }
+        )
+    }
+
+    private func failurePill(_ failures: [TranscriptItem]) -> some View {
+        ComposerDismissiblePill(
+            title: String(localized: "工具调用失败 · \(failures.count)"),
+            color: PikachuTheme.mutedWarningText,
+            panelsBlocked: panelsBlocked,
+            identifier: "composer-failed-tool",
+            dismissIdentifier: "dismiss-composer-failed-tool",
+            dismissLabel: "关闭工具调用失败提示",
+            open: { presentToolFailures(failures) },
+            dismiss: { controller.dismissToolFailures(failures) }
+        )
     }
 }
 
-private struct ComposerIssuePills: View {
-    let controller: SessionController
+private struct ComposerDismissiblePill: View {
+    let title: String
+    var systemImage: String? = nil
+    let color: Color
     let panelsBlocked: Bool
-    let presentToolFailures: ([TranscriptItem]) -> Void
-    @State private var dismissedFailureIDs: Set<String> = []
-    @State private var isHoveringFailure = false
-    @FocusState private var failureFocus: FailureFocus?
+    let identifier: String
+    let dismissIdentifier: String
+    let dismissLabel: LocalizedStringKey
+    var helpText: String? = nil
+    let open: () -> Void
+    let dismiss: () -> Void
+    @State private var isHovering = false
+    @FocusState private var focus: PillFocus?
 
-    private enum FailureFocus: Hashable {
+    private enum PillFocus: Hashable {
         case details, dismiss
     }
 
     var body: some View {
-        let items = controller.transcript.reversed()
-        let hasExpiredInteraction = items.contains { $0.expiredInteraction != nil }
-        let failures = items.filter { $0.toolSummary?.state == .failed && !dismissedFailureIDs.contains($0.id) }
-        if hasExpiredInteraction || !failures.isEmpty {
-            HStack(spacing: 6) {
-                if hasExpiredInteraction {
-                    pillLabel("扩展交互已过期")
-                        .flatSurface(.clear, radius: 16)
-                        .accessibilityIdentifier("composer-expired-interaction")
+        let showsClose = !panelsBlocked && (isHovering || focus != nil)
+        ZStack(alignment: .trailing) {
+            Button(action: open) {
+                HStack(spacing: 5) {
+                    if let systemImage {
+                        Image(systemName: systemImage)
+                            .pikachuFont(.caption)
+                            .accessibilityHidden(true)
+                    }
+                    Text(verbatim: title)
+                        .pikachuFont(.callout)
                 }
-                if !failures.isEmpty { failurePill(failures) }
-            }
-            .padding(.bottom, 8)
-        }
-    }
-
-    private func pillLabel(_ title: LocalizedStringKey, color: Color = PikachuTheme.warningText) -> some View {
-        Text(title)
-            .pikachuFont(.callout)
-            .foregroundStyle(color)
-            .padding(.horizontal, 10).padding(.vertical, 5)
-    }
-
-    private func failurePill(_ failures: [TranscriptItem]) -> some View {
-        let showsClose = !panelsBlocked && (isHoveringFailure || failureFocus != nil)
-        return ZStack(alignment: .trailing) {
-            Button { presentToolFailures(failures) } label: {
-                pillLabel("工具调用失败", color: PikachuTheme.mutedWarningText)
-                    .padding(.trailing, 13)
+                .foregroundStyle(color)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .padding(.trailing, 13)
             }
             .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 16))
-            .focused($failureFocus, equals: .details)
-            .accessibilityIdentifier("composer-failed-tool")
+            .focused($focus, equals: .details)
+            .help(helpText ?? "")
+            .accessibilityIdentifier(identifier)
             .accessibilityActions {
                 if !panelsBlocked {
-                    Button("关闭工具调用失败提示") { dismiss(failures) }
+                    Button(dismissLabel) { dismissPill() }
                 }
             }
 
-            Button { dismiss(failures) } label: {
+            Button { dismissPill() } label: {
                 Image(systemName: "xmark")
                     .pikachuFont(.caption)
                     .foregroundStyle(PikachuTheme.tertiaryText)
                     .frame(width: 18, height: 20)
             }
             .buttonStyle(FlatControlButtonStyle(inset: false, cornerRadius: 9))
-            .focused($failureFocus, equals: .dismiss)
-            .help("关闭工具调用失败提示")
-            .accessibilityLabel("关闭工具调用失败提示")
-            .accessibilityIdentifier("dismiss-composer-failed-tool")
+            .focused($focus, equals: .dismiss)
+            .help(dismissLabel)
+            .accessibilityLabel(dismissLabel)
+            .accessibilityIdentifier(dismissIdentifier)
             .padding(.trailing, 4)
             .revealedAction(showsClose)
         }
         .contentShape(.rect)
-        .onHover { isHoveringFailure = $0 }
-        .onDisappear { isHoveringFailure = false }
+        .onHover { isHovering = $0 }
+        .onDisappear { isHovering = false }
         .disabled(panelsBlocked)
     }
 
-    private func dismiss(_ failures: [TranscriptItem]) {
+    private func dismissPill() {
         guard !panelsBlocked else { return }
-        dismissedFailureIDs.formUnion(failures.map(\.id))
-        isHoveringFailure = false
+        dismiss()
+        isHovering = false
     }
 }
 
@@ -124,8 +178,6 @@ struct ComposerView: View {
     @Environment(\.pikachuTypography) private var typography
     @Bindable var controller: SessionController
     let workspace: WorkspaceController
-    let executionPolicy: AgentExecutionPolicy
-    let activePolicy: AgentExecutionPolicy?
     let isViewedSessionActive: Bool
     let isReadOnlyHistory: Bool
     let sessionConfigurationDisabled: Bool
@@ -134,30 +186,36 @@ struct ComposerView: View {
     let project: ProjectRecord?
     let panelsBlocked: Bool
     let onPickFiles: () -> Void
-    let onMode: (AgentMode) -> Void
-    let onApproval: (ToolApprovalPolicy) -> Void
     let onSend: () -> Void
     let onStop: () -> Void
     let presentToolFailures: ([TranscriptItem]) -> Void
+    var presentTaskPlan: () -> Void = {}
+    var onSyncCachedHistory: (() -> Void)? = nil
+    var onJumpToMessage: ((String) -> Void)? = nil
     let sendEnabled: Bool
     var focusSignal = 0
+    var onInputFocused: (() -> Void)? = nil
     var isStarter = false
+    var sendShortcut: ComposerSendShortcut = .commandReturn
     var pastedImagesDirectory: URL = AppSettings.defaultPastedImagesDirectory(stateDirectory: nil)
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
+    var isSubmittingHandoff = false
     @FocusState private var focused: Bool
     @FocusState private var modelFocused: Bool
     @FocusState private var sendModeFocused: Bool
     @State private var panel: Panel?
+    @State private var composerWidth: CGFloat = 0
     @State private var savingModel = false
+    @State private var opensHandoffEditor = false
     @State private var restoreInputFocus = false
     @State private var attachmentPasteError: String?
-    @State private var previewImage: AttachmentImagePreview.Selection?
 
     private enum Panel {
-        case mode, approval, context, model, sendMode, workingDirectory
+        case mode, context, model, sendMode, workingDirectory
 
         var configuresSession: Bool {
             switch self {
-            case .mode, .approval, .model, .workingDirectory: true
+            case .mode, .model, .workingDirectory: true
             case .context, .sendMode: false
             }
         }
@@ -167,6 +225,10 @@ struct ComposerView: View {
         isViewedSessionActive && controller.connection == .connected &&
             (controller.isStopping || (controller.phase != .uncertain &&
                 (controller.phase.isActive || !controller.queue.isEmpty)))
+    }
+
+    private var showsSendModeMenu: Bool {
+        showsStopButton && controller.supportsQueuedPrompts
     }
 
     private var canConfigureModel: Bool {
@@ -199,16 +261,6 @@ struct ComposerView: View {
         })
     }
 
-    private var approvalPresentation: ComposerApprovalPresentation {
-        ComposerApprovalPresentation(
-            selected: executionPolicy,
-            active: isViewedSessionActive && controller.connection == .connected ? activePolicy : nil,
-            isRunning: isViewedSessionActive && controller.connection == .connected &&
-                (controller.phase.isActive || controller.commandPending || !controller.queue.isEmpty || !controller.interactions.isEmpty),
-            isReadOnlyHistory: isReadOnlyHistory
-        )
-    }
-
     private var composerContent: some View {
         let attachments = controller.draftFiles.filter {
             ImageAttachmentThumbnail.isImage($0) || VideoAttachmentThumbnail.isVideo($0)
@@ -219,8 +271,12 @@ struct ComposerView: View {
             if !controller.recoveredDrafts.isEmpty {
                 RecoveredDraftsView(controller: controller).padding(.bottom, 10)
             }
-            ComposerIssuePills(controller: controller, panelsBlocked: panelsBlocked,
-                               presentToolFailures: presentToolFailures)
+            ComposerIssuePills(controller: controller, isReadOnlyHistory: isReadOnlyHistory,
+                               panelsBlocked: panelsBlocked,
+                               presentToolFailures: presentToolFailures,
+                               presentTaskPlan: presentTaskPlan,
+                               onSyncCachedHistory: onSyncCachedHistory,
+                               onJumpToMessage: onJumpToMessage)
             VStack(alignment: .leading, spacing: 8) {
                 if !attachments.isEmpty {
                     ScrollView(.horizontal) {
@@ -260,8 +316,9 @@ struct ComposerView: View {
                 ComposerControlsLayout {
                     HStack(spacing: 4) {
                         attachmentButton
-                        modeMenu
-                        approvalButton
+                        if controller.session?.availableModes.isEmpty == false {
+                            acpModeMenu
+                        }
                         if let reference, let project {
                             ComposerWorkingDirectoryButton(workspace: workspace, reference: reference, project: project,
                                                            isPresented: panelBinding(.workingDirectory),
@@ -292,19 +349,36 @@ struct ComposerView: View {
     }
 
     var body: some View {
-        composerContent
-        .sheet(item: $previewImage) { selection in
-            AttachmentImagePreview(file: selection.file)
+        VStack(spacing: 0) {
+            if let reference, let handoff = reference.handoff, !handoff.delivered {
+                let first = reference.submissions.first { $0.id == handoff.firstSubmissionID }
+                if first?.delivery != .unknown {
+                    ComposerHandoffStatus(handoff: handoff, isSending: isSubmittingHandoff || first?.delivery == .pending,
+                                          canEdit: canConfigureModel && workspace.handoffBlockReason(for: reference.id) == nil,
+                                          editHandoff: {
+                                              opensHandoffEditor = true
+                                              show(.model)
+                                          }, editDraft: {
+                                              if let id = handoff.lastRejectedSubmissionID { controller.restoreDraft(id) }
+                                              focused = true
+                                          })
+                    .padding(.bottom, 2)
+                }
+            }
+            composerContent
         }
+        .disabled(controller.isDraftEditingLocked)
+        .onGeometryChange(for: CGFloat.self, of: \.size.width) { composerWidth = $0 }
         .onChange(of: controller.connection) { _, state in if state == .connected { focused = true } }
         .onChange(of: focusSignal) { _, _ in focused = true }
+        .onChange(of: focused) { _, isFocused in if isFocused { onInputFocused?() } }
         .onChange(of: sessionConfigurationDisabled) { _, disabled in
             if disabled, panel?.configuresSession == true, !savingModel { setPanel(nil) }
         }
         .onChange(of: panelsBlocked) { _, blocked in
             if blocked { setPanel(nil) }
         }
-        .onChange(of: showsStopButton) { _, visible in
+        .onChange(of: showsSendModeMenu) { _, visible in
             if !visible && panel == .sendMode { setPanel(nil) }
         }
         .onChange(of: workspace.usageExpanded, initial: true) { _, expanded in
@@ -317,9 +391,13 @@ struct ComposerView: View {
             }
         }
         .onChange(of: workspace.configurationRequest) { _, _ in
-            if canConfigureModel { show(.model) }
+            if canConfigureModel {
+                opensHandoffEditor = false
+                show(.model)
+            }
         }
         .onChange(of: panel) { previous, current in
+            if previous == .model && current != .model { opensHandoffEditor = false }
             guard current == nil, !panelsBlocked else { return }
             switch previous {
             case .model:
@@ -327,7 +405,7 @@ struct ComposerView: View {
                 else { modelFocused = true }
             case .sendMode:
                 if restoreInputFocus { focused = true }
-                else if showsStopButton { sendModeFocused = true }
+                else if showsSendModeMenu { sendModeFocused = true }
             default:
                 break
             }
@@ -336,16 +414,19 @@ struct ComposerView: View {
 
     private var editorRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if showsStopButton { sendModeMenu }
+            if showsSendModeMenu { sendModeMenu }
             TextField("⚡️Pika! 告诉我你想实现什么、修复什么，或直接提问…", text: $controller.draft, axis: .vertical)
                 .lineLimit(2...5).textFieldStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: isStarter ? 44 : 0, alignment: .topLeading)
                 .focused($focused).accessibilityIdentifier("prompt-input")
                 .diagnosticDraw("editor:\(controller.draft.utf8.count)")
                 .accessibilityLabel("当前查看会话的任务草稿")
-                .accessibilityHint("按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。")
+                .accessibilityHint("\(Text(sendShortcut.keyHint)) 按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。")
                 .background {
-                    ComposerInputEvents(isFocused: $focused, canPasteAttachment: !panelsBlocked, canSend: sendEnabled,
+                    ComposerInputEvents(isFocused: $focused,
+                                        canPasteAttachment: !panelsBlocked && !controller.isDraftEditingLocked,
+                                        canSend: sendEnabled,
+                                        shortcut: sendShortcut,
                                         onPaste: addPastedAttachment, onSend: onSend)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
@@ -375,14 +456,14 @@ struct ComposerView: View {
                 ForEach(SendMode.allCases) { mode in
                     let selected = controller.mode == mode
                     Button {
-                        guard panel == .sendMode, showsStopButton, !panelsBlocked,
+                        guard panel == .sendMode, showsSendModeMenu, !panelsBlocked,
                               workspace.viewed?.controller === controller else { return }
                         controller.mode = mode
                         setPanel(nil)
                     } label: {
                         FlatMenuRow(title: sendModeTitle(mode), selected: selected)
                     }
-                    .buttonStyle(FlatControlButtonStyle(isOpen: selected))
+                    .buttonStyle(FlatControlButtonStyle(isSelected: selected))
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -400,6 +481,7 @@ struct ComposerView: View {
     }
 
     private func removeAttachment(_ file: URL) {
+        guard !controller.isDraftEditingLocked else { return }
         controller.draftFiles.removeAll { $0 == file }
         let referenced = controller.draftFiles
             + controller.recoveredDrafts.flatMap { $0.files ?? [] }
@@ -413,12 +495,13 @@ struct ComposerView: View {
             VideoAttachmentThumbnail(file: file, onOpen: { NSWorkspace.shared.open(file) },
                                      remove: { removeAttachment(file) })
         } else {
-            ImageAttachmentThumbnail(file: file, onPreview: { previewImage = .init(file: file) },
+            ImageAttachmentThumbnail(file: file, onPreview: onPreviewImage.map { preview in { preview(.file(file)) } },
                                      remove: { removeAttachment(file) })
         }
     }
 
     private func addPastedAttachment(_ result: PastedAttachment.Result) {
+        guard !controller.isDraftEditingLocked else { return }
         switch result {
         case .attachment(.image(let image)):
             do {
@@ -441,9 +524,12 @@ struct ComposerView: View {
     }
 
     private var attachmentButton: some View {
-        Button(action: onPickFiles) {
-            IconButtonLabel(systemName: "paperclip")
+        let targetSize = typography.composerActionButtonSize
+        return Button(action: onPickFiles) {
+            Image(systemName: "paperclip")
+                .pikachuFont(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: targetSize, height: targetSize)
         }
         .buttonStyle(FlatControlButtonStyle(inset: false))
         .fixedSize()
@@ -452,115 +538,31 @@ struct ComposerView: View {
         .accessibilityIdentifier("add-file")
     }
 
-    private var modeMenu: some View {
-        Button {
+    private var acpModeMenu: some View {
+        let availableModes = controller.session?.availableModes ?? []
+        let activeModeID = controller.session?.modeID ?? reference?.runtimeModeID
+        let selectedMode = activeModeID.flatMap { id in availableModes.first { $0.id == id } }
+        let modeTitle = selectedMode?.name ?? activeModeID ?? String(localized: "Agent 模式")
+        return Button {
             panelBinding(.mode).wrappedValue.toggle()
         } label: {
-            Text(executionPolicy.mode.title)
+            Text(verbatim: modeTitle)
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: panel == .mode, height: typography.composerActionButtonSize))
         .fixedSize()
         .disabled(sessionConfigurationDisabled || panelsBlocked)
-        .help(sessionConfigurationDisabled ? "运行或保存期间不可切换执行模式" : "切换执行模式")
-        .accessibilityLabel("执行模式")
-        .accessibilityValue(Text(executionPolicy.mode.title))
-        .accessibilityIdentifier("agent-mode")
+        .help(sessionConfigurationDisabled ? "运行或保存期间不可切换执行模式" : "切换 ACP 执行模式")
+        .accessibilityLabel("ACP 执行模式")
+        .accessibilityValue(modeTitle)
+        .accessibilityIdentifier("acp-agent-mode")
         .popover(isPresented: panelBinding(.mode), arrowEdge: .bottom) {
-            VStack(spacing: 2) {
-                ForEach(AgentMode.allCases) { mode in
-                    Button {
-                        setPanel(nil)
-                        onMode(mode)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Text(mode.title)
-                            Spacer(minLength: 0)
-                            if mode == executionPolicy.mode {
-                                Image(systemName: "checkmark")
-                                    .pikachuFont(.caption, weight: .semibold)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                    }
-                    .buttonStyle(FlatControlButtonStyle(isOpen: mode == executionPolicy.mode))
-                    .accessibilityAddTraits(mode == executionPolicy.mode ? .isSelected : [])
+            let maxWidth = max(280, min(460, composerWidth > 0 ? composerWidth - 2 * AnchoredCardStyle.inset : 460))
+            ACPModePopoverContent(availableModes: availableModes, activeModeID: activeModeID, maxWidth: maxWidth) { optionID in
+                setPanel(nil)
+                if let id = reference?.id {
+                    Task { await workspace.setACPMode(optionID, for: id) }
                 }
             }
-            .anchoredPopoverCard(width: 144, inset: AnchoredCardStyle.compactInset)
-        }
-    }
-
-    private var approvalButton: some View {
-        let info = approvalPresentation
-        return Button {
-            panelBinding(.approval).wrappedValue.toggle()
-        } label: {
-            Text(info.buttonText)
-                .foregroundStyle(.primary)
-        }
-        .buttonStyle(FlatControlButtonStyle(isOpen: panel == .approval, height: typography.composerActionButtonSize))
-        .fixedSize()
-        .help(Text(info.displayed.approval.detail))
-        .accessibilityLabel("工具审批")
-        .accessibilityValue("\(info.buttonText)，\(info.status)")
-        .accessibilityIdentifier("composer-permissions")
-        .disabled(sessionConfigurationDisabled || panelsBlocked)
-        .popover(isPresented: panelBinding(.approval), arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: AnchoredCardStyle.spacing) {
-                HStack {
-                    Label {
-                        Text("工具审批").anchoredCardTitle()
-                    } icon: {
-                        Image(systemName: "shield").pikachuFont(.caption)
-                    }
-                    Spacer()
-                    Text(info.status)
-                        .pikachuFont(.caption)
-                        .foregroundStyle(PikachuTheme.secondaryText)
-                }
-                if info.displayed.mode == .automatic {
-                    Text(ToolApprovalPolicy.never.title)
-                        .pikachuFont(.callout, weight: .semibold)
-                    Text("自主执行使用无需审批。所选扩展可以发起自己的交互。")
-                        .pikachuFont(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(info.displayed.mode.availableApprovals) { option in
-                        Button {
-                            setPanel(nil)
-                            onApproval(option)
-                        } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(option.title).pikachuFont(.callout, weight: .medium)
-                                    Text(option.detail).pikachuFont(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 4)
-                                if option == info.displayed.approval {
-                                    Image(systemName: "checkmark")
-                                        .pikachuFont(.caption, weight: .semibold)
-                                        .accessibilityHidden(true)
-                                }
-                            }
-                            .multilineTextAlignment(.leading)
-                        }
-                        .buttonStyle(FlatControlButtonStyle(isOpen: option == info.displayed.approval))
-                        .accessibilityAddTraits(option == info.displayed.approval ? .isSelected : [])
-                        .accessibilityIdentifier("tool-approval-\(option.rawValue)")
-                    }
-                    if info.displayed.mode == .plan {
-                        Text("制定计划只开放读取、搜索、查找和列目录。")
-                            .pikachuFont(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if let note = info.note {
-                    Text(note)
-                        .pikachuFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .anchoredPopoverCard(width: 324)
         }
     }
 
@@ -570,7 +572,7 @@ struct ComposerView: View {
         } label: {
             HStack(spacing: 5) {
                 if let model {
-                    ProviderLogo(provider: model.provider)
+                    ProviderLogo(provider: model.provider, model: model.name)
                         .fixedSize()
                     Text(model.name)
                         .lineLimit(1)
@@ -587,6 +589,15 @@ struct ComposerView: View {
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                     }
+                } else if let reference, reference.isACPRuntime {
+                    CodingAgentIcon(runtimeID: reference.runtimeID, agents: workspace.acpAgents, side: 13)
+                        .fixedSize()
+                    Text(verbatim: workspace.runtimeDisplayName(for: reference.runtimeID))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text("· 模型…")
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
                 } else {
                     ProviderLogo(provider: "")
                     Text("模型…")
@@ -596,16 +607,23 @@ struct ComposerView: View {
         }
         .buttonStyle(FlatControlButtonStyle(isOpen: panel == .model, height: typography.composerActionButtonSize))
         .focused($modelFocused)
-        .help(model?.summary ?? String(localized: "模型与推理强度（⇧⌘M）"))
-        .accessibilityLabel("模型与推理强度")
+        .help(sessionConfigurationDisabled ? String(localized: "请等待当前运行、排队消息及审批全部结束后再切换。") :
+                model?.summary ?? String(localized: "智能体与模型（⇧⌘M）"))
+        .accessibilityLabel("智能体与模型")
         .accessibilityValue(model?.summary ?? String(localized: "未配置"))
+        .accessibilityHint(reference?.modelSource.map { Text($0.detail) } ?? Text(""))
         .accessibilityIdentifier("composer-model")
         .disabled(!canConfigureModel)
-        .popover(isPresented: panelBinding(.model), arrowEdge: .bottom) {
+        .popover(isPresented: panelBinding(.model), attachmentAnchor: .rect(.bounds), arrowEdge: .top) {
             if let reference {
-                ModelConfigurationPanel(workspace: workspace, reference: reference, saving: $savingModel) {
+                let maximumWidth = 34 * typography.pointSize(for: .callout)
+                let availableWidth = composerWidth - 2 * AnchoredCardStyle.inset
+                let width = availableWidth > 0 ? min(maximumWidth, availableWidth) : maximumWidth
+                ModelConfigurationPanel(workspace: workspace, reference: reference, saving: $savingModel, width: width,
+                                        opensHandoff: opensHandoffEditor) {
                     setPanel(nil)
                 }
+                .id(reference.id)
                 .lineLimit(nil)
             }
         }
@@ -614,15 +632,17 @@ struct ComposerView: View {
     private var sendButton: some View {
         Button(action: onSend) {
             primaryActionLabel(
-                symbol: "arrow.up",
                 tint: sendEnabled ? .black : .secondary,
                 fill: sendEnabled ? PikachuTheme.lightningYellow : PikachuTheme.mutedSurface
-            )
+            ) {
+                Image(systemName: "bolt")
+                    .pikachuFont(.callout, weight: .semibold)
+            }
         }
         .buttonStyle(OverlayFeedbackButtonStyle(shape: Circle()))
-        .keyboardShortcut(.return, modifiers: .command)
-        .help("发送（⌘↩）")
+        .help(Text(sendShortcut.sendHelp))
         .accessibilityLabel("发送")
+        .accessibilityHint(Text(sendShortcut.keyHint))
         .disabled(!sendEnabled)
         .accessibilityIdentifier("send-prompt")
     }
@@ -632,9 +652,12 @@ struct ComposerView: View {
         let enabled = !stopping && reference.map { workspace.canStop($0.id) } == true
         return Button(action: onStop) {
             primaryActionLabel(
-                symbol: "stop.fill", tint: enabled ? .primary : .secondary,
+                tint: enabled ? .primary : .secondary,
                 fill: PikachuTheme.mutedSurface, border: PikachuTheme.border
-            )
+            ) {
+                Image(systemName: "stop.fill")
+                    .pikachuFont(.callout, weight: .semibold)
+            }
         }
         .buttonStyle(OverlayFeedbackButtonStyle(shape: Circle()))
         .help(stopping ? Text("正在停止") : Text("停止（⌘.）"))
@@ -643,11 +666,11 @@ struct ComposerView: View {
         .disabled(!enabled)
     }
 
-    private func primaryActionLabel(symbol: String, tint: Color, fill: Color, border: Color? = nil) -> some View {
+    private func primaryActionLabel<Icon: View>(tint: Color, fill: Color, border: Color? = nil,
+                                               @ViewBuilder icon: () -> Icon) -> some View {
         let targetSize = typography.composerActionButtonSize
         let circleSize = targetSize - 4
-        return Image(systemName: symbol)
-            .pikachuFont(.callout, weight: .semibold)
+        return icon()
             .foregroundStyle(tint)
             .frame(width: circleSize, height: circleSize)
             .background(fill, in: .circle)
@@ -656,6 +679,29 @@ struct ComposerView: View {
             }
             .frame(width: targetSize, height: targetSize)
             .contentShape(Rectangle())
+    }
+}
+
+private struct ComposerHandoffStatus: View {
+    let handoff: SessionHandoff
+    let isSending: Bool
+    let canEdit: Bool
+    let editHandoff: () -> Void
+    let editDraft: () -> Void
+
+    var body: some View {
+        if isSending {
+            SessionTransitionRow(title: String(localized: "正在向 \(handoff.targetAgent) 发送"))
+                .accessibilityIdentifier("composer-handoff-sending")
+        } else if handoff.lastSubmissionRejected == true {
+            SessionTransitionRow(title: String(localized: "交接未送达"), detail: String(localized: "编辑草稿"),
+                                 color: PikachuTheme.errorText, action: editDraft)
+                .accessibilityIdentifier("composer-handoff-rejected")
+        } else {
+            SessionTransitionRow(title: String(localized: "下一条由 \(handoff.targetAgent) 执行"),
+                                 detail: canEdit ? String(localized: "查看交接") : nil, action: canEdit ? editHandoff : nil)
+                .accessibilityIdentifier("composer-handoff-ready")
+        }
     }
 }
 
@@ -706,32 +752,12 @@ struct ComposerControlsLayout: Layout {
     }
 }
 
-extension AgentMode {
-    var title: LocalizedStringResource {
-        switch self {
-        case .plan: "制定计划"
-        case .interactive: "交互执行"
-        case .automatic: "自主执行"
-        }
-    }
-}
-
-private extension ToolApprovalPolicy {
-    var title: LocalizedStringResource {
-        switch self {
-        case .everyCall: "每次审批"
-        case .mutations: "工具审批"
-        case .never: "无需审批"
-        }
-    }
-
-    var titleText: String { String(localized: title) }
-
+extension SessionSettingSource {
     var detail: LocalizedStringResource {
         switch self {
-        case .everyCall: "每次调用工具前都询问，包括读取和搜索。"
-        case .mutations: "修改文件或运行命令时询问。"
-        case .never: "启用的工具可直接执行。"
+        case .project: "来自项目设置"
+        case .global: "来自全局设置"
+        case .session: "会话设置"
         }
     }
 }
@@ -745,73 +771,6 @@ struct ComposerModel {
 
     var summary: String {
         ([provider, name] + (thinkingLabel.map { [$0] } ?? []) + (pending ? [String(localized: "待应用")] : [])).joined(separator: " · ")
-    }
-}
-
-struct ProviderLogo: View {
-    let provider: String
-    private static let frameSide: CGFloat = 13
-    private static let defaultSide: CGFloat = 12
-
-    /// Visible marks sit in one optical band next to 13 pt text, so wide or
-    /// thin-stroked marks may fill the whole frame instead of the default 12 pt.
-    private struct Mark {
-        let asset: String
-        let side: CGFloat
-    }
-    private static let marks: [String: Mark] = [
-        "openai": .init(asset: "openai", side: defaultSide), "openai-codex": .init(asset: "openai", side: defaultSide),
-        "anthropic": .init(asset: "anthropic", side: defaultSide),
-        // The whale reads smaller than square marks; it needs the full frame.
-        "deepseek": .init(asset: "deepseek", side: frameSide),
-        "google": .init(asset: "googlegemini", side: frameSide), "google-vertex": .init(asset: "googlegemini", side: frameSide),
-        "google-gemini-cli": .init(asset: "googlegemini", side: frameSide),
-        // Qwen's mark is detailed enough that 12 pt cannot resolve its inner strokes.
-        "qwen": .init(asset: "qwen", side: frameSide), "qwen-token-plan": .init(asset: "qwen", side: frameSide),
-        "qwen-token-plan-cn": .init(asset: "qwen", side: frameSide),
-        "qwen-token-plan-individual": .init(asset: "qwen", side: frameSide),
-        "qwen-token-plan-individual-cn": .init(asset: "qwen", side: frameSide),
-        "dashscope": .init(asset: "qwen", side: frameSide),
-        // GLM ships as Z.ai; the bold bars already carry enough weight at 12 pt.
-        "zai": .init(asset: "zai", side: defaultSide), "zai-coding-cn": .init(asset: "zai", side: defaultSide),
-        "glm": .init(asset: "zai", side: defaultSide), "zhipu": .init(asset: "zai", side: defaultSide),
-    ]
-    private static let images: [String: NSImage] = {
-        var images: [String: NSImage] = [:]
-        for name in Set(marks.values.map(\.asset)) {
-            guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"),
-                  let image = NSImage(contentsOf: url) else { continue }
-            image.isTemplate = true
-            images[name] = image
-        }
-        return images
-    }()
-
-    /// Maps a Pi provider identifier to the bundled mark, or nil when the provider
-    /// has no asset and the generic chip icon applies.
-    static func assetName(for provider: String) -> String? {
-        marks[provider.lowercased()]?.asset
-    }
-
-    /// The calibrated draw size inside the 13 pt frame.
-    static func drawSide(for provider: String) -> CGFloat {
-        marks[provider.lowercased()]?.side ?? defaultSide
-    }
-
-    var body: some View {
-        Group {
-            if let mark = Self.marks[provider.lowercased()], let image = Self.images[mark.asset] {
-                Image(nsImage: image).resizable().scaledToFit()
-                    .frame(width: mark.side, height: mark.side)
-            } else {
-                Image(systemName: "cpu")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Self.defaultSide, height: Self.defaultSide)
-            }
-        }
-        .frame(width: Self.frameSide, height: Self.frameSide)
-        .accessibilityHidden(true)
     }
 }
 
@@ -833,5 +792,56 @@ struct RecoveredDraftsView: View {
         .disclosureGroupStyle(FlatDisclosureStyle())
         .buttonStyle(FlatControlButtonStyle(treatment: .outlined)).pikachuFont(.caption)
         .padding(8).flatSurface(PikachuTheme.mutedSurface, radius: 9)
+    }
+}
+
+struct ACPModePopoverContent: View {
+    let availableModes: [RuntimeModeOption]
+    let activeModeID: String?
+    let maxWidth: CGFloat
+    let select: (String) -> Void
+
+    var body: some View {
+        Group {
+            if availableModes.isEmpty {
+                Text("连接该 ACP Agent 后将显示其支持的原生执行模式。")
+                    .pikachuFont(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(availableModes) { option in
+                        let selected = option.id == activeModeID
+                        Button { select(option.id) } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(verbatim: option.name).pikachuFont(.callout, weight: .medium)
+                                    if let description = option.description, !description.isEmpty {
+                                        Text(verbatim: description)
+                                            .pikachuFont(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                                Spacer(minLength: 4)
+                                if selected {
+                                    Image(systemName: "checkmark")
+                                        .pikachuFont(.caption, weight: .semibold)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .multilineTextAlignment(.leading)
+                        }
+                        .buttonStyle(FlatControlButtonStyle(isSelected: selected))
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                        .accessibilityIdentifier("acp-mode-\(option.id)")
+                    }
+                }
+            }
+        }
+        .lineLimit(nil)
+        .anchoredAdaptivePopoverCard(minWidth: 200, maxWidth: maxWidth,
+                                     inset: AnchoredCardStyle.compactInset,
+                                     background: PikachuTheme.surface)
     }
 }

@@ -33,6 +33,11 @@ public struct RuntimeToolApproval: Sendable, Equatable {
     public struct Replacement: Codable, Sendable, Equatable {
         public let oldText: String
         public let newText: String
+
+        public init(oldText: String, newText: String) {
+            self.oldText = oldText
+            self.newText = newText
+        }
     }
     public enum Inspection: String, Sendable {
         case read, grep, find, ls
@@ -73,15 +78,50 @@ public struct RuntimeInteraction: Identifiable, Sendable, Equatable {
     public let options: [String]
     public let placeholder: String
     public let prefill: String
+    public let createdAt: Date
     public let expiresAt: Date
     public let toolApproval: RuntimeToolApproval?
-    public init(instanceID: UUID, requestID: String, kind: InteractionKind, title: String, message: String = "", options: [String] = [], placeholder: String = "", prefill: String = "", expiresAt: Date = Date().addingTimeInterval(300), toolApproval: RuntimeToolApproval? = nil) {
+    public let permissionOptions: [RuntimePermissionOption]
+    public let permissionContext: RuntimePermissionContext?
+    public let elicitation: RuntimeElicitation?
+    public let authenticationMethods: [RuntimeAgentAuthentication.Method]
+    public var isPermissionApproval: Bool { toolApproval != nil || !permissionOptions.isEmpty }
+    public init(
+        instanceID: UUID,
+        requestID: String,
+        kind: InteractionKind,
+        title: String,
+        message: String = "",
+        options: [String] = [],
+        placeholder: String = "",
+        prefill: String = "",
+        expiresAt: Date = Date().addingTimeInterval(300),
+        createdAt: Date = Date(),
+        toolApproval: RuntimeToolApproval? = nil,
+        permissionOptions: [RuntimePermissionOption] = [],
+        permissionContext: RuntimePermissionContext? = nil,
+        elicitation: RuntimeElicitation? = nil,
+        authenticationMethods: [RuntimeAgentAuthentication.Method] = []
+    ) {
         self.instanceID = instanceID; self.requestID = requestID; self.kind = kind; self.title = title; self.message = message
-        self.options = options; self.placeholder = placeholder; self.prefill = prefill; self.expiresAt = expiresAt
+        self.options = options; self.placeholder = placeholder; self.prefill = prefill
+        self.createdAt = createdAt; self.expiresAt = expiresAt
         self.toolApproval = toolApproval
+        self.permissionOptions = permissionOptions
+        self.permissionContext = permissionContext
+        self.elicitation = elicitation
+        self.authenticationMethods = authenticationMethods
     }
 }
-public enum InteractionResponse: Sendable, Equatable { case value(String), confirmed(Bool), cancelled }
+public enum InteractionResponse: Sendable, Equatable {
+    case value(String), confirmed(Bool), cancelled
+
+    /// Semantic helper for answering multi-option permission requests (`RuntimeInteraction.permissionOptions`)
+    /// without adding a new enum case that would break existing exhaustive switches.
+    public static func permissionOption(_ optionID: String) -> InteractionResponse {
+        .value(optionID)
+    }
+}
 public enum InteractionEnd: String, Sendable { case answered, cancelled, expired, disconnected }
 
 /// A pull-driven bounded channel. Only adjacent presentation updates coalesce;

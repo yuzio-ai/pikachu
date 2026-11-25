@@ -7,11 +7,16 @@ struct FlatControlButtonStyle: ButtonStyle {
 
     var treatment: Treatment = .quiet
     var isOpen = false
+    var isSelected = false
+    var selectedFill = PikachuTheme.selected
+    var hasKeyboardFocus = false
     var inset = true
     var cornerRadius: CGFloat = 8
     var height: CGFloat? = nil
     var minimumWidth: CGFloat? = nil
     var outlineColor: Color? = nil
+    var restingForegroundColor: Color? = nil
+    var showsHoverBackground = true
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovered = false
 
@@ -21,7 +26,9 @@ struct FlatControlButtonStyle: ButtonStyle {
             PikachuTheme.pressed
         } else if isOpen {
             PikachuTheme.selected
-        } else if isEnabled && isHovered {
+        } else if isSelected {
+            selectedFill
+        } else if showsHoverBackground && isEnabled && isHovered {
             treatment == .prominent ? PikachuTheme.prominentControlHover : PikachuTheme.controlHover
         } else if treatment == .prominent {
             PikachuTheme.selected
@@ -39,6 +46,8 @@ struct FlatControlButtonStyle: ButtonStyle {
             PikachuTheme.accentText
         } else if configuration.role == .destructive {
             PikachuTheme.errorText
+        } else if let restingForegroundColor, !isEnabled || !isHovered {
+            restingForegroundColor
         } else {
             PikachuTheme.primaryText
         }
@@ -50,8 +59,12 @@ struct FlatControlButtonStyle: ButtonStyle {
             .frame(minWidth: minimumWidth)
             .frame(height: height)
             .background(fill, in: shape)
-            .overlay { shape.strokeBorder(outlineColor ?? outline, lineWidth: 1).allowsHitTesting(false) }
+            .overlay {
+                shape.strokeBorder(isEnabled && hasKeyboardFocus ? PikachuTheme.focusBorder : outlineColor ?? outline,
+                                   lineWidth: 1).allowsHitTesting(false)
+            }
             .contentShape(shape)
+            .focusEffectDisabled(hasKeyboardFocus)
             .opacity(isEnabled ? 1 : 0.45)
             .onHover { isHovered = $0 }
     }

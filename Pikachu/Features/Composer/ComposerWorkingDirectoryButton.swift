@@ -157,7 +157,7 @@ private struct ComposerWorkingDirectoryPanel: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, isOpen: isSelected))
+        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, isSelected: isSelected))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

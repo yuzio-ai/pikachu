@@ -4,10 +4,14 @@ import OrchestrationCore
 
 @main struct PikachuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @State private var projectFiles = ProjectFilesControls()
     @State private var openSettingsRequest = 0
     @State private var sidebarVisibility: NavigationSplitViewVisibility = .all
     private var workspace: WorkspaceController? { delegate.workspace }
     private var settings: AppSettings { delegate.settings }
+    private var isLoadingWorkbench: Bool {
+        !delegate.isHostingUnitTests && workspace == nil && delegate.startupError == nil
+    }
 
     var body: some Scene {
         Window("Pikachu", id: "main") {
@@ -16,16 +20,16 @@ import OrchestrationCore
                 else if let workspace {
                     WorkbenchView(workspace: workspace, settings: settings, quitRequest: delegate.quitRequest,
                                   openSettingsRequest: openSettingsRequest, terminate: delegate.requestTermination,
-                                  sidebarVisibility: $sidebarVisibility)
+                                  sidebarVisibility: $sidebarVisibility, projectFiles: projectFiles)
                 }
                 else if let startupError = delegate.startupError {
                     FlatEmptyState("工作台无法打开", systemImage: "exclamationmark.triangle",
                                    description: Text(startupError), iconColor: PikachuTheme.errorText)
                 }
-                else { FlatProgressView("正在读取本地工作台…") }
             }
-            .frame(minWidth: 860, minHeight: 620)
-            .background(PikachuTheme.workspace)
+            .frame(minWidth: 860, maxWidth: .infinity, minHeight: 620, maxHeight: .infinity)
+            .background(PikachuTheme.pageBackground.ignoresSafeArea())
+            .overlay { WorkbenchStartupOverlay(isLoading: isLoadingWorkbench) }
             .background {
                 WorkbenchWindowAttachment(delegate: delegate)
                     .allowsHitTesting(false)
@@ -68,6 +72,11 @@ import OrchestrationCore
                 }
                 .keyboardShortcut("b", modifiers: .command)
                 .disabled(workspace == nil)
+                Button(projectFiles.isOpen ? "关闭项目文件面板" : "显示项目文件") {
+                    projectFiles.toggle(keyboard: true)
+                }
+                .keyboardShortcut("b", modifiers: [.option, .command])
+                .disabled(workspace == nil || projectFiles.blocked)
                 Divider()
                 Button("放大字体") {
                     settings.interfaceFontSize = settings.interfaceFontSize.increased()
@@ -104,7 +113,7 @@ import OrchestrationCore
                 }.keyboardShortcut("o").disabled(workspace?.canManageProjects != true)
                 Button("新建会话") {
                     workspace?.newSessionRequest += 1
-                }.keyboardShortcut("n").disabled(workspace?.state.projects.isEmpty != false || workspace?.canManageProjects != true)
+                }.keyboardShortcut("n").disabled(workspace?.canManageProjects != true)
             }
             CommandMenu("会话") {
                 Button("聚焦任务输入") { workspace?.focusInput() }.keyboardShortcut("l").disabled(workspace?.viewed == nil)
@@ -120,7 +129,7 @@ import OrchestrationCore
                         }
                     }
                 }
-                Button("模型与推理强度…") { workspace?.configurationRequest += 1 }
+                Button("智能体与模型…") { workspace?.configurationRequest += 1 }
                     .keyboardShortcut("m", modifiers: [.command, .shift]).disabled(workspace?.selected == nil || workspace?.viewed.map { workspace?.isOperating(on: $0.id) == true } == true)
                 Button("查看 / 关闭会话用量") { workspace?.usageExpanded.toggle() }
                     .keyboardShortcut("u", modifiers: [.command, .shift]).disabled(workspace?.selected == nil)
@@ -133,6 +142,46 @@ import OrchestrationCore
                 .disabled(selectedID.map { workspace?.canStop($0) == true } != true)
             }
         }
+    }
+}
+
+private struct WorkbenchStartupOverlay: View {
+    let isLoading: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            if isLoading {
+                VStack(spacing: 16) {
+                    Group {
+                        if reduceMotion {
+                            brandMark
+                        } else {
+                            brandMark.phaseAnimator([false, true]) { mark, isExpanded in
+                                mark.scaleEffect(isExpanded ? 1.06 : 1)
+                                    .opacity(isExpanded ? 1 : 0.85)
+                            } animation: { _ in .easeInOut(duration: 0.85) }
+                        }
+                    }
+                    .accessibilityHidden(true)
+                    FlatProgressView("正在读取本地工作台…")
+                        .pikachuFont(.callout)
+                        .foregroundStyle(PikachuTheme.secondaryText)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(PikachuTheme.pageBackground.ignoresSafeArea())
+                .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: isLoading)
+        .allowsHitTesting(false)
+    }
+
+    private var brandMark: some View {
+        Image("SidebarBrandMark")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 56, height: 56)
     }
 }
 

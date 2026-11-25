@@ -1,0 +1,696 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "连接在启动期间中断。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection closed during startup."
+          }
+        }
+      }
+    },
+    "ACP 终端登录配置无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP terminal sign-in configuration is invalid."
+          }
+        }
+      }
+    },
+    "操作详情已变化，请等待新的审批请求。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation changed. Wait for a new approval request."
+          }
+        }
+      }
+    },
+    "运行时报告请求超出输入长度限制。请先核实送达，再缩短内容。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The runtime reported that the request exceeded its input length limit. Verify delivery before shortening it."
+          }
+        }
+      }
+    },
+    "ACP Agent 不支持此登录方式。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP agent does not support this sign-in method."
+          }
+        }
+      }
+    },
+    "ACP Agent 已确认外部交互完成。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent confirmed that the external interaction is complete."
+          }
+        }
+      }
+    },
+    "ACP Agent 请求信息" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP agent requests information"
+          }
+        }
+      }
+    },
+    "ACP Agent 返回了无效的会话列表。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent returned an invalid session list."
+          }
+        }
+      }
+    },
+    "允许写入" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow write"
+          }
+        }
+      }
+    },
+    "回复内容不符合 ACP 请求的要求。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reply does not match the ACP request."
+          }
+        }
+      }
+    },
+    "当前 ACP Agent 不支持此操作。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP agent does not support this operation."
+          }
+        }
+      }
+    },
+    "批准写入项目配置文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve writing a project configuration file"
+          }
+        }
+      }
+    },
+    "拒绝" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decline"
+          }
+        }
+      }
+    },
+    "终端进程清理未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminal process cleanup could not be confirmed."
+          }
+        }
+      }
+    },
+    "该登录请求已结束。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sign-in request has ended."
+          }
+        }
+      }
+    },
+    "选择 ACP Agent 登录方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an ACP agent sign-in method"
+          }
+        }
+      }
+    },
+    "ACP Agent 未返回有效的会话标识。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent did not return a valid session ID."
+          }
+        }
+      }
+    },
+    "ACP Agent 认证失败，请先完成登录后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP agent authentication failed. Sign in and try again."
+          }
+        }
+      }
+    },
+    "ACP Agent 需要先完成认证登录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent requires signing in first."
+          }
+        }
+      }
+    },
+    "ACP 初始化响应格式无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP initialize response is invalid."
+          }
+        }
+      }
+    },
+    "ACP 初始化握手失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP initialize handshake failed."
+          }
+        }
+      }
+    },
+    "ACP 初始化握手超时。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP initialize handshake timed out."
+          }
+        }
+      }
+    },
+    "ACP 协议格式异常，执行状态待核实。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An ACP protocol format error occurred. Check the execution state."
+          }
+        }
+      }
+    },
+    "ACP 回合结束响应格式无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP turn completion response is invalid."
+          }
+        }
+      }
+    },
+    "ACP 工具搜索目录无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP tool search directory configuration is invalid."
+          }
+        }
+      }
+    },
+    "ACP 环境变量无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP environment variables are invalid."
+          }
+        }
+      }
+    },
+    "ACP 运行时协议异常，执行状态待核实。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An ACP runtime protocol error occurred. Check the execution state."
+          }
+        }
+      }
+    },
+    "ACP 运行时请求失败。请结束受管进程并检查 Agent 配置后手动重连。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An ACP runtime request failed. End managed processes, check your agent settings, and reconnect manually."
+          }
+        }
+      }
+    },
+    "ACP 运行时连接已中断，受管进程已清理。不会自动重发任务。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP runtime disconnected and managed processes were cleaned up. Pikachu will not resend the task automatically."
+          }
+        }
+      }
+    },
+    "ACP 运行时连接已中断，进程清理尚未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP runtime disconnected. Process cleanup is unconfirmed."
+          }
+        }
+      }
+    },
+    "交互来自已结束的执行实例。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This interaction came from an execution instance that has ended."
+          }
+        }
+      }
+    },
+    "代理地址无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The proxy address is invalid."
+          }
+        }
+      }
+    },
+    "任务尚未确认停止，请强制结束受管进程。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Task stop could not be confirmed. Force-close the managed process."
+          }
+        }
+      }
+    },
+    "启动 ACP Agent 进程失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to launch the ACP agent process."
+          }
+        }
+      }
+    },
+    "回复类型不匹配。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reply type does not match."
+          }
+        }
+      }
+    },
+    "尚未建立 ACP 会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No ACP session is active."
+          }
+        }
+      }
+    },
+    "尚未连接运行时。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The runtime is not connected."
+          }
+        }
+      }
+    },
+    "工具权限请求" : {
+      "comment" : "An explicit source translation includes zh-Hans in the compiled bundle.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Permission Request"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工具权限请求"
+          }
+        }
+      }
+    },
+    "工具进程清理未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool process cleanup is unconfirmed."
+          }
+        }
+      }
+    },
+    "已恢复 ACP 会话。历史记录可能不完整。" : {
+
+    },
+    "当前 ACP Agent 不支持恢复已有会话（session/load），请新建会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP agent does not support resuming existing sessions (session/load). Start a new session instead."
+          }
+        }
+      }
+    },
+    "当前 ACP Agent 不支持推理强度配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP agent does not support configuring reasoning effort."
+          }
+        }
+      }
+    },
+    "当前 ACP 会话正在运行，不支持并发排队发送。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP session is currently running and does not support queued concurrent prompts."
+          }
+        }
+      }
+    },
+    "当前构建仅支持 ACP v1（protocolVersion: 1），该 Agent 返回的版本不受支持。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build supports ACP v1 (protocolVersion: 1). The agent returned an unsupported protocol version."
+          }
+        }
+      }
+    },
+    "当前连接尚未关闭。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The current connection is still open."
+          }
+        }
+      }
+    },
+    "所选权限选项无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected permission option is invalid."
+          }
+        }
+      }
+    },
+    "无效的执行模式。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The execution mode is invalid."
+          }
+        }
+      }
+    },
+    "无法创建连接自检隔离目录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not create an isolated directory for the connection check."
+          }
+        }
+      }
+    },
+    "无法读取 ACP 环境变量。请在设置中重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load the ACP environment variables. Try again in Settings."
+          }
+        }
+      }
+    },
+    "未找到可执行的 ACP Agent 文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No executable ACP agent was found at the configured path."
+          }
+        }
+      }
+    },
+    "本轮工具调用次数达到上限，任务已暂停。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The turn reached the maximum number of tool calls and paused."
+          }
+        }
+      }
+    },
+    "权限请求内容超过显示上限，已自动取消；未截断确认内容。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The permission request was cancelled because its content exceeded the display limit. No confirmation text was truncated."
+          }
+        }
+      }
+    },
+    "权限请求缺少有效标识。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The permission request lacks a valid identifier."
+          }
+        }
+      }
+    },
+    "权限请求超过当前会话上限，请结束运行时后重新激活。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The permission request limit was exceeded. End the runtime and activate the session again."
+          }
+        }
+      }
+    },
+    "权限请求选项无效或超过上限，已自动取消。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The permission request options were invalid or exceeded limits and the request was cancelled."
+          }
+        }
+      }
+    },
+    "模型拒绝了该请求。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model refused the request."
+          }
+        }
+      }
+    },
+    "模型服务限流，请稍后手动重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model provider is rate limiting requests. Try again manually later."
+          }
+        }
+      }
+    },
+    "模型达到输出长度上限，回复已提前结束。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model reached its maximum output length and ended the reply early."
+          }
+        }
+      }
+    },
+    "该权限请求已结束或过期。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This permission request has ended or expired."
+          }
+        }
+      }
+    },
+    "该模型不支持所选推理强度，请重新选择。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This model does not support the selected reasoning level. Choose another level."
+          }
+        }
+      }
+    },
+    "请先在终端完成该 ACP Agent 的账号登录后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to this ACP agent in Terminal first, then try again."
+          }
+        }
+      }
+    },
+    "请在终端运行 `agy acp --login` 完成登录后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run `agy acp --login` in Terminal to sign in, then try again."
+          }
+        }
+      }
+    },
+    "请求超时，执行结果尚未确认；不会自动重发。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request timed out and the result is unconfirmed. Pikachu will not resend automatically."
+          }
+        }
+      }
+    },
+    "费用为 Agent 上报的估算值，缺失数据未计作零。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Costs are estimates reported by the agent. Missing data is not counted as zero."
+          }
+        }
+      }
+    },
+    "运行期间不能修改模型配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model settings cannot change during a run."
+          }
+        }
+      }
+    },
+    "进程清理尚未确认，已阻止继续执行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process cleanup is unconfirmed. Execution is blocked."
+          }
+        }
+      }
+    },
+    "进程监督程序不可用，无法安全启动 Agent。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The process supervisor is unavailable and cannot launch the agent safely."
+          }
+        }
+      }
+    },
+    "项目路径或 ACP 可执行文件不可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The workspace or ACP executable path is unavailable."
+          }
+        }
+      }
+    },
+    "默认模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Model"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

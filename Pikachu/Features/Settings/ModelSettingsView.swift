@@ -2,183 +2,104 @@ import SwiftUI
 import AgentRuntimeCore
 import OrchestrationCore
 
-struct ModelSettingsView: View {
-    let workspace: WorkspaceController
-    @State private var models: [RuntimeModel] = []
-    @State private var search = ""
-    @State private var loading = true
-    @State private var reload = 0
-    @State private var loadError: String?
-    @State private var saveError: String?
-    @State private var saving = false
-
-    private var preferences: WorkspaceModelPreferences {
-        workspace.state.modelPreferences ?? WorkspaceModelPreferences()
+@MainActor @Observable final class ModelDirectoryState {
+    enum LoadStatus: Equatable {
+        case loading, ready, outdated, failed(String)
     }
 
-    private var listedModels: [RuntimeModel] {
+    enum LoadResult {
+        case models([RuntimeModel]), failed(String)
+    }
+
+    enum SaveSource: Hashable {
+        case defaultModel, model(String)
+    }
+
+    struct SaveFailure: Equatable {
+        let id = UUID()
+        let source: SaveSource
+        let message: String
+    }
+
+    var search = ""
+    var showsHidden = false
+    private(set) var models: [RuntimeModel] = []
+    var saveFailure: SaveFailure?
+    private var collapsedSearch: String?
+    private var requestedRevision: Int?
+    private var loadStatus: LoadStatus = .loading
+
+    var query: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var hiddenExpanded: Bool { query.isEmpty ? showsHidden : collapsedSearch != query }
+
+    func toggleHidden() {
+        if query.isEmpty { showsHidden.toggle() }
+        else { collapsedSearch = hiddenExpanded ? query : nil }
+    }
+
+    func resetSearchExpansion() {
+        collapsedSearch = nil
+    }
+
+    func loadStatus(for configurationRevision: Int) -> LoadStatus {
+        if let requestedRevision, requestedRevision != configurationRevision { return .outdated }
+        return loadStatus
+    }
+
+    func beginLoad(revision: Int) {
+        requestedRevision = revision
+        loadStatus = .loading
+    }
+
+    func finishLoad(_ result: LoadResult, requested revision: Int, current configurationRevision: Int) {
+        guard requestedRevision == revision, configurationRevision == revision else { return }
+        switch result {
+        case .models(let models):
+            self.models = models
+            loadStatus = .ready
+        case .failed(let message):
+            loadStatus = .failed(message)
+        }
+    }
+
+}
+
+struct ModelSettingsCatalogue {
+    let all: [RuntimeModel]
+    let available: Set<String>
+    let favorites: Set<String>
+    let hidden: Set<String>
+    let defaultModelID: String?
+
+    init(models: [RuntimeModel], preferences: WorkspaceModelPreferences) {
         var seen: Set<String> = []
-        let saved = preferences.favorites + [preferences.defaultModel].compactMap { $0 }
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (models + saved).filter { model in
-            seen.insert(model.id).inserted && (query.isEmpty || model.name.localizedCaseInsensitiveContains(query)
-                || model.id.localizedCaseInsensitiveContains(query))
-        }
+        all = (models + preferences.savedModelReferences).filter { seen.insert($0.id).inserted }
+        available = Set(models.map(\.id))
+        favorites = Set(preferences.favorites.map(\.id))
+        hidden = preferences.hiddenModelIDs
+        defaultModelID = preferences.defaultModel?.id
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SettingsCard {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("默认模型").pikachuFont(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    HStack {
-                        if let model = preferences.defaultModel {
-                            modelLabel(model)
-                            Spacer(minLength: 8)
-                            Button("跟随 Pi 设置") { save { await workspace.setDefaultModel(nil) } }
-                                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                                .accessibilityIdentifier("clear-default-model")
-                        } else {
-                            Text("跟随 Pi 设置").foregroundStyle(.secondary)
-                        }
-                    }
-                    Text("新会话自动使用默认模型，已有会话不变。")
-                        .pikachuFont(.callout).foregroundStyle(.secondary)
-                }
-                .padding(16)
-            }
-            if let saveError { FeedbackBanner(text: saveError, warning: true) }
-            SettingsCard {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("模型列表").pikachuFont(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    Text("点星号收藏，关闭开关可从会话的模型选择器中隐藏。")
-                        .pikachuFont(.callout).foregroundStyle(.secondary)
-                    if loading {
-                        FlatProgressView("正在读取模型…").controlSize(.small)
-                    } else {
-                        if let loadError {
-                            FeedbackBanner(text: loadError, warning: true)
-                        } else if models.isEmpty {
-                            Text("未找到可用模型。请检查 Pi 的模型和认证配置。").foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            TextField("搜索模型", text: $search)
-                                .flatInputSurface()
-                                .accessibilityIdentifier("search-model-settings")
-                            Button("重新读取") { reload += 1 }
-                                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                        }
-                        let catalogueIDs = Set(models.map(\.id))
-                        let favoriteIDs = Set(preferences.favorites.map(\.id))
-                        let listed = listedModels
-                        if listed.isEmpty, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text("没有匹配的模型。").foregroundStyle(.secondary)
-                        }
-                        // A row that moves between sections gets a new identity, so its star and
-                        // switch always follow the section it is drawn in.
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(ModelListSection.group(listed, favorites: favoriteIDs,
-                                                           hidden: preferences.hiddenModelIDs), id: \.section) { group in
-                                Text(group.section.title).pikachuFont(.caption, weight: .semibold).foregroundStyle(.secondary)
-                                    .padding(.top, 8)
-                                    .accessibilityAddTraits(.isHeader)
-                                ForEach(group.models) { model in
-                                    modelRow(model, section: group.section, available: catalogueIDs.contains(model.id),
-                                             favorite: favoriteIDs.contains(model.id))
-                                        .id("\(group.section.rawValue)|\(model.id)")
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(16)
-            }
-        }
-        .disabled(saving)
-        .accessibilityIdentifier("model-settings")
-        .task(id: reload) { await loadModels() }
+    func rowStatus(for modelID: String, verified: Bool) -> ModelSettingsRowStatus {
+        ModelSettingsRowStatus(favorite: favorites.contains(modelID), isDefault: defaultModelID == modelID,
+                               availability: !verified ? .unverified : available.contains(modelID) ? .available : .unavailable)
     }
+}
 
-    private func modelLabel(_ model: RuntimeModel) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(verbatim: model.name).lineLimit(1).truncationMode(.middle)
-            Text(verbatim: model.id).lineLimit(1).truncationMode(.middle)
-                .pikachuFont(.caption).foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
-    }
+struct ModelSettingsRowStatus {
+    enum Availability: Equatable {
+        case available, unverified, unavailable
 
-    private func modelRow(_ model: RuntimeModel, section: ModelListSection, available: Bool, favorite: Bool) -> some View {
-        let visible = section != .hidden
-        return HStack(spacing: 6) {
-            Button {
-                save { await workspace.setFavoriteModel(model, isFavorite: !favorite) }
-            } label: {
-                IconButtonLabel(systemName: favorite ? "star.fill" : "star")
-                    .foregroundStyle(favorite ? PikachuTheme.warningText : PikachuTheme.secondaryText)
-            }
-            .buttonStyle(FlatControlButtonStyle(inset: false))
-            .disabled(!available && !favorite)
-            .help(favorite ? Text("取消收藏") : Text("收藏模型"))
-            .accessibilityLabel(favorite ? Text("取消收藏 \(model.name)") : Text("收藏 \(model.name)"))
-            .accessibilityIdentifier("favorite-model-\(model.id)")
-            Text(verbatim: model.name).lineLimit(1).truncationMode(.middle)
-                .foregroundStyle(visible ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
-                .layoutPriority(1)
-            Text(verbatim: model.id).lineLimit(1).truncationMode(.middle)
-                .pikachuFont(.caption, design: .monospaced).foregroundStyle(.secondary)
-                .help(model.id)
-            Spacer(minLength: 4)
-            if !available {
-                Text("当前不可用").pikachuFont(.caption).foregroundStyle(.secondary)
-            } else if preferences.defaultModel?.id != model.id {
-                Button("设为默认") { save { await workspace.setDefaultModel(model) } }
-                    .buttonStyle(FlatControlButtonStyle())
-                    .accessibilityLabel(Text("将 \(model.name) 设为默认模型"))
-                    .accessibilityIdentifier("set-default-model-\(model.id)")
-            } else {
-                Label("默认模型", systemImage: "checkmark")
-                    .pikachuFont(.caption).foregroundStyle(.secondary)
-            }
-            Toggle(isOn: Binding(get: { visible }, set: { newValue in
-                save { await workspace.setModelVisible(model, isVisible: newValue) }
-            })) {
-                Text("在选择器中显示 \(model.name)")
-            }
-            .toggleStyle(FlatToggleStyle(compact: true))
-            .disabled(!available)
-            .padding(.leading, 10)
-            .help(visible ? Text("在选择器中显示 \(model.name)") : Text("已在选择器中隐藏 \(model.name)"))
-            .accessibilityIdentifier("model-visibility-\(model.id)")
-        }
-    }
-
-    private func save(_ operation: @escaping @MainActor () async -> Bool) {
-        guard !saving else { return }
-        saving = true
-        saveError = nil
-        Task {
-            defer { saving = false }
-            if !(await operation()) {
-                saveError = workspace.storageError ?? String(localized: "无法保存模型设置，请重试。")
+        var title: LocalizedStringKey? {
+            switch self {
+            case .available: nil
+            case .unverified: "无法验证"
+            case .unavailable: "当前不可用"
             }
         }
     }
 
-    private func loadModels() async {
-        loading = true
-        loadError = nil
-        do {
-            let catalogue = try await workspace.modelCatalogue()
-            guard !Task.isCancelled else { return }
-            models = catalogue
-        } catch {
-            guard !Task.isCancelled else { return }
-            models = []
-            loadError = (error as? RuntimeFailure)?.detail ?? String(localized: "模型目录读取失败，请检查连接设置。")
-        }
-        loading = false
-    }
+    let favorite: Bool
+    let isDefault: Bool
+    let availability: Availability
 }

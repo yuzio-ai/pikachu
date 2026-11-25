@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "请求过长，超出运行时的输入限制。请缩短消息或交接内容后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request exceeds the runtime’s input length limit. Shorten the message or handoff context and try again."
+          }
+        }
+      }
+    },
     "**执行过程**会在这里实时更新。" : {
       "localizations" : {
         "en" : {
@@ -57,6 +67,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This runtime does not support model configuration."
+          }
+        }
+      }
+    },
+    "此运行时不支持模式切换。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This runtime does not support mode switching."
           }
         }
       }

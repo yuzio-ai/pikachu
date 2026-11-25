@@ -59,8 +59,6 @@ public final class RPCProcess: @unchecked Sendable {
     private var eventBytes = 0
     private var eventSizes: [Int] = []
     private var receivedCount = 0
-    private var pendingRequests = Set<String>()
-    private var responses: [String: Record] = [:]
     private var streamClosing = false
     public var supervisionStatus: Record {
         guard let url = supervisionStatusURL, let data = try? Data(contentsOf: url),
@@ -68,7 +66,9 @@ public final class RPCProcess: @unchecked Sendable {
         return record
     }
     public let started = Date()
-    public init(executable: String, arguments: [String], cwd: URL, environment: [String: String], supervised: Bool = false, streaming: Bool = false) throws {
+    public init(executable: String, arguments: [String], cwd: URL, environment: [String: String],
+                supervised: Bool = false, streaming: Bool = false, supervisionRoot: URL? = nil,
+                oneShot: Bool = false, inputFile: FileHandle? = nil) throws {
         self.streaming = streaming
         guard FileManager.default.isExecutableFile(atPath: executable) else {
             throw CocoaError(.fileNoSuchFile)
@@ -76,22 +76,25 @@ public final class RPCProcess: @unchecked Sendable {
         if supervised {
             let helper = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("pikachu-supervisor")
             guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw ProbeError.failure("Supervisor executable missing; build pikachu-supervisor") }
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-supervision-\(UUID().uuidString)")
+            let directory = (supervisionRoot ?? FileManager.default.temporaryDirectory)
+                .appendingPathComponent("pikachu-supervision-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             supervisionDirectory = directory
             supervisionStatusURL = directory.appendingPathComponent("status.json")
             process.executableURL = helper
-            process.arguments = [supervisionStatusURL!.path, UUID().uuidString, String(getpid()), "--", executable] + arguments
+            let mode = oneShot ? "--one-shot" : "--"
+            process.arguments = [supervisionStatusURL!.path, UUID().uuidString, String(getpid()), mode, executable] + arguments
         } else {
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
         }
         process.currentDirectoryURL = cwd
         process.environment = environment
-        process.standardInput = input
+        if let inputFile { process.standardInput = inputFile }
+        else { process.standardInput = input }
         process.standardOutput = output
         process.standardError = diagnostic
-        if streaming && fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != 0 {
+        if streaming && inputFile == nil && fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != 0 {
             throw ProbeError.failure("Cannot establish safe protocol writes")
         }
         try process.run()
@@ -116,10 +119,6 @@ public final class RPCProcess: @unchecked Sendable {
                             receivedCount += 1
                             if streaming {
                                 if timeline.count >= 1_024 { timeline.removeFirst(512) }
-                                if value["type"] as? String == "response" {
-                                    if let id = value["id"] as? String, pendingRequests.contains(id) { responses[id] = value }
-                                    continue
-                                }
                                 let size = decoder.decodedSizes[index]
                                 while !streamClosing && !records.isEmpty && (records.count >= 128 || eventBytes + size > 8 * 1_024 * 1_024) { lock.wait() }
                                 if streamClosing { continue }
@@ -147,9 +146,21 @@ public final class RPCProcess: @unchecked Sendable {
         }
         if supervised {
             let until = Date().addingTimeInterval(5)
-            while Date() < until && supervisionStatus["state"] == nil && process.isRunning { Thread.sleep(forTimeInterval: 0.005) }
-            if let pid = supervisionStatus["runtimePID"] as? Int32 { runtimeIdentity = ProcessIdentity.read(pid) }
-            guard supervisionStatus["state"] as? String == "running", runtimeIdentity != nil else {
+            func startedOrFinished() -> Bool {
+                let status = supervisionStatus
+                if oneShot, status["state"] as? String == "clean", status["runtimeExitStatus"] is Int { return true }
+                if status["state"] as? String == "running", let pid = status["runtimePID"] as? Int32 {
+                    runtimeIdentity = ProcessIdentity.read(pid)
+                    return runtimeIdentity != nil
+                }
+                return false
+            }
+            var ready = startedOrFinished()
+            while !ready && Date() < until && process.isRunning {
+                Thread.sleep(forTimeInterval: 0.005)
+                ready = startedOrFinished()
+            }
+            guard ready || startedOrFinished() else {
                 try? close(timeout: 1)
                 let diagnosticDeadline = Date().addingTimeInterval(0.1)
                 while stderrCount == 0 && Date() < diagnosticDeadline { Thread.sleep(forTimeInterval: 0.005) }
@@ -193,20 +204,6 @@ public final class RPCProcess: @unchecked Sendable {
             timeline.append(["direction": "send", "elapsedSeconds": Date().timeIntervalSince(started),
                                           "type": value["type"] ?? "unknown", "id": value["id"] ?? NSNull()]) }
     }
-    @discardableResult public func submit(_ type: String, _ fields: Record = [:]) throws -> String {
-        let id = UUID().uuidString
-        var command = fields
-        command["type"] = type; command["id"] = id
-        if streaming {
-            try lock.withLock {
-                guard pendingRequests.count < 16 else { throw ProbeError.failure("Too many pending protocol requests") }
-                pendingRequests.insert(id)
-            }
-        }
-        do { try send(command) }
-        catch { _ = lock.withLock { pendingRequests.remove(id) }; throw error }
-        return id
-    }
     public func wait(after: Int = 0, timeout: Double = 5, where match: (Record) -> Bool) throws -> Record {
         let until = Date().addingTimeInterval(timeout)
         while Date() < until {
@@ -220,33 +217,6 @@ public final class RPCProcess: @unchecked Sendable {
             Thread.sleep(forTimeInterval: 0.005)
         }
         throw ProbeError.failure("Deadline exceeded; outcome unknown")
-    }
-    public func response(_ id: String, timeout: Double = 5, extendingDeadline: (() -> Date?)? = nil) throws -> Record {
-        if streaming {
-            defer { lock.withLock { pendingRequests.remove(id); responses.removeValue(forKey: id) } }
-            let until = Date().addingTimeInterval(timeout)
-            while Date() < max(until, extendingDeadline?() ?? until) {
-                let state = lock.withLock { (responses[id], protocolFailure, stdoutFinished) }
-                if let response = state.0 { return response }
-                if let failure = state.1 { throw ProbeError.failure(failure) }
-                if state.2 { throw ProbeError.failure("Protocol EOF before expected response") }
-                if !process.isRunning && supervisionStatus["state"] as? String != "clean" { throw ProbeError.failure("Supervisor exited without confirmed cleanup") }
-                Thread.sleep(forTimeInterval: 0.005)
-            }
-            throw ProbeError.failure("Deadline exceeded; outcome unknown")
-        }
-        return try wait(timeout: timeout) { $0["type"] as? String == "response" && $0["id"] as? String == id }
-    }
-    public func request(_ type: String, _ fields: Record = [:], timeout: Double = 5) throws -> Record {
-        try response(submit(type, fields), timeout: timeout)
-    }
-    public func ok(_ type: String, _ fields: Record = [:], timeout: Double = 5) throws -> Record {
-        let result = try request(type, fields, timeout: timeout)
-        try require(result["success"] as? Bool == true, "Command rejected: \(type): \(result["error"] ?? "unknown")")
-        return result["data"] as? Record ?? [:]
-    }
-    public func event(_ type: String, after: Int = 0, timeout: Double = 15) throws -> Record {
-        try wait(after: after, timeout: timeout) { $0["type"] as? String == type }
     }
     public func close(timeout: Double = 5) throws {
         if streaming { lock.withLock { streamClosing = true; lock.broadcast() } }
@@ -281,29 +251,5 @@ public final class RPCProcess: @unchecked Sendable {
         return lock.withLock { ["instanceID": instanceID, "timeline": timeline,
                                 "lastSupervisorReport": report, "supervisorRunning": process.isRunning] }
     }
-    public var bufferStatus: (events: Int, eventBytes: Int, responses: Int) { lock.withLock { (records.count, eventBytes, responses.count) } }
-}
-
-public struct MessageProjection {
-    public private(set) var messages: [Record] = []
-    private var blocks: [Int: String] = [:]
-    public private(set) var currentText = ""
-    public init() {}
-    public mutating func apply(_ record: Record) {
-        switch record["type"] as? String {
-        case "message_start": blocks = [:]; currentText = ""
-        case "message_update":
-            if let delta = record["assistantMessageEvent"] as? Record,
-               delta["type"] as? String == "text_delta", let index = delta["contentIndex"] as? Int {
-                blocks[index, default: ""] += delta["delta"] as? String ?? ""
-                currentText = blocks.keys.sorted().compactMap { blocks[$0] }.joined()
-            }
-        case "message_end":
-            if let message = record["message"] as? Record {
-                messages.append(message)
-                if let content = message["content"] as? [Record] { currentText = content.compactMap { $0["text"] as? String }.joined() }
-            }
-        default: break
-        }
-    }
+    public var bufferStatus: (events: Int, eventBytes: Int) { lock.withLock { (records.count, eventBytes) } }
 }

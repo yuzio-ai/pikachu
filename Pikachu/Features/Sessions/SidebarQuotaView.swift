@@ -1,28 +1,5 @@
 import SwiftUI
 
-struct AccountQuotaWindow: Identifiable {
-    let id: String
-    let provider: String
-    let account: String
-    let period: String
-    let remaining: Int?
-    let limit: Int?
-    let resetAt: Date?
-    let observedAt: Date
-    var expiresAt: Date? = nil
-
-    func isStale(at date: Date) -> Bool {
-        [resetAt, expiresAt].compactMap { $0 }.contains { $0 <= date }
-    }
-
-    var value: String? {
-        guard let remaining, remaining >= 0 else { return nil }
-        guard let limit, limit > 0, remaining <= limit else { return remaining.formatted() }
-        let percent = limit == 100 ? remaining : Int((Double(remaining) / Double(limit) * 100).rounded(.down))
-        return percent == 0 && remaining > 0 ? "<1%" : "\(percent)%"
-    }
-}
-
 struct SidebarQuotaSummary {
     let windows: [AccountQuotaWindow]
 
@@ -103,45 +80,6 @@ struct SidebarQuotaButton: View {
     }
 }
 
-enum PikachuReleaseCheck {
-    private static let endpoint = URL(string: "https://api.github.com/repos/yuzio-ai/pikachu/releases/latest")!
-    static let releasePage = URL(string: "https://github.com/yuzio-ai/pikachu/releases/latest")!
-
-    private struct Release: Decodable {
-        let tag_name: String
-        let draft: Bool
-        let prerelease: Bool
-    }
-
-    static func newerVersion(tag: String, installed: String) -> String? {
-        func components(_ value: String) -> (String, [Int])? {
-            let version = value.hasPrefix("v") ? String(value.dropFirst()) : value
-            let parts = version.split(separator: ".", omittingEmptySubsequences: false)
-            guard (1...3).contains(parts.count) else { return nil }
-            let numbers = parts.compactMap { part in
-                part.utf8.allSatisfy { (48...57).contains($0) } ? Int(part) : nil
-            }
-            guard numbers.count == parts.count else { return nil }
-            return (version, numbers + Array(repeating: 0, count: 3 - numbers.count))
-        }
-        guard let (version, candidate) = components(tag), let (_, current) = components(installed),
-              current.lexicographicallyPrecedes(candidate) else { return nil }
-        return version
-    }
-
-    static func latestVersion(installed: String) async throws -> String? {
-        var request = URLRequest(url: endpoint, timeoutInterval: 10)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        if http.statusCode == 404 { return nil } // No public stable release yet.
-        guard http.statusCode == 200 else { throw URLError(.badServerResponse) }
-        let release = try JSONDecoder().decode(Release.self, from: data)
-        guard !release.draft, !release.prerelease else { return nil }
-        return newerVersion(tag: release.tag_name, installed: installed)
-    }
-}
-
 struct SidebarUpgradeButton: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -163,7 +101,8 @@ struct SidebarUpgradeButton: View {
             IconButtonLabel(systemName: available ? "arrow.up.circle.fill" : "arrow.up.circle")
                 .foregroundStyle(available ? PikachuTheme.accentText : PikachuTheme.secondaryText)
         }
-        .buttonStyle(FlatControlButtonStyle(treatment: available ? .prominent : .quiet, inset: false))
+        .buttonStyle(FlatControlButtonStyle(treatment: available ? .prominent : .quiet,
+                                          isOpen: showsResult, inset: false))
         .disabled(checking && !available)
         .help(hint)
         .accessibilityLabel("升级")

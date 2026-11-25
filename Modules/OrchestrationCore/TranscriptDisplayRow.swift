@@ -5,6 +5,7 @@
 
 @MainActor public enum TranscriptDisplayRow {
     case item(TranscriptItem)
+    case modelChange(TranscriptItem, SessionModelChange)
     case turnHeader(TurnRecord)
     case turnChanges(TurnRecord)
     case thinking(TurnRecord)
@@ -12,11 +13,12 @@
 
     public var id: String {
         switch self {
-        case .item(let item): item.id
-        case .turnHeader(let turn): "turn-header:\(turn.displayID)"
-        case .turnChanges(let turn): "turn-changes:\(turn.displayID)"
-        case .thinking(let turn): "thinking:\(turn.displayID)"
-        case .toolCalls(let items): items[0].id
+        case .item(let item): item.timelineID
+        case .modelChange(let item, _): "model-change:\(item.timelineID)"
+        case .turnHeader(let turn): "turn-header:\(turn.timelineID)"
+        case .turnChanges(let turn): "turn-changes:\(turn.timelineID)"
+        case .thinking(let turn): "thinking:\(turn.timelineID)"
+        case .toolCalls(let items): items[0].timelineID
         }
     }
 
@@ -24,6 +26,8 @@
         switch (self, other) {
         case (.item(let item), .item(let otherItem)):
             item === otherItem
+        case (.modelChange(let item, let change), .modelChange(let otherItem, let otherChange)):
+            item === otherItem && change == otherChange
         case (.turnHeader(let turn), .turnHeader(let otherTurn)),
              (.turnChanges(let turn), .turnChanges(let otherTurn)),
              (.thinking(let turn), .thinking(let otherTurn)):
@@ -36,8 +40,22 @@
     }
 
     public func contains(_ itemID: String) -> Bool {
-        if case .toolCalls(let items) = self { return items.contains { $0.id == itemID } }
+        if case .toolCalls(let items) = self { return items.contains { $0.timelineID == itemID } }
         return id == itemID
+    }
+
+    public static func placingHandoff(_ marker: TranscriptItem?, in rows: [Self]) -> [Self] {
+        guard let marker else { return rows }
+        let users = rows.indices.compactMap { index -> (Int, TranscriptItem)? in
+            guard case .item(let item) = rows[index], item.kind == .user, item.delivery != .rejected else { return nil }
+            return (index, item)
+        }
+        let anchored = marker.handoff?.firstSubmissionID.flatMap { id in
+            users.first { $0.1.submissionID == id }?.0
+        }
+        var placed = rows
+        placed.insert(.item(marker), at: anchored ?? users.first?.0 ?? rows.startIndex)
+        return placed
     }
 
     public static func project(_ items: [TranscriptItem], turnStarts: [TranscriptTurnStart] = [],
@@ -78,6 +96,7 @@
                 tools.append(item)
             } else if item.kind != .assistant || item.hasVisibleText {
                 flushTools()
+                if let change = item.modelChange { rows.append(.modelChange(item, change)) }
                 rows.append(.item(item))
             }
             if item.kind == .user, let turn = item.turn { showHeader(turn) }
@@ -89,10 +108,21 @@
         // An empty assistant placeholder can disappear before the next turn emits anything.
         for start in turnStarts { showHeader(start.turn) }
         flushTools()
-        if showsThinking, case .toolCalls(let tools) = rows.last,
-           let turn = tools.last?.turn, turn.status == .running,
-           !items.contains(where: { $0.turn === turn && $0.kind == .tool && $0.toolSummary?.state == .running }) {
-            rows.append(.thinking(turn))
+        if showsThinking {
+            switch rows.last {
+            case .toolCalls(let tools):
+                if let turn = tools.last?.turn, turn.status == .running,
+                   !turn.thoughtText.isEmpty ||
+                       !items.contains(where: { $0.turn === turn && $0.kind == .tool && $0.toolSummary?.state == .running }) {
+                    rows.append(.thinking(turn))
+                }
+            case .turnHeader(let turn):
+                if turn.status == .running, !turn.thoughtText.isEmpty {
+                    rows.append(.thinking(turn))
+                }
+            default:
+                break
+            }
         }
         return rows
     }

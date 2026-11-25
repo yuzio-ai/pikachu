@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FlatDisclosureStyle: DisclosureGroupStyle {
     var chevronEdge: HorizontalEdge? = .leading
+    var showsHoverBackground = true
 
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,7 +23,7 @@ struct FlatDisclosureStyle: DisclosureGroupStyle {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(FlatControlButtonStyle(inset: false))
+            .buttonStyle(FlatControlButtonStyle(inset: false, showsHoverBackground: showsHoverBackground))
             .accessibilityValue(configuration.isExpanded ? Text("已展开") : Text("已折叠"))
 
             if configuration.isExpanded {

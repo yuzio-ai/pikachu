@@ -269,10 +269,20 @@ import UserNotifications
         cancelQuitShortcut()
         terminating = true
         guard let workspace, workspace.initialized else {
-            return finishTermination(clean: true, in: sender) ? .terminateNow : .terminateCancel
+            if !settings.hasPendingTerminalLogin, !settings.hasAuthenticationControl {
+                return finishTermination(clean: true, in: sender) ? .terminateNow : .terminateCancel
+            }
+            settings.beginAuthenticationShutdown()
+            Task {
+                let clean = await settings.stopAndConfirmAuthenticationCleanup()
+                let terminate = finishTermination(clean: clean, in: sender)
+                if !terminate { settings.resumeAuthentication() }
+                sender.reply(toApplicationShouldTerminate: terminate)
+            }
+            return .terminateLater
         }
         let restarting = terminationRequest?.restarting == true
-        let needsConfirmation = workspace.terminationWouldInterruptWork
+        let needsConfirmation = workspace.terminationWouldInterruptWork || settings.hasPendingTerminalLogin
         workspace.beginShutdown()
         if needsConfirmation {
             guard runConfirmation(
@@ -291,7 +301,9 @@ import UserNotifications
                 return .terminateCancel
             }
         }
+        settings.beginAuthenticationShutdown()
         Task {
+            let authenticationClean = await settings.stopAndConfirmAuthenticationCleanup()
             let until = ContinuousClock.now.advanced(by: .seconds(6))
             repeat {
                 for id in workspace.executionIDs { await workspace.execution(for: id)?.cancelInteractions() }
@@ -299,7 +311,11 @@ import UserNotifications
                 try? await Task.sleep(for: .milliseconds(50))
             } while ContinuousClock.now < until
             var clean = await workspace.disconnectAll()
-            if !clean, workspace.executionIDs.isEmpty, workspace.storageError != nil {
+            if !authenticationClean {
+                _ = runConfirmation(title: "ACP 登录进程清理未确认",
+                                    message: "Pikachu 将保持打开，直到登录进程的清理得到确认。",
+                                    confirmTitle: "返回工作台", allowsCancel: false, in: sender)
+            } else if !clean, workspace.executionIDs.isEmpty, workspace.storageError != nil {
                 _ = runConfirmation(title: "草稿尚未保存",
                                     message: "本地保存失败。App 将保持打开，请修复存储后重试保存。",
                                     confirmTitle: "返回工作台", allowsCancel: false, in: sender)
@@ -310,8 +326,11 @@ import UserNotifications
                     clean = await workspace.disconnectAll(force: true)
                 }
             }
-            let terminate = finishTermination(clean: clean, in: sender)
-            if !terminate { workspace.cancelShutdown() }
+            let terminate = finishTermination(clean: authenticationClean && clean, in: sender)
+            if !terminate {
+                settings.resumeAuthentication()
+                workspace.cancelShutdown()
+            }
             sender.reply(toApplicationShouldTerminate: terminate)
         }
         return .terminateLater

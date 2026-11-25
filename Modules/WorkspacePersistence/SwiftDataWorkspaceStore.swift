@@ -13,13 +13,15 @@ enum WorkspaceSchemaV1: VersionedSchema {
     }
 }
 
-/// One atomic, versioned metadata document. Conversation text remains in Pi files.
+/// One atomic, versioned metadata document. Frozen dialogue segments are stored separately.
 /// Only neutral Codable values cross this actor; no SwiftData objects reach views.
 public actor SwiftDataWorkspaceStore: WorkspaceStore {
     private let container: ModelContainer
+    private let sessionHistoryDirectory: URL
     private var context: ModelContext?
     public init(url: URL) throws {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        sessionHistoryDirectory = url.appendingPathExtension("session-history")
         let schema = Schema(versionedSchema: WorkspaceSchemaV1.self)
         let config = ModelConfiguration("Pikachu", schema: schema, url: url, cloudKitDatabase: .none)
         container = try ModelContainer(for: schema, configurations: [config])
@@ -50,6 +52,40 @@ public actor SwiftDataWorkspaceStore: WorkspaceStore {
             } else { context.insert(WorkspaceSchemaV1.Library(revision: snapshot.revision, payload: payload)) }
             try context.save()
         } catch { context.rollback(); throw error }
+    }
+
+    public func saveSessionHistory(_ history: SessionHistorySnapshot, segmentID: UUID) async throws {
+        try FileManager.default.createDirectory(at: sessionHistoryDirectory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        let data = try JSONEncoder().encode(history)
+        try data.write(to: sessionHistoryURL(segmentID), options: .atomic)
+    }
+
+    public func loadSessionHistory(segmentID: UUID) async throws -> SessionHistorySnapshot {
+        let data = try Data(contentsOf: sessionHistoryURL(segmentID))
+        return try JSONDecoder().decode(SessionHistorySnapshot.self, from: data)
+    }
+
+    public func pruneSessionHistory(retaining segmentIDs: Set<UUID>) async throws {
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: sessionHistoryDirectory.path) else { return }
+        let entries = try manager.contentsOfDirectory(at: sessionHistoryDirectory, includingPropertiesForKeys: nil)
+        for entry in entries where entry.pathExtension == "json" {
+            guard let id = UUID(uuidString: entry.deletingPathExtension().lastPathComponent),
+                  !segmentIDs.contains(id) else { continue }
+            try manager.removeItem(at: entry)
+        }
+    }
+
+    public func removeSessionHistory(segmentIDs: Set<UUID>) async throws {
+        for id in segmentIDs {
+            do { try FileManager.default.removeItem(at: sessionHistoryURL(id)) }
+            catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile { continue }
+        }
+    }
+
+    private func sessionHistoryURL(_ id: UUID) -> URL {
+        sessionHistoryDirectory.appendingPathComponent(id.uuidString, isDirectory: false).appendingPathExtension("json")
     }
 }
 private enum RuntimeStorageError: Error { case invalid }

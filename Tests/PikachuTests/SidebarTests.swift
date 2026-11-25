@@ -4,6 +4,22 @@ import AgentRuntimeCore
 @testable import OrchestrationCore
 @testable import Pikachu
 
+private struct SidebarConnectionProbe: AgentRuntime {
+    let runtime = FakeRuntime()
+    let onConnect: @MainActor @Sendable () -> Void
+    var instanceID: UUID { runtime.instanceID }
+    var events: AsyncStream<RuntimeEnvelope> { runtime.events }
+
+    func connect() async throws -> RuntimeSession {
+        await onConnect()
+        return try await runtime.connect()
+    }
+
+    func send(_ prompt: UserPrompt) async throws -> PromptDisposition { try await runtime.send(prompt) }
+    func stop() async throws { try await runtime.stop() }
+    func close(force: Bool) async throws { try await runtime.close(force: force) }
+}
+
 final class SidebarTests: XCTestCase {
     func testHoverPanelStaysBesideRowAndInsideScreen() {
         let screen = CGRect(x: 100, y: 50, width: 800, height: 500)
@@ -65,19 +81,47 @@ final class SidebarTests: XCTestCase {
         XCTAssertTrue(indicators().isEmpty)
     }
 
+    @MainActor func testSidebarStatusShowsConnectionAndFailuresButOmitsReady() async {
+        let controller = SessionController()
+        let runtime = SidebarConnectionProbe {
+            XCTAssertEqual(SidebarSessionStatus.resolve(execution: controller, needsReview: false, hasDraft: false), .connecting)
+        }
+        await controller.connect(runtime)
+        XCTAssertNil(SidebarSessionStatus.resolve(execution: controller, needsReview: false, hasDraft: false))
+
+        controller.receive(.init(instanceID: runtime.instanceID, event: .failure(.init(.model, "Test error"))))
+        XCTAssertEqual(SidebarSessionStatus.resolve(execution: controller, needsReview: false, hasDraft: true), .failed)
+        controller.receive(.init(instanceID: runtime.instanceID, event: .disconnected(cleanupConfirmed: false)))
+        XCTAssertEqual(SidebarSessionStatus.resolve(execution: controller, needsReview: false, hasDraft: true), .blocked)
+        XCTAssertEqual(SidebarSessionStatus.resolve(execution: nil, needsReview: false, hasDraft: true,
+                                                   hasExecutionError: true), .failed)
+        _ = await controller.disconnect(force: true)
+    }
+
+    func testNewCardStatusesPreservePriorityAndSecondaryIndicators() {
+        let deadline = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(SidebarCardIndicator.ordered(execution: .blocked, needsReview: true, hasDraft: true,
+                                                    unread: true, reminder: .due, hasHistoryIssue: true),
+                       [.status(.blocked), .status(.review), .status(.historyIssue), .reminderDue,
+                        .unreadCompletion, .status(.draft)])
+        XCTAssertEqual(SidebarCardIndicator.ordered(execution: .connecting, needsReview: false, hasDraft: false,
+                                                    unread: true, reminder: .snoozed(until: deadline)),
+                       [.unreadCompletion, .status(.connecting), .reminderSnoozed(deadline)])
+    }
+
     func testFilterAndCollapsedGroupsOnlyExposeTheEligibleSelection() {
         let first = ProjectRecord(path: "/tmp/导航")
         let second = ProjectRecord(path: "/tmp/测试")
         let timestamp = Date(timeIntervalSince1970: 100)
         let lowID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
         let highID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
-        var open = SessionReference(id: lowID, projectID: first.id, title: "后台工作")
+        var open = SessionReference(id: lowID, projectID: first.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "后台工作")
         open.sidebarActivity = SessionActivity(date: timestamp)
-        var later = SessionReference(id: highID, projectID: first.id, title: "前台浏览")
+        var later = SessionReference(id: highID, projectID: first.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "前台浏览")
         later.sidebarActivity = SessionActivity(date: timestamp)
-        var settled = SessionReference(projectID: first.id, title: "完成列表")
+        var settled = SessionReference(projectID: first.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "完成列表")
         settled.processingStatus = .settled
-        let other = SessionReference(projectID: second.id, title: "完成查询")
+        let other = SessionReference(projectID: second.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "完成查询")
         let sessions = [other, later, settled, open]
 
         let library = SidebarSessionGroups(sessions: sessions, projects: [first, second], filter: .init(query: " 导航 "))
@@ -97,7 +141,7 @@ final class SidebarTests: XCTestCase {
         let project = ProjectRecord(path: "/tmp/Sidebar")
         func row(_ suffix: String, _ seconds: TimeInterval, _ status: SessionProcessingStatus) throws -> SessionReference {
             let id = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-0000000000\(suffix)"))
-            var session = SessionReference(id: id, projectID: project.id)
+            var session = SessionReference(id: id, projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID)
             session.sidebarActivity = SessionActivity(date: Date(timeIntervalSince1970: seconds))
             session.processingStatus = status
             return session
@@ -199,7 +243,7 @@ final class SidebarTests: XCTestCase {
     func testBroadenedFilterRevealsOnlyNewlyMatchingSettledSelection() {
         let (project, history) = settledHistory(count: 159)
         let selected = history[120].id
-        let open = SessionReference(projectID: project.id, title: "Archive open")
+        let open = SessionReference(projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "Archive open")
         let sessions = history + [open]
         let projectOnly = SessionSidebarFilter(projectID: project.id)
         let broad = SessionSidebarFilter(query: " Archive ", projectID: project.id)
@@ -224,7 +268,7 @@ final class SidebarTests: XCTestCase {
     private func settledHistory(count: Int) -> (ProjectRecord, [SessionReference]) {
         let project = ProjectRecord(path: "/tmp/Sidebar")
         let sessions = (0..<count).map { index in
-            var session = SessionReference(projectID: project.id, title: "Archive \(index)")
+            var session = SessionReference(projectID: project.id, runtimeID: RuntimeAgentProfile.antigravityRuntimeID, title: "Archive \(index)")
             session.sidebarActivity = SessionActivity(date: Date(timeIntervalSince1970: Double(1_000 - index)))
             session.processingStatus = .settled
             return session

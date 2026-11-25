@@ -8,6 +8,7 @@ struct ComposerInputEvents: NSViewRepresentable {
     let isFocused: FocusState<Bool>.Binding
     let canPasteAttachment: Bool
     let canSend: Bool
+    let shortcut: ComposerSendShortcut
     let onPaste: (PastedAttachment.Result) -> Void
     let onSend: () -> Void
 
@@ -24,20 +25,23 @@ struct ComposerInputEvents: NSViewRepresentable {
                 onPaste(result)
                 return true
             }
-            // 36 is Return; 76 is keypad Enter. Do not bypass the input method when it has marked text.
-            guard event.keyCode == 36 || event.keyCode == 76,
-                  let editor = window.firstResponder as? NSTextView, editor.isEditable, !editor.hasMarkedText() else { return false }
-            switch modifiers {
-            case [], .shift:
-                editor.insertText("\n", replacementRange: editor.selectedRange())
-                return true
-            case .command:
-                if canSend && !event.isARepeat { onSend() }
-                return true
-            default:
-                return false
-            }
+            guard let editor = window.firstResponder as? NSTextView else { return false }
+            return Self.handleReturn(event, modifiers: modifiers, editor: editor, shortcut: shortcut,
+                                     canSend: canSend, onSend: onSend)
         }
+    }
+
+    @MainActor static func handleReturn(_ event: NSEvent, modifiers: NSEvent.ModifierFlags, editor: NSTextView,
+                                        shortcut: ComposerSendShortcut, canSend: Bool, onSend: () -> Void) -> Bool {
+        // 36 is Return; 76 is keypad Enter. Let the input method confirm marked text first.
+        guard event.keyCode == 36 || event.keyCode == 76, editor.isEditable, !editor.hasMarkedText() else { return false }
+        if modifiers == .command || (modifiers.isEmpty && shortcut == .returnKey) {
+            if canSend && !event.isARepeat { onSend() }
+            return true
+        }
+        guard modifiers.isEmpty || modifiers == .shift else { return false }
+        editor.insertText("\n", replacementRange: editor.selectedRange())
+        return true
     }
 
     final class MonitorView: NSView {

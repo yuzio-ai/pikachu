@@ -21,3 +21,17 @@ struct OverlayFeedbackButtonStyle<S: Shape>: ButtonStyle {
             .onHover { isHovered = $0 }
     }
 }
+
+/// Shared visual defaults for draggable pane boundaries so SwiftUI and AppKit dividers match.
+enum ResizeDividerStyle {
+    static let restingWidth: CGFloat = 1
+    static let activeWidth: CGFloat = 2
+    static let hitWidth: CGFloat = 9
+    static let animationDuration: TimeInterval = 0.12
+
+    static func color(hovering: Bool, dragging: Bool) -> Color {
+        if dragging { return PikachuTheme.focusBorder }
+        if hovering { return PikachuTheme.selectionBorder }
+        return PikachuTheme.subtleDivider
+    }
+}

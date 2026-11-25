@@ -59,8 +59,6 @@ final class ToolOutputScrollView: NSScrollView {
         reader.setAccessibilityIdentifier("tool-full-output")
 
         drawsBackground = false
-        hasVerticalScroller = true
-        autohidesScrollers = true
         horizontalScrollElasticity = .automatic
         verticalScrollElasticity = .automatic
         documentView = reader
@@ -70,8 +68,13 @@ final class ToolOutputScrollView: NSScrollView {
     required init?(coder: NSCoder) { fatalError("Use init()") }
 
     override func layout() {
+        let viewport = contentView.bounds
         super.layout()
         sizeDocument()
+        // AppKit can reset the clip origin when it tiles after a document shrink.
+        if let position = restoredPosition, position.viewport == viewport, contentView.bounds != viewport {
+            restore(position.anchor)
+        }
     }
 
     func update(text: String, font: NSFont, wrapsLines: Bool) {
@@ -85,7 +88,6 @@ final class ToolOutputScrollView: NSScrollView {
         let anchor = textChanged ? nil : (previousAnchor ?? readingAnchor())
         restoredPosition = nil
         self.wrapsLines = wrapsLines
-        hasHorizontalScroller = !wrapsLines
         if textChanged {
             output = text
             reader.string = text
@@ -96,33 +98,26 @@ final class ToolOutputScrollView: NSScrollView {
         }
         sizeDocument()
         if let anchor {
-            let glyph = textLayout.glyphIndexForCharacter(at: anchor.character)
-            let glyphOrigin = leadingOrigin(of: glyph)
-            let textOrigin = reader.textContainerOrigin
-            scrollTo(NSPoint(
-                x: wrapsLines ? 0 : glyphOrigin.x + textOrigin.x + anchor.offset.x,
-                y: glyphOrigin.y + textOrigin.y + anchor.offset.y
-            ))
-            restoredPosition = (anchor, contentView.bounds)
+            restore(anchor)
         } else if textChanged {
             scrollTo(.zero)
         }
     }
 
-    private func sizeDocument() {
-        var viewport = contentView.bounds.size
-        // Each legacy scrollbar can consume space and trigger the other one.
-        for _ in 0..<3 {
-            guard resizeDocument(in: viewport), scrollerStyle == .legacy else { return }
-            tile()
-            let tiledViewport = contentView.bounds.size
-            guard tiledViewport != viewport else { return }
-            viewport = tiledViewport
-        }
+    private func restore(_ anchor: ReadingAnchor) {
+        let glyph = textLayout.glyphIndexForCharacter(at: anchor.character)
+        let glyphOrigin = leadingOrigin(of: glyph)
+        let textOrigin = reader.textContainerOrigin
+        scrollTo(NSPoint(
+            x: wrapsLines ? 0 : glyphOrigin.x + textOrigin.x + anchor.offset.x,
+            y: glyphOrigin.y + textOrigin.y + anchor.offset.y
+        ))
+        restoredPosition = (anchor, contentView.bounds)
     }
 
-    private func resizeDocument(in viewport: NSSize) -> Bool {
-        guard viewport.width > inset.width * 2 else { return false }
+    private func sizeDocument() {
+        let viewport = contentView.bounds.size
+        guard viewport.width > inset.width * 2 else { return }
         let textWidth = wrapsLines ? viewport.width - inset.width * 2 : CGFloat.greatestFiniteMagnitude
         if textWidth != container.containerSize.width {
             container.containerSize = NSSize(width: textWidth, height: .greatestFiniteMagnitude)
@@ -132,9 +127,7 @@ final class ToolOutputScrollView: NSScrollView {
         let height = max(textBounds.maxY, textLayout.extraLineFragmentRect.maxY) + inset.height * 2
         let width = wrapsLines ? viewport.width : max(viewport.width, ceil(textBounds.maxX + inset.width * 2))
         let size = NSSize(width: width, height: max(viewport.height, ceil(height)))
-        guard reader.frame.size != size else { return false }
-        reader.setFrameSize(size)
-        return true
+        if reader.frame.size != size { reader.setFrameSize(size) }
     }
 
     private func readingAnchor() -> ReadingAnchor? {

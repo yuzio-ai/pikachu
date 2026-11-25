@@ -1,7 +1,309 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
-    "" : {},
+    "重试连接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Connection"
+          }
+        }
+      }
+    },
+    "正在读取登录方式…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading sign-in methods…"
+          }
+        }
+      }
+    },
+    "Pikachu 将保持打开，直到登录进程的清理得到确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pikachu will stay open until cleanup of the sign-in process is confirmed."
+          }
+        }
+      }
+    },
+    "ACP 登录进程清理未确认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP Sign-In Process Cleanup Unconfirmed"
+          }
+        }
+      }
+    },
+    "%@（终端）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (Terminal)"
+          }
+        }
+      }
+    },
+    "允许登录进程应用上述运行环境更改" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow these environment changes for the sign-in process"
+          }
+        }
+      }
+    },
+    "复制模型 ID" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Model ID"
+          }
+        }
+      }
+    },
+    "客户端权限" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Client Permissions"
+          }
+        }
+      }
+    },
+    "已停用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disabled"
+          }
+        }
+      }
+    },
+    "已有终端登录正在进行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A terminal sign-in is already in progress."
+          }
+        }
+      }
+    },
+    "ACP 终端登录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP terminal sign-in"
+          }
+        }
+      }
+    },
+    "ACP 登录终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP sign-in terminal"
+          }
+        }
+      }
+    },
+    "新会话默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default for New Sessions"
+          }
+        }
+      }
+    },
+    "新会话默认模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default Model for New Sessions"
+          }
+        }
+      }
+    },
+    "无法启动 ACP 登录终端。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not start the ACP sign-in terminal."
+          }
+        }
+      }
+    },
+    "ACP 终端登录未成功。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP terminal sign-in failed. Try again."
+          }
+        }
+      }
+    },
+    "ACP 登录终端的进程清理未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not confirm cleanup of the ACP sign-in process."
+          }
+        }
+      }
+    },
+    "更换默认模型…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Default Model…"
+          }
+        }
+      }
+    },
+    "检查发现问题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check found issues"
+          }
+        }
+      }
+    },
+    "检查详情" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Details"
+          }
+        }
+      }
+    },
+    "检查通过" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check passed"
+          }
+        }
+      }
+    },
+    "正在结束登录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ending sign-in\u2026"
+          }
+        }
+      }
+    },
+    "启动登录终端" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start sign-in terminal"
+          }
+        }
+      }
+    },
+    "确认 Agent 请求的启动参数和环境覆盖。登录凭据由 Agent 处理。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review the arguments and environment overrides requested by the agent. The agent handles sign-in credentials."
+          }
+        }
+      }
+    },
+    "运行环境、环境变量与管理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runtime, environment variables, and management"
+          }
+        }
+      }
+    },
+    "连接状态" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection Status"
+          }
+        }
+      }
+    },
+    "追加参数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additional arguments"
+          }
+        }
+      }
+    },
+    "显示环境覆盖值" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show environment override values"
+          }
+        }
+      }
+    },
+    "无法移除 Agent。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not remove the agent. Try again."
+          }
+        }
+      }
+    },
+    "" : {
+
+    },
+    "高级设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced Settings"
+          }
+        }
+      }
+    },
     "，" : {
       "comment" : "Separator between transcript status phrases read by VoiceOver",
       "localizations" : {
@@ -19,6 +321,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : ", "
+          }
+        }
+      }
+    },
+    "？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "?"
           }
         }
       }
@@ -43,6 +355,16 @@
         }
       }
     },
+    "· 模型…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· Model…"
+          }
+        }
+      }
+    },
     "（空）" : {
       "localizations" : {
         "en" : {
@@ -55,6 +377,56 @@
     },
     "/" : {
       "shouldTranslate" : false
+    },
+    "%@\n\n将移除此项目及其在 Pikachu 中的偏好、会话条目和草稿。共有 %lld 个会话，%lld 个会话含草稿。\n\n磁盘上的项目文件和智能体的远端历史会保留。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@\n\nThis removes the project and its preferences, session entries, and drafts from Pikachu. Sessions: %lld. Sessions with drafts: %lld.\n\nProject files and remote agent history are kept."
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · 兼容" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · Compatible"
+          }
+        }
+      }
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ 按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Press ⌘V to paste an image or video, or ⌘L to focus the composer."
+          }
+        }
+      }
     },
     "%@ 秒" : {
       "localizations" : {
@@ -76,6 +448,16 @@
         }
       }
     },
+    "%@，%@，%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, %@"
+          }
+        }
+      }
+    },
     "%@（%lld）" : {
       "comment" : "Menu bar task group name and session count",
       "localizations" : {
@@ -87,12 +469,32 @@
         }
       }
     },
-    "%@（下次执行）" : {
+    "%@不可用" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ (Next Run)"
+            "value" : "%@ Is Unavailable"
+          }
+        }
+      }
+    },
+    "%lld 个候选来源" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candidate sources: %lld"
+          }
+        }
+      }
+    },
+    "%lld 个模型 · %lld 个收藏 · %lld 个隐藏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld models · %2$lld favorites · %3$lld hidden"
           }
         }
       }
@@ -357,17 +759,47 @@
         }
       }
     },
-    "%lld." : {
-      "shouldTranslate" : false
+    "%lld/%lld 已完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld/%lld completed"
+          }
+        }
+      }
     },
-    "•" : {
-      "shouldTranslate" : false
+    "↩ 发送" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↩ to Send"
+          }
+        }
+      }
     },
     "+ %@" : {
       "shouldTranslate" : false
     },
+    "+%lld" : {
+
+    },
     "− %@" : {
       "shouldTranslate" : false
+    },
+    "−%lld" : {
+
+    },
+    "⌘↩ 发送" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌘↩ to Send"
+          }
+        }
+      }
     },
     "⚡️Pika! 告诉我你想实现什么、修复什么，或直接提问…" : {
       "localizations" : {
@@ -389,12 +821,85 @@
         }
       }
     },
+    "ACP Agent 登录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP agent sign-in"
+          }
+        }
+      }
+    },
+    "ACP v%lld · 兼容" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP v%lld · Compatible"
+          }
+        }
+      }
+    },
+    "ACP v%lld · 需要 ACP v1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP v%lld · Requires ACP v1"
+          }
+        }
+      }
+    },
+    "ACP 协议握手" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP protocol handshake"
+          }
+        }
+      }
+    },
+    "ACP 执行模式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACP Execution Mode"
+          }
+        }
+      }
+    },
+    "Agent" : {
+
+    },
+    "Agent 模式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent Mode"
+          }
+        }
+      }
+    },
     "Agent：%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agent: %@"
+          }
+        }
+      }
+    },
+    "Finder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finder"
           }
         }
       }
@@ -459,45 +964,22 @@
         }
       }
     },
-    "Node 所在目录" : {
+    "Markdown 格式预览" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Node Directory"
+            "value" : "Formatted Markdown Preview"
           }
         }
       }
     },
-    "Pi" : {
-      "shouldTranslate" : false
-    },
-    "Pi 可执行文件" : {
+    "项目资源" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pi Executable"
-          }
-        }
-      }
-    },
-    "Pi 模型" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pi Models"
-          }
-        }
-      }
-    },
-    "Pi 连接" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pi Connection"
+            "value" : "Project resources"
           }
         }
       }
@@ -545,12 +1027,12 @@
     "Pikachu" : {
       "shouldTranslate" : false
     },
-    "Pikachu 在后台时，等待工具审批、任务完成或失败都会发送通知。" : {
+    "Pikachu 会话不自动加载。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Notify me when tool approval is needed or a task completes or fails while Pikachu is in the background."
+            "value" : "Pikachu sessions do not load these automatically."
           }
         }
       }
@@ -588,7 +1070,34 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已处理"
+            "value" : "已完成"
+          }
+        }
+      }
+    },
+    "settings.section.agents" : {
+      "comment" : "Title of the settings section for managing agents",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agents"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "智能体"
+          }
+        }
+      }
+    },
+    "Skills" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skills"
           }
         }
       }
@@ -598,6 +1107,16 @@
     },
     "Xcode" : {
       "shouldTranslate" : false
+    },
+    "上一个失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Failure"
+          }
+        }
+      }
     },
     "上下文与会话用量" : {
       "localizations" : {
@@ -629,6 +1148,26 @@
         }
       }
     },
+    "下一个失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Failure"
+          }
+        }
+      }
+    },
+    "下一条由 %@ 执行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ will handle the next message"
+          }
+        }
+      }
+    },
     "下次启动 Pikachu 时生效。" : {
       "localizations" : {
         "en" : {
@@ -639,22 +1178,32 @@
         }
       }
     },
-    "下次执行生效" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applies on Next Run"
-          }
-        }
-      }
-    },
     "不可用" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unavailable"
+          }
+        }
+      }
+    },
+    "不携带历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send without history"
+          }
+        }
+      }
+    },
+    "不支持" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsupported"
           }
         }
       }
@@ -711,12 +1260,52 @@
         }
       }
     },
-    "交互执行" : {
+    "交接上下文" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Interactive"
+            "value" : "Handoff Context"
+          }
+        }
+      }
+    },
+    "交接上下文…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handoff Context…"
+          }
+        }
+      }
+    },
+    "交接未送达" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handoff not delivered"
+          }
+        }
+      }
+    },
+    "交接的文件改动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File changes in handoff"
+          }
+        }
+      }
+    },
+    "仅对新会话生效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies to new sessions only."
           }
         }
       }
@@ -741,12 +1330,82 @@
         }
       }
     },
-    "仅看收藏" : {
+    "从 Agent 历史删除" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Favorites Only"
+            "value" : "Delete from Agent History"
+          }
+        }
+      }
+    },
+    "从 Agent 历史删除？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete from Agent history?"
+          }
+        }
+      }
+    },
+    "从 Agent 导入会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Session from Agent"
+          }
+        }
+      }
+    },
+    "从 Pikachu 删除，保留磁盘文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Pikachu and keep files on disk."
+          }
+        }
+      }
+    },
+    "从侧栏选择会话，或新建会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a session from the sidebar or start a new one."
+          }
+        }
+      }
+    },
+    "从目录添加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Registry"
+          }
+        }
+      }
+    },
+    "从磁盘重新读取当前文件和已展开目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload the current file and expanded folders from disk"
+          }
+        }
+      }
+    },
+    "从选择器隐藏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide from Picker"
           }
         }
       }
@@ -767,16 +1426,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Code"
-          }
-        }
-      }
-    },
-    "任务和队列结束后可调整工具审批。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tool approval can be changed after the task and queue finish."
           }
         }
       }
@@ -807,6 +1456,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Task Failed"
+          }
+        }
+      }
+    },
+    "任务计划" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Task Plan"
+          }
+        }
+      }
+    },
+    "任务计划 · %lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Task Plan · %lld/%lld"
           }
         }
       }
@@ -871,6 +1540,37 @@
         }
       }
     },
+    "会话已归档" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session archived"
+          }
+        }
+      }
+    },
+    "会话恢复：%@ · 图片附件：%@ · 模式 %lld 个 · 模型 %lld 个" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "会话恢复：%1$@ · 图片附件：%2$@ · 模式 %3$lld 个 · 模型 %4$lld 个"
+          }
+        }
+      }
+    },
+    "会话恢复：%1$@ · 图片附件：%2$@ · 模式 %3$lld 个 · 模型 %4$lld 个" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session resume: %1$@ · Image prompt: %2$@ · %3$lld modes · %4$lld models"
+          }
+        }
+      }
+    },
     "会话操作" : {
       "localizations" : {
         "en" : {
@@ -881,12 +1581,22 @@
         }
       }
     },
-    "会话连接状态" : {
+    "会话目录" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Session Connection Status"
+            "value" : "Session Directory"
+          }
+        }
+      }
+    },
+    "会话设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session setting"
           }
         }
       }
@@ -898,6 +1608,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Low"
+          }
+        }
+      }
+    },
+    "使用%@打开文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open File with %@"
+          }
+        }
+      }
+    },
+    "使用目标智能体的默认模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The target agent’s default model will be used."
+          }
+        }
+      }
+    },
+    "例如 acp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. acp"
+          }
+        }
+      }
+    },
+    "例如 acp（空格分隔）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. acp (space-separated)"
           }
         }
       }
@@ -922,12 +1672,42 @@
         }
       }
     },
-    "保存后，在下次启动 Pi 子进程时传入。" : {
+    "ACP 登录连接正在打开或关闭，请重试。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved variables apply the next time Pikachu launches Pi."
+            "value" : "The ACP sign-in connection is opening or closing. Try again."
+          }
+        }
+      }
+    },
+    "普通变量保存在本地设置中，下次启动子进程时生效。从旧版升级后，请重新录入需要的变量。请在 Agent 中配置凭据。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordinary variables are saved locally and take effect the next time the subprocess starts. After upgrading from an older version, re-enter any variables you still need. Configure credentials in the agent."
+          }
+        }
+      }
+    },
+    "保存交接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Handoff"
+          }
+        }
+      }
+    },
+    "保存图片…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Image…"
           }
         }
       }
@@ -1032,16 +1812,6 @@
         }
       }
     },
-    "修改文件或运行命令时询问。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask before modifying files or running commands."
-          }
-        }
-      }
-    },
     "停止" : {
       "localizations" : {
         "en" : {
@@ -1132,12 +1902,12 @@
         }
       }
     },
-    "停止此会话" : {
+    "停用后将不能用于新建会话，也不能继续启动关联会话。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop This Session"
+            "value" : "When disabled, it cannot be used for new sessions or to relaunch existing sessions."
           }
         }
       }
@@ -1232,12 +2002,22 @@
         }
       }
     },
-    "先从左侧选择模型。" : {
+    "全选" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose a model on the left."
+            "value" : "Select All"
+          }
+        }
+      }
+    },
+    "全部" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
           }
         }
       }
@@ -1315,12 +2095,73 @@
         }
       }
     },
+    "关闭 (Esc)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close (Esc)"
+          }
+        }
+      }
+    },
+    "关闭 %@" : {
+      "comment" : "Accessibility label for closing a file tab. The placeholder is the file name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close %@"
+          }
+        }
+      }
+    },
+    "关闭任务计划提示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss task plan"
+          }
+        }
+      }
+    },
     "关闭工具调用失败提示" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dismiss Tool Failure Notice"
+          }
+        }
+      }
+    },
+    "关闭提示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss message"
+          }
+        }
+      }
+    },
+    "关闭离线缓存提示" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss Offline Cache Notice"
+          }
+        }
+      }
+    },
+    "关闭自动换行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off Line Wrap"
           }
         }
       }
@@ -1345,6 +2186,16 @@
         }
       }
     },
+    "关闭项目文件面板" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Project Files"
+          }
+        }
+      }
+    },
     "其他 %lld 项" : {
       "localizations" : {
         "en" : {
@@ -1363,6 +2214,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "其他交接内容" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additional handoff context"
           }
         }
       }
@@ -1484,6 +2345,26 @@
         }
       }
     },
+    "最近的智能体回复" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest agent response"
+          }
+        }
+      }
+    },
+    "最近的用户请求" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest user request"
+          }
+        }
+      }
+    },
     "最近记录 · %@ 更新" : {
       "localizations" : {
         "en" : {
@@ -1510,6 +2391,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Write file"
+          }
+        }
+      }
+    },
+    "写入项目文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write project files"
           }
         }
       }
@@ -1564,7 +2455,70 @@
         }
       }
     },
-    "切换工作台全屏" : {},
+    "切换" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch"
+          }
+        }
+      }
+    },
+    "切换 ACP 执行模式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch ACP execution mode"
+          }
+        }
+      }
+    },
+    "切换到实际大小" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Actual Size"
+          }
+        }
+      }
+    },
+    "切换到实际大小 (0)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Actual Size (0)"
+          }
+        }
+      }
+    },
+    "切换到适应窗口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Fit Window"
+          }
+        }
+      }
+    },
+    "切换到适应窗口 (0)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch to Fit Window (0)"
+          }
+        }
+      }
+    },
+    "切换工作台全屏" : {
+
+    },
     "切换执行模式" : {
       "localizations" : {
         "en" : {
@@ -1575,12 +2529,32 @@
         }
       }
     },
+    "切换智能体…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switch Agent…"
+          }
+        }
+      }
+    },
     "列出目录" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "List directory"
+          }
+        }
+      }
+    },
+    "列表为空" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List is empty"
           }
         }
       }
@@ -1625,12 +2599,62 @@
         }
       }
     },
-    "制定计划" : {
+    "删除 Agent 历史" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plan"
+            "value" : "Delete Agent History"
+          }
+        }
+      }
+    },
+    "删除草稿" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Draft"
+          }
+        }
+      }
+    },
+    "删除草稿？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this draft?"
+          }
+        }
+      }
+    },
+    "删除项目" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Project"
+          }
+        }
+      }
+    },
+    "删除项目…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Project…"
+          }
+        }
+      }
+    },
+    "删除项目「%@」？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete project “%@”?"
           }
         }
       }
@@ -1665,6 +2689,16 @@
         }
       }
     },
+    "刷新来源" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Sources"
+          }
+        }
+      }
+    },
     "刷新统计" : {
       "localizations" : {
         "en" : {
@@ -1675,22 +2709,35 @@
         }
       }
     },
-    "剩余：%@" : {
+    "刷新项目文件" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remaining: %@"
+            "value" : "Refresh Project Files"
           }
         }
       }
     },
-    "加载项目提供的 Pi 配置" : {
+    "剩余 %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Load Project Pi Configuration"
+            "value" : "Remaining %@"
+          }
+        }
+      }
+    },
+    "剩余：%@" : {
+
+    },
+    "加载更多" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load more"
           }
         }
       }
@@ -1701,6 +2748,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Update"
+          }
+        }
+      }
+    },
+    "协商能力" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negotiated capabilities"
+          }
+        }
+      }
+    },
+    "协议握手失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protocol handshake failed."
+          }
+        }
+      }
+    },
+    "协议握手超时。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protocol handshake timed out."
+          }
+        }
+      }
+    },
+    "协议版本不兼容（需要 ACP v1）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incompatible protocol version (requires ACP v1)"
           }
         }
       }
@@ -1735,16 +2822,6 @@
         }
       }
     },
-    "历史浏览" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History"
-          }
-        }
-      }
-    },
     "历史读取异常或尾部未写完" : {
       "localizations" : {
         "en" : {
@@ -1761,6 +2838,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Compacting"
+          }
+        }
+      }
+    },
+    "原会话仅有部分历史可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only part of the previous session history is available."
+          }
+        }
+      }
+    },
+    "原会话没有可读取的历史。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No previous session history is available."
           }
         }
       }
@@ -1835,6 +2932,16 @@
         }
       }
     },
+    "发送（↩ 或 ⌘↩）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send (↩ or ⌘↩)"
+          }
+        }
+      }
+    },
     "发送（⌘↩）" : {
       "localizations" : {
         "en" : {
@@ -1851,6 +2958,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sent %@"
+          }
+        }
+      }
+    },
+    "发送快捷键" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Shortcut"
           }
         }
       }
@@ -1905,6 +3022,36 @@
         }
       }
     },
+    "取消全选" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect All"
+          }
+        }
+      }
+    },
+    "取消归档" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        }
+      }
+    },
+    "取消归档 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive %@"
+          }
+        }
+      }
+    },
     "取消提醒" : {
       "localizations" : {
         "en" : {
@@ -1915,22 +3062,22 @@
         }
       }
     },
+    "取消操作" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel operation"
+          }
+        }
+      }
+    },
     "取消收藏" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove from Favorites"
-          }
-        }
-      }
-    },
-    "取消收藏 %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %@ from Favorites"
           }
         }
       }
@@ -2015,12 +3162,52 @@
         }
       }
     },
-    "可添加受信任的工具目录，例如 /opt/homebrew/bin。下次启动 Pi 时生效，不影响当前运行。" : {
+    "可执行" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add trusted tool directories such as /opt/homebrew/bin. Changes take effect the next time Pi starts, without affecting the current run."
+            "value" : "Executable"
+          }
+        }
+      }
+    },
+    "可执行文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executable"
+          }
+        }
+      }
+    },
+    "可执行文件与环境" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executable & Environment"
+          }
+        }
+      }
+    },
+    "可执行文件无效或不可执行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executable is missing or not executable."
+          }
+        }
+      }
+    },
+    "可执行文件路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executable path"
           }
         }
       }
@@ -2031,6 +3218,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The input may or may not have been sent."
+          }
+        }
+      }
+    },
+    "同步完整历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync Full History"
           }
         }
       }
@@ -2055,12 +3252,32 @@
         }
       }
     },
-    "启用的工具可直接执行。" : {
+    "启动参数" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enabled tools can run directly."
+            "value" : "Launch Arguments"
+          }
+        }
+      }
+    },
+    "启用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable in Picker"
+          }
+        }
+      }
+    },
+    "启用此 Agent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable this Agent"
           }
         }
       }
@@ -2095,6 +3312,26 @@
         }
       }
     },
+    "命令以当前 macOS 用户权限运行。项目目录只决定启动位置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commands run as the current macOS user. The project directory only sets the starting location."
+          }
+        }
+      }
+    },
+    "命令名称或完整路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command name or full path"
+          }
+        }
+      }
+    },
     "回到最新" : {
       "localizations" : {
         "en" : {
@@ -2121,6 +3358,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reply deadline: %@"
+          }
+        }
+      }
+    },
+    "图片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
           }
         }
       }
@@ -2155,12 +3402,12 @@
         }
       }
     },
-    "在选择器中显示 %@" : {
+    "在访达中显示" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show %@ in the Picker"
+            "value" : "Reveal in Finder"
           }
         }
       }
@@ -2215,6 +3462,16 @@
         }
       }
     },
+    "复制原始参数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Raw Parameters"
+          }
+        }
+      }
+    },
     "复制命令" : {
       "localizations" : {
         "en" : {
@@ -2225,12 +3482,133 @@
         }
       }
     },
+    "复制图片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Image"
+          }
+        }
+      }
+    },
+    "复制图片 (⌘C)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Image (⌘C)"
+          }
+        }
+      }
+    },
+    "复制详情" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy details"
+          }
+        }
+      }
+    },
+    "上次请求" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous request"
+          }
+        }
+      }
+    },
+    "在右侧预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview in the right sidebar"
+          }
+        }
+      }
+    },
+    "无法在项目文件中打开" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot open in Project Files"
+          }
+        }
+      }
+    },
+    "无法确定交接文件的路径基准" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot locate the base directory for this handoff file"
+          }
+        }
+      }
+    },
+    "已删除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted"
+          }
+        }
+      }
+    },
+    "正在打开文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening file"
+          }
+        }
+      }
+    },
+    "%lld 个" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        }
+      }
+    },
+    "复制路径" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Path"
+          }
+        }
+      }
+    },
     "复制输出" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy output"
+          }
+        }
+      }
+    },
+    "多个参数以空格分隔；包含空格的值请使用引号包裹。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separate multiple arguments with spaces; wrap values containing spaces in quotes."
           }
         }
       }
@@ -2265,16 +3643,6 @@
         }
       }
     },
-    "存在发送状态待核实的记录" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Some deliveries still need verification"
-          }
-        }
-      }
-    },
     "完整输出" : {
       "localizations" : {
         "en" : {
@@ -2296,12 +3664,52 @@
         }
       }
     },
-    "将 %@ 设为默认模型" : {
+    "审批剩余时间进度" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set %@ as the Default Model"
+            "value" : "Approval time remaining"
+          }
+        }
+      }
+    },
+    "审批详情" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval Details"
+          }
+        }
+      }
+    },
+    "将从 Pikachu 中移除该 ACP Agent 及其环境变量配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this ACP agent and its environment variables from Pikachu."
+          }
+        }
+      }
+    },
+    "将从「%@」删除「%@」。本地记录和草稿将保留为只读。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete “%2$@” from “%1$@”. The local record and draft will be kept read-only."
+          }
+        }
+      }
+    },
+    "将删除该会话的未发送内容和附件引用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This deletes the unsent content and attachment references for this session."
           }
         }
       }
@@ -2336,22 +3744,22 @@
         }
       }
     },
+    "尚未检查" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not checked yet"
+          }
+        }
+      }
+    },
     "尚未确认停止" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop Not Confirmed"
-          }
-        }
-      }
-    },
-    "就绪" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ready"
           }
         }
       }
@@ -2366,7 +3774,9 @@
         }
       }
     },
-    "工作区" : {},
+    "工作区" : {
+
+    },
     "工作区 · %@" : {
       "localizations" : {
         "en" : {
@@ -2427,6 +3837,16 @@
         }
       }
     },
+    "工作目录不可用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working Directory Unavailable"
+          }
+        }
+      }
+    },
     "工作目录不存在或已移动。" : {
       "localizations" : {
         "en" : {
@@ -2457,6 +3877,26 @@
         }
       }
     },
+    "工具搜索目录（可选）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Search Directories (Optional)"
+          }
+        }
+      }
+    },
+    "工具搜索目录无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tool search directory is invalid."
+          }
+        }
+      }
+    },
     "工具目录必须是绝对路径，且不能包含冒号。" : {
       "localizations" : {
         "en" : {
@@ -2477,12 +3917,42 @@
         }
       }
     },
+    "工具调用失败 · %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Call Failed · %lld"
+          }
+        }
+      }
+    },
+    "工具调用审批已过期" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Approval Expired"
+          }
+        }
+      }
+    },
     "工具调用已暂停，请返回 Pikachu 审批。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "A tool call is paused. Return to Pikachu to review it."
+          }
+        }
+      }
+    },
+    "工具调用权限审批" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Call Permission Approval"
           }
         }
       }
@@ -2507,12 +3977,32 @@
         }
       }
     },
+    "已交接上下文" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Context handed off"
+          }
+        }
+      }
+    },
     "已从选择器隐藏" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hidden from Picker"
+          }
+        }
+      }
+    },
+    "已从选择器隐藏（%lld）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden from Picker (%lld)"
           }
         }
       }
@@ -2567,6 +4057,16 @@
         }
       }
     },
+    "已到离线缓存顶部 · 仅展示近期记录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top of offline cache · Showing recent messages only"
+          }
+        }
+      }
+    },
     "已加载" : {
       "localizations" : {
         "en" : {
@@ -2577,12 +4077,12 @@
         }
       }
     },
-    "已在选择器中隐藏 %@" : {
+    "已勾选" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ is hidden from the picker"
+            "value" : "Checked"
           }
         }
       }
@@ -2597,16 +4097,6 @@
         }
       }
     },
-    "已处理会话" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settled Sessions"
-          }
-        }
-      }
-    },
     "已复制" : {
       "localizations" : {
         "en" : {
@@ -2617,12 +4107,42 @@
         }
       }
     },
+    "已复制图片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image Copied"
+          }
+        }
+      }
+    },
     "已完成" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Completed"
+          }
+        }
+      }
+    },
+    "已完成会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settled Sessions"
+          }
+        }
+      }
+    },
+    "已就绪" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
           }
         }
       }
@@ -2669,6 +4189,27 @@
         }
       }
     },
+    "已归档" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archived"
+          }
+        }
+      }
+    },
+    "已打开的文件" : {
+      "comment" : "Accessibility label for the project file tab strip.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Files"
+          }
+        }
+      }
+    },
     "已折叠" : {
       "localizations" : {
         "en" : {
@@ -2685,6 +4226,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Accepted"
+          }
+        }
+      }
+    },
+    "已收藏" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorited"
+          }
+        }
+      }
+    },
+    "已收起" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapsed"
           }
         }
       }
@@ -2707,6 +4268,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "已暂缓" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snoozed"
           }
         }
       }
@@ -2741,6 +4312,16 @@
         }
       }
     },
+    "已达到检查上限，仅显示部分来源。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The scan limit was reached. Some sources may be missing."
+          }
+        }
+      }
+    },
     "已连接" : {
       "localizations" : {
         "en" : {
@@ -2751,27 +4332,8 @@
         }
       }
     },
-    "已连接 · 就绪" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connected · Ready"
-          }
-        }
-      }
-    },
-    "已连接 · 正在停止…" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connected · Stopping…"
-          }
-        }
-      }
-    },
     "已连接 · 正在压缩上下文" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2781,42 +4343,13 @@
         }
       }
     },
-    "已连接 · 正在执行" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connected · Running"
-          }
-        }
-      }
-    },
     "已连接 · 正在重试" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connected · Retrying"
-          }
-        }
-      }
-    },
-    "已连接 · 等待扩展回复" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connected · Awaiting Extension Reply"
-          }
-        }
-      }
-    },
-    "已连接生效" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active for This Connection"
           }
         }
       }
@@ -2831,6 +4364,16 @@
         }
       }
     },
+    "已选 %lld / %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld selected"
+          }
+        }
+      }
+    },
     "已阻止" : {
       "localizations" : {
         "en" : {
@@ -2841,12 +4384,12 @@
         }
       }
     },
-    "开启后，Pi 启动该目录会话时会加载项目提供的设置和系统提示。" : {
+    "开启自动换行" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When enabled, Pi loads project settings and system prompts when starting sessions in this directory."
+            "value" : "Turn On Line Wrap"
           }
         }
       }
@@ -2861,22 +4404,22 @@
         }
       }
     },
+    "归档" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive"
+          }
+        }
+      }
+    },
     "当前不可用" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Currently Unavailable"
-          }
-        }
-      }
-    },
-    "当前为只读历史视图；配置将在可执行的下次运行时生效。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This history is read-only. The setting will apply to the next run that can execute."
           }
         }
       }
@@ -2942,12 +4485,22 @@
         }
       }
     },
-    "当前执行已生效" : {
+    "当前处于离线状态，展示缓存内容。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Active for This Run"
+            "value" : "Currently offline. Showing cached content."
+          }
+        }
+      }
+    },
+    "当前暂无任务计划。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No active task plan."
           }
         }
       }
@@ -2992,12 +4545,22 @@
         }
       }
     },
-    "当前连接使用「%@ · %@」，下次发送时重连。" : {
+    "当前项目" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The current connection uses %@ · %@. Pikachu reconnects on the next send."
+            "value" : "Current project"
+          }
+        }
+      }
+    },
+    "待处理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending"
           }
         }
       }
@@ -3102,12 +4665,42 @@
         }
       }
     },
+    "所选 ACP Agent 未配置或已停用。请在「设置 → 智能体」中检查。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected ACP Agent is not configured or is disabled. Check Settings → Agents."
+          }
+        }
+      }
+    },
     "所选扩展由自主执行加载。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Selected extensions load in Autonomous mode."
+          }
+        }
+      }
+    },
+    "手动添加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual Setup"
+          }
+        }
+      }
+    },
+    "打开一个项目会话以查看文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open a project session to browse its files."
           }
         }
       }
@@ -3142,6 +4735,16 @@
         }
       }
     },
+    "打开浏览器" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Browser"
+          }
+        }
+      }
+    },
     "打开系统通知设置…" : {
       "localizations" : {
         "en" : {
@@ -3168,6 +4771,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Project…"
+          }
+        }
+      }
+    },
+    "执行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "to perform the"
           }
         }
       }
@@ -3212,7 +4825,9 @@
         }
       }
     },
-    "执行完成" : {},
+    "执行完成" : {
+
+    },
     "执行模式" : {
       "localizations" : {
         "en" : {
@@ -3223,32 +4838,12 @@
         }
       }
     },
-    "执行结果待核实" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Run Result Unconfirmed"
-          }
-        }
-      }
-    },
     "执行超时" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeout"
-          }
-        }
-      }
-    },
-    "扩展交互已过期" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Extension Request Expired"
           }
         }
       }
@@ -3303,6 +4898,16 @@
         }
       }
     },
+    "找到可执行文件：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Executable found: %@"
+          }
+        }
+      }
+    },
     "拒绝" : {
       "localizations" : {
         "en" : {
@@ -3313,12 +4918,22 @@
         }
       }
     },
-    "按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送，按 ⌘V 粘贴图片或视频，按 ⌘L 聚焦输入框。" : {
+    "按 ↩ 或 ⇧↩ 换行，按 ⌘↩ 发送。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press ↩ or ⇧↩ for a new line, ⌘↩ to send, ⌘V to paste an image or video, or ⌘L to focus the input."
+            "value" : "Press ↩ or ⇧↩ for a new line, or ⌘↩ to send."
+          }
+        }
+      }
+    },
+    "按 ⇧↩ 换行，按 ↩ 或 ⌘↩ 发送。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press ⇧↩ for a new line, or ↩ or ⌘↩ to send."
           }
         }
       }
@@ -3333,12 +4948,52 @@
         }
       }
     },
+    "按名称或 ID 搜索 Agent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search by Agent Name or ID"
+          }
+        }
+      }
+    },
     "按回车键换行，按 ⌘↩ 提交。文本上限 1 MiB。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Press Return for a new line or ⌘↩ to submit. Text is limited to 1 MiB."
+          }
+        }
+      }
+    },
+    "按项目筛选" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by Project"
+          }
+        }
+      }
+    },
+    "授权使用" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow"
+          }
+        }
+      }
+    },
+    "授权执行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow the"
           }
         }
       }
@@ -3360,6 +5015,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Queue"
+          }
+        }
+      }
+    },
+    "探测进程清理未确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probe process cleanup could not be confirmed."
           }
         }
       }
@@ -3394,12 +5059,32 @@
         }
       }
     },
+    "提示：Antigravity CLI 使用本机登录态，如尚未认证可在终端运行 agy acp --login。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tip: Antigravity CLI uses your local login session. If not signed in, run `agy acp --login` in Terminal."
+          }
+        }
+      }
+    },
     "提醒已到期" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reminder Due"
+          }
+        }
+      }
+    },
+    "握手成功" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Handshake succeeded"
           }
         }
       }
@@ -3464,6 +5149,16 @@
         }
       }
     },
+    "撤销" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        }
+      }
+    },
     "播放 %@" : {
       "localizations" : {
         "en" : {
@@ -3474,22 +5169,32 @@
         }
       }
     },
+    "操作？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "operation?"
+          }
+        }
+      }
+    },
+    "支持" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supported"
+          }
+        }
+      }
+    },
     "收藏" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Favorites"
-          }
-        }
-      }
-    },
-    "收藏 %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add %@ to Favorites"
           }
         }
       }
@@ -3534,6 +5239,26 @@
         }
       }
     },
+    "放大" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In"
+          }
+        }
+      }
+    },
+    "放大 (+)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom In (+)"
+          }
+        }
+      }
+    },
     "放大字体" : {
       "localizations" : {
         "en" : {
@@ -3554,12 +5279,32 @@
         }
       }
     },
-    "文件尾部尚未写完。已显示完整记录，当前禁止执行；请稍后重新读取。" : {
+    "文件夹为空" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The session file is still being written. Complete records are shown and execution is blocked. Reload it later."
+            "value" : "The Folder Is Empty"
+          }
+        }
+      }
+    },
+    "文件已更换，请刷新预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The File Was Replaced. Refresh the Preview."
+          }
+        }
+      }
+    },
+    "文件或文件夹已移除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file or folder was removed"
           }
         }
       }
@@ -3574,6 +5319,36 @@
         }
       }
     },
+    "文件改动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File changes"
+          }
+        }
+      }
+    },
+    "随交接发送了 %lld 个" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld files included"
+          }
+        }
+      }
+    },
+    "文件正文" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Contents"
+          }
+        }
+      }
+    },
     "文件筛选" : {
       "localizations" : {
         "en" : {
@@ -3584,12 +5359,32 @@
         }
       }
     },
+    "文件超过 512 KiB 的预览上限" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The File Exceeds the 512 KiB Preview Limit"
+          }
+        }
+      }
+    },
     "文件路径" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "File Path"
+          }
+        }
+      }
+    },
+    "文件预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Preview"
           }
         }
       }
@@ -3620,6 +5415,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New sessions use the default model. Existing sessions are unchanged."
+          }
+        }
+      }
+    },
+    "新会话默认值" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Session Defaults"
           }
         }
       }
@@ -3684,6 +5489,26 @@
         }
       }
     },
+    "新增 %lld 行，删除 %lld 行" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld lines added, %lld lines removed"
+          }
+        }
+      }
+    },
+    "新增内容" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added Content"
+          }
+        }
+      }
+    },
     "新建会话" : {
       "comment" : "An explicit source translation includes zh-Hans in the compiled bundle.",
       "localizations" : {
@@ -3697,6 +5522,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新建会话"
+          }
+        }
+      }
+    },
+    "新建会话将默认使用此 Agent，已有会话不受影响。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New sessions will use this Agent by default; existing sessions are unaffected."
           }
         }
       }
@@ -3741,12 +5576,42 @@
         }
       }
     },
-    "无法保存 Pi 环境变量。已保留上次保存的配置。" : {
+    "无法保存环境变量。已保留上次保存的配置。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the Pi environment variables. The previous settings are still in use."
+            "value" : "Could not save environment variables. The previous configuration is still in use."
+          }
+        }
+      }
+    },
+    "无法保存交接历史，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save the handoff history. Try again."
+          }
+        }
+      }
+    },
+    "无法保存新会话默认值。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save new session defaults. Try again."
+          }
+        }
+      }
+    },
+    "无法保存显示名称。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save the display name. Try again."
           }
         }
       }
@@ -3757,6 +5622,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not save model settings. Try again."
+          }
+        }
+      }
+    },
+    "无法保存此图片。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to save this image."
           }
         }
       }
@@ -3781,12 +5656,112 @@
         }
       }
     },
+    "无法删除草稿，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not delete the draft. Try again."
+          }
+        }
+      }
+    },
+    "无法加载 ACP Agent 目录。可以重试或手动添加。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load the ACP Agent registry. Retry or add an Agent manually."
+          }
+        }
+      }
+    },
+    "无法取消归档，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not unarchive the session. Try again."
+          }
+        }
+      }
+    },
+    "无法启动「%@」：该 ACP Agent 未配置或已停用。请在「设置 → 智能体」中启用或重新配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to start \"%@\": this ACP Agent is not configured or is disabled. Enable or reconfigure it in Settings → Agents."
+          }
+        }
+      }
+    },
+    "无法启动进程监督器。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to start process supervisor."
+          }
+        }
+      }
+    },
+    "无法导入会话，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not import the session. Try again."
+          }
+        }
+      }
+    },
+    "无法归档会话，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not archive the session. Try again."
+          }
+        }
+      }
+    },
+    "无法打开外部链接。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not open the external link."
+          }
+        }
+      }
+    },
     "无法打开项目。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't open the project."
+          }
+        }
+      }
+    },
+    "无法显示图片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to Display Image"
+          }
+        }
+      }
+    },
+    "无法检查来源。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to check sources."
           }
         }
       }
@@ -3841,12 +5816,22 @@
         }
       }
     },
-    "无法读取 Pi 环境变量。请重试。" : {
+    "无法读取交接历史，请重试。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load the Pi environment variables. Try again."
+            "value" : "Could not read the handoff history. Try again."
+          }
+        }
+      }
+    },
+    "无法读取或装配环境变量。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to read or assemble environment variables."
           }
         }
       }
@@ -3871,6 +5856,46 @@
         }
       }
     },
+    "无法预览此文件格式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This File Format Cannot Be Previewed"
+          }
+        }
+      }
+    },
+    "无法预览符号链接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbolic Links Cannot Be Previewed"
+          }
+        }
+      }
+    },
+    "无法验证" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to verify"
+          }
+        }
+      }
+    },
+    "无法验证模型列表。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not verify the model list."
+          }
+        }
+      }
+    },
     "无行尾换行" : {
       "localizations" : {
         "en" : {
@@ -3887,16 +5912,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No output"
-          }
-        }
-      }
-    },
-    "无需审批" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Approval"
           }
         }
       }
@@ -3941,6 +5956,16 @@
         }
       }
     },
+    "显示 Markdown 源码" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Markdown Source"
+          }
+        }
+      }
+    },
     "显示侧栏" : {
       "localizations" : {
         "en" : {
@@ -3961,12 +5986,172 @@
         }
       }
     },
+    "显示名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display name"
+          }
+        }
+      }
+    },
+    "显示名称不能包含换行。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The display name must be on one line."
+          }
+        }
+      }
+    },
+    "显示图片" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Image"
+          }
+        }
+      }
+    },
+    "显示更多" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show More"
+          }
+        }
+      }
+    },
+    "显示目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show File Tree"
+          }
+        }
+      }
+    },
+    "显示项目文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Project Files"
+          }
+        }
+      }
+    },
+    "智能体" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "智能体设置正在更新…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating agent settings…"
+          }
+        }
+      }
+    },
+    "智能体设置正在更新，请稍后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent settings are being updated. Try again shortly."
+          }
+        }
+      }
+    },
+    "智能体配置已变更，请重新读取模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent configuration changed. Reload the models."
+          }
+        }
+      }
+    },
+    "智能体与模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent and Model"
+          }
+        }
+      }
+    },
+    "智能体与模型…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent and Model…"
+          }
+        }
+      }
+    },
+    "智能体与模型（⇧⌘M）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent and Model (⇧⌘M)"
+          }
+        }
+      }
+    },
     "暂无会话" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Sessions Yet"
+          }
+        }
+      }
+    },
+    "暂无可显示的模型。请在智能体设置中调整模型可见性。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No models to show. Adjust model visibility in Settings → Agents."
+          }
+        }
+      }
+    },
+    "暂无已归档会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No archived sessions"
+          }
+        }
+      }
+    },
+    "暂时无法切换智能体，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to switch the agent right now. Please try again."
           }
         }
       }
@@ -4027,6 +6212,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Snoozed Until %@"
+          }
+        }
+      }
+    },
+    "更换 Agent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Agent"
           }
         }
       }
@@ -4103,12 +6298,22 @@
         }
       }
     },
-    "服务商" : {
+    "未勾选" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Providers"
+            "value" : "Unchecked"
+          }
+        }
+      }
+    },
+    "未发现候选来源。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No candidate sources found."
           }
         }
       }
@@ -4133,12 +6338,12 @@
         }
       }
     },
-    "未找到可用模型。请检查 Pi 的模型和认证配置。" : {
+    "未找到可执行文件。请安装此 Agent 或选择正确的路径。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No models are available. Check your Pi model and authentication settings."
+            "value" : "Executable not found. Install this Agent or select the correct path."
           }
         }
       }
@@ -4149,6 +6354,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Codex CLI was not found on this Mac."
+          }
+        }
+      }
+    },
+    "未携带历史" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No history included"
+          }
+        }
+      }
+    },
+    "未检查" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not checked"
           }
         }
       }
@@ -4173,6 +6398,16 @@
         }
       }
     },
+    "未能确定本地启动入口。请先安装此 Agent，或选择已安装的可执行文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The local launch command could not be determined. Install this Agent or select an installed executable."
+          }
+        }
+      }
+    },
     "未能确认新工作树：%@" : {
       "localizations" : {
         "en" : {
@@ -4190,26 +6425,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unread"
-          }
-        }
-      }
-    },
-    "未连接 · 历史浏览" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disconnected · Browsing History"
-          }
-        }
-      }
-    },
-    "未连接 · 独立草稿" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disconnected · Local Draft"
           }
         }
       }
@@ -4284,12 +6499,102 @@
         }
       }
     },
+    "本机依赖" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local dependencies"
+          }
+        }
+      }
+    },
+    "本次会话没有记录到文件改动。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No file changes were recorded in this conversation."
+          }
+        }
+      }
+    },
     "本轮 %lld 个文件变更" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This turn · %lld changed files"
+          }
+        }
+      }
+    },
+    "权限审批由该 ACP Agent 在运行时通过 ACP 协议弹窗确认。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permission approvals are prompted at runtime by this ACP Agent via ACP."
+          }
+        }
+      }
+    },
+    "来源：全局 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source: Global · %@"
+          }
+        }
+      }
+    },
+    "来源：全局 · 跟随 Agent 默认" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source: Global · Follow Agent Default"
+          }
+        }
+      }
+    },
+    "来源：项目设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source: Project settings"
+          }
+        }
+      }
+    },
+    "来自全局设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From global settings"
+          }
+        }
+      }
+    },
+    "来自本会话的 %lld 个执行段。取消勾选可从本次交接移除。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes from %lld segments in this conversation. Deselect a file to remove it from this handoff."
+          }
+        }
+      }
+    },
+    "来自项目设置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From project settings"
           }
         }
       }
@@ -4335,6 +6640,36 @@
         }
       }
     },
+    "查看交接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Handoff"
+          }
+        }
+      }
+    },
+    "查看会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Session"
+          }
+        }
+      }
+    },
+    "查看会话 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View session %@"
+          }
+        }
+      }
+    },
     "查看修改 · %lld 处" : {
       "comment" : "Disclosure label followed by the number of edits in this approval.",
       "localizations" : {
@@ -4354,6 +6689,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "查看全部 %lld 个" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View all %lld files"
           }
         }
       }
@@ -4378,6 +6723,16 @@
         }
       }
     },
+    "查看配置" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Configuration"
+          }
+        }
+      }
+    },
     "查询于 %@" : {
       "localizations" : {
         "en" : {
@@ -4388,12 +6743,32 @@
         }
       }
     },
-    "标记已处理" : {
+    "标记已完成" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark as Settled"
+          }
+        }
+      }
+    },
+    "核对送达" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Delivery"
+          }
+        }
+      }
+    },
+    "检查于 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checked at %@"
           }
         }
       }
@@ -4408,42 +6783,55 @@
         }
       }
     },
+    "检查本机安装" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Local Installation"
+          }
+        }
+      }
+    },
+    "检查范围受限。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The scan was limited."
+          }
+        }
+      }
+    },
+    "检查连接" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Connection"
+          }
+        }
+      }
+    },
+    "检查仓库和用户目录下的 .agents/skills。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks .agents/skills in the repository and your home directory."
+          }
+        }
+      }
+    },
+    "模型" : {
+
+    },
     "模型…" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Model…"
-          }
-        }
-      }
-    },
-    "模型与推理强度" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model and Reasoning"
-          }
-        }
-      }
-    },
-    "模型与推理强度…" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model and Reasoning…"
-          }
-        }
-      }
-    },
-    "模型与推理强度（⇧⌘M）" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model and Reasoning (⇧⌘M)"
           }
         }
       }
@@ -4458,12 +6846,42 @@
         }
       }
     },
+    "模型当前不可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model is currently unavailable."
+          }
+        }
+      }
+    },
+    "模型操作：%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model actions for %@"
+          }
+        }
+      }
+    },
     "模型未知" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unknown Model"
+          }
+        }
+      }
+    },
+    "模型目录尚未确认，请重新读取后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model list is unverified. Reload it and try again."
           }
         }
       }
@@ -4478,12 +6896,42 @@
         }
       }
     },
+    "模型范围" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model Scope"
+          }
+        }
+      }
+    },
     "模型调用费用（估算）" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Estimated Model API Cost"
+          }
+        }
+      }
+    },
+    "正在保存新会话默认值…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving new session defaults…"
+          }
+        }
+      }
+    },
+    "正在保存显示名称…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving display name…"
           }
         }
       }
@@ -4518,6 +6966,26 @@
         }
       }
     },
+    "正在加载 ACP Agent 目录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading ACP Agent registry…"
+          }
+        }
+      }
+    },
+    "正在加载图片…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading image…"
+          }
+        }
+      }
+    },
     "正在压缩上下文" : {
       "localizations" : {
         "en" : {
@@ -4528,12 +6996,12 @@
         }
       }
     },
-    "正在建立连接…" : {
+    "正在向 %@ 发送" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connecting…"
+            "value" : "Sending to %@"
           }
         }
       }
@@ -4558,6 +7026,16 @@
         }
       }
     },
+    "正在检查…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking…"
+          }
+        }
+      }
+    },
     "正在检查更新…" : {
       "localizations" : {
         "en" : {
@@ -4568,12 +7046,12 @@
         }
       }
     },
-    "正在清理受管进程…" : {
+    "正在检查连接…" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cleaning up managed processes…"
+            "value" : "Checking connection…"
           }
         }
       }
@@ -4628,6 +7106,16 @@
         }
       }
     },
+    "正在读取文件…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading File…"
+          }
+        }
+      }
+    },
     "正在读取本地工作台…" : {
       "localizations" : {
         "en" : {
@@ -4644,6 +7132,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading models…"
+          }
+        }
+      }
+    },
+    "正在读取目录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading Folder…"
           }
         }
       }
@@ -4668,22 +7166,62 @@
         }
       }
     },
-    "每次审批" : {
+    "此 Agent 未提供可选模型列表，或需先完成认证。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Always Ask"
+            "value" : "This Agent did not provide a selectable model list, or authentication is required first."
           }
         }
       }
     },
-    "每次调用工具前都询问，包括读取和搜索。" : {
+    "此 Agent 未提供可选模型列表，或需先检查连接与认证配置。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask before every tool call, including reading and searching."
+            "value" : "This Agent did not provide a selectable model list, or connection and authentication need to be checked."
+          }
+        }
+      }
+    },
+    "此 Agent 没有提供应用内登录方式。请使用 Agent 自带的登录入口。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This agent does not offer in-app sign-in. Use the agent’s own sign-in flow."
+          }
+        }
+      }
+    },
+    "此会话已归档。可在「设置 → 已归档」中取消归档。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This session is archived. Unarchive it in Settings → Archived."
+          }
+        }
+      }
+    },
+    "此会话的智能体当前不可用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent for this session is currently unavailable."
+          }
+        }
+      }
+    },
+    "此工作目录没有可导入的会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no sessions to import for this working directory."
           }
         }
       }
@@ -4708,12 +7246,32 @@
         }
       }
     },
+    "没有可浏览的工作目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Working Directory"
+          }
+        }
+      }
+    },
     "没有可用的工具输出。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No tool output is available."
+          }
+        }
+      }
+    },
+    "没有可用的文件改动记录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No file change records are available."
           }
         }
       }
@@ -4738,22 +7296,73 @@
         }
       }
     },
-    "没有显示的模型。可在设置的 Pi 模型页中调整可见性。" : {
+    "没有找到匹配的 Agent。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No models are visible. You can change model visibility in Pi Models settings."
+            "value" : "No matching Agents."
           }
         }
       }
     },
-    "添加信任的 Pi 扩展…" : {
+    "没有读取权限" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Trusted Pi Extension…"
+            "value" : "Read Permission Denied"
+          }
+        }
+      }
+    },
+    "涉及文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affected File"
+          }
+        }
+      }
+    },
+    "涉及路径" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paths"
+          }
+        }
+      }
+    },
+    "添加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "添加 ACP 智能体" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add ACP Agent"
+          }
+        }
+      }
+    },
+    "添加 ACP 智能体（如 Antigravity CLI）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add an ACP Agent (such as Antigravity CLI)"
           }
         }
       }
@@ -4778,6 +7387,16 @@
         }
       }
     },
+    "添加支持 ACP v1 的编程智能体" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a Coding Agent supporting ACP v1"
+          }
+        }
+      }
+    },
     "添加文件" : {
       "localizations" : {
         "en" : {
@@ -4794,6 +7413,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add File Reference"
+          }
+        }
+      }
+    },
+    "添加方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Method"
+          }
+        }
+      }
+    },
+    "添加智能体…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Agent…"
+          }
+        }
+      }
+    },
+    "添加消息摘录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Message Excerpt"
+          }
+        }
+      }
+    },
+    "添加目录…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Directories…"
           }
         }
       }
@@ -4848,12 +7507,22 @@
         }
       }
     },
-    "点星号收藏，关闭开关可从会话的模型选择器中隐藏。" : {
+    "点击重新连接并同步最新会话历史。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Star a model to favorite it. Turn off its switch to hide it from the session model picker."
+            "value" : "Click to reconnect and sync latest session history."
+          }
+        }
+      }
+    },
+    "父目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parent folder"
           }
         }
       }
@@ -4878,12 +7547,32 @@
         }
       }
     },
+    "环境变量有未保存的编辑。自检使用已保存的值。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment variables have unsaved edits. The check uses saved values."
+          }
+        }
+      }
+    },
     "用户消息" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "User Message"
+          }
+        }
+      }
+    },
+    "用户级" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User"
           }
         }
       }
@@ -4898,12 +7587,52 @@
         }
       }
     },
+    "界面与文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interface and Files"
+          }
+        }
+      }
+    },
     "界面语言" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Interface Language"
+          }
+        }
+      }
+    },
+    "留空后保存可恢复目录名。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save an empty name to restore the folder name."
+          }
+        }
+      }
+    },
+    "登出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        }
+      }
+    },
+    "登录与登出" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in and out"
           }
         }
       }
@@ -4924,6 +7653,56 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Directory Missing"
+          }
+        }
+      }
+    },
+    "目标文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Target File"
+          }
+        }
+      }
+    },
+    "目标模型 · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destination model · %@"
+          }
+        }
+      }
+    },
+    "相关文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Related files"
+          }
+        }
+      }
+    },
+    "确认交接已送达" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm Handoff Was Delivered"
+          }
+        }
+      }
+    },
+    "确认未送达" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm It Was Not Delivered"
           }
         }
       }
@@ -4958,6 +7737,36 @@
         }
       }
     },
+    "移除 Agent…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Agent…"
+          }
+        }
+      }
+    },
+    "移除「%@」？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove \"%@\"?"
+          }
+        }
+      }
+    },
+    "移除内容" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed Content"
+          }
+        }
+      }
+    },
     "移除变量" : {
       "localizations" : {
         "en" : {
@@ -4968,12 +7777,42 @@
         }
       }
     },
+    "移除后不会删除已有会话记录，但该会话将无法继续运行，除非重新添加同 ID 配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Existing session records will not be deleted, but those sessions cannot be resumed unless an Agent with the same ID is re-added."
+          }
+        }
+      }
+    },
     "稍后" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Later"
+          }
+        }
+      }
+    },
+    "空文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This File Is Empty"
+          }
+        }
+      }
+    },
+    "立即应用于任务输入框。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies immediately to the task composer."
           }
         }
       }
@@ -5038,12 +7877,42 @@
         }
       }
     },
+    "等待工具审批、任务完成或失败时播放提示音；Pikachu 在后台时还会发送系统通知。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play a sound when tool approval is needed or a task completes or fails, and send system notifications while Pikachu is in the background."
+          }
+        }
+      }
+    },
     "等待扩展回复" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Awaiting Extension Reply"
+          }
+        }
+      }
+    },
+    "等待操作详情" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for operation details"
+          }
+        }
+      }
+    },
+    "管理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Management"
           }
         }
       }
@@ -5138,6 +8007,16 @@
         }
       }
     },
+    "统计不全" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incomplete line counts"
+          }
+        }
+      }
+    },
     "统计尚不可用；缺失数据未计为零。" : {
       "localizations" : {
         "en" : {
@@ -5198,6 +8077,36 @@
         }
       }
     },
+    "编辑草稿" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Draft"
+          }
+        }
+      }
+    },
+    "缩小" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom Out"
+          }
+        }
+      }
+    },
+    "缩小 (-)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom Out (-)"
+          }
+        }
+      }
+    },
     "缩小字体" : {
       "localizations" : {
         "en" : {
@@ -5208,22 +8117,22 @@
         }
       }
     },
+    "缩放比例 %lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom %lld%%"
+          }
+        }
+      }
+    },
     "聚焦任务输入" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Focus Task Input"
-          }
-        }
-      }
-    },
-    "自主执行" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autonomous"
           }
         }
       }
@@ -5258,16 +8167,6 @@
         }
       }
     },
-    "草稿" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Draft"
-          }
-        }
-      }
-    },
     "草稿尚未保存" : {
       "localizations" : {
         "en" : {
@@ -5288,12 +8187,62 @@
         }
       }
     },
-    "认证复用 Pi 配置。" : {
+    "规则" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uses the existing Pi authentication configuration."
+            "value" : "Rules"
+          }
+        }
+      }
+    },
+    "认证复用本机 Antigravity CLI 登录态；如需重新登录，请在终端执行 agy acp --login。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication reuses your local Antigravity CLI login; run `agy acp --login` in Terminal to sign in again."
+          }
+        }
+      }
+    },
+    "认证操作已取消。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication operation cancelled."
+          }
+        }
+      }
+    },
+    "认证操作已完成。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication operation completed."
+          }
+        }
+      }
+    },
+    "认证状态" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication"
+          }
+        }
+      }
+    },
+    "设为新会话默认 Agent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set as Default Agent for New Sessions"
           }
         }
       }
@@ -5358,12 +8307,32 @@
         }
       }
     },
+    "请先选择模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a model first."
+          }
+        }
+      }
+    },
     "请检查变量名。名称必须有效且唯一，PATH 和 PI_CODING_AGENT_DIR 由应用管理。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Use valid, unique names. Pikachu manages PATH and PI_CODING_AGENT_DIR."
+          }
+        }
+      }
+    },
+    "请检查变量名。名称必须有效且唯一，PATH 由应用管理。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check variable names. Names must be valid and unique; PATH is managed by the app."
           }
         }
       }
@@ -5388,6 +8357,16 @@
         }
       }
     },
+    "请等待当前运行、排队消息及审批全部结束后再切换。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wait until the current run, queued messages, and approvals have finished."
+          }
+        }
+      }
+    },
     "请输入尚未存在的工作树绝对路径。" : {
       "localizations" : {
         "en" : {
@@ -5404,6 +8383,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter a valid name for the new branch."
+          }
+        }
+      }
+    },
+    "请选择" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an option"
+          }
+        }
+      }
+    },
+    "请选择 Agent 的本地可执行文件。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select the Agent’s local executable."
           }
         }
       }
@@ -5428,6 +8427,36 @@
         }
       }
     },
+    "读取成功 · %lld 个模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loaded · %lld models"
+          }
+        }
+      }
+    },
+    "读取模型列表失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load the model list."
+          }
+        }
+      }
+    },
+    "读取项目文件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read project files"
+          }
+        }
+      }
+    },
     "调整当前任务描述" : {
       "comment" : "Full send-mode menu option for the current run",
       "localizations" : {
@@ -5435,6 +8464,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Change what you're doing."
+          }
+        }
+      }
+    },
+    "调整文件预览宽度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize File Preview"
           }
         }
       }
@@ -5459,12 +8498,22 @@
         }
       }
     },
-    "跟随 Pi 设置" : {
+    "跟随 Agent 默认" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use Pi Default"
+            "value" : "Follow Agent Default"
+          }
+        }
+      }
+    },
+    "跟随全局" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Global Default"
           }
         }
       }
@@ -5475,6 +8524,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "System Default"
+          }
+        }
+      }
+    },
+    "路径中的文件夹" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folders in Path"
           }
         }
       }
@@ -5505,6 +8564,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Input"
+          }
+        }
+      }
+    },
+    "输入与对话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input & Conversation"
           }
         }
       }
@@ -5600,11 +8669,22 @@
       }
     },
     "运行环境" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Runtime Environment"
+          }
+        }
+      }
+    },
+    "运行终端命令" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run terminal commands"
           }
         }
       }
@@ -5619,7 +8699,16 @@
         }
       }
     },
-    "返回" : {},
+    "返回" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
     "返回 Pikachu 查看任务结果。" : {
       "localizations" : {
         "en" : {
@@ -5660,6 +8749,16 @@
         }
       }
     },
+    "返回文件预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to File Preview"
+          }
+        }
+      }
+    },
     "这处修改没有可显示的差异。" : {
       "localizations" : {
         "en" : {
@@ -5690,6 +8789,26 @@
         }
       }
     },
+    "进行中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Progress"
+          }
+        }
+      }
+    },
+    "连接与运行环境" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection and Runtime"
+          }
+        }
+      }
+    },
     "连接中" : {
       "localizations" : {
         "en" : {
@@ -5706,6 +8825,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection Closed"
+          }
+        }
+      }
+    },
+    "连接该 ACP Agent 后将显示其支持的原生执行模式。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Native execution modes advertised by this ACP Agent will appear after connecting."
           }
         }
       }
@@ -5730,32 +8859,42 @@
         }
       }
     },
-    "选择 Pi 可执行文件" : {
+    "送达待核实" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose the Pi Executable"
+            "value" : "Delivery unconfirmed"
           }
         }
       }
     },
-    "选择 Pi 工具目录" : {
+    "选定目录及其父目录中的上下文文件。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select Pi Tool Directories"
+            "value" : "Context files in the selected directory and its ancestors."
           }
         }
       }
     },
-    "选择 Pi…" : {
+    "选择 ACP Agent 可执行文件" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose Pi…"
+            "value" : "Choose ACP Agent Executable"
+          }
+        }
+      }
+    },
+    "选择一个会话" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Session"
           }
         }
       }
@@ -5770,12 +8909,42 @@
         }
       }
     },
-    "选择信任的 Pi 扩展" : {
+    "选择工具搜索目录" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose a Trusted Pi Extension"
+            "value" : "Choose Tool Search Directories"
+          }
+        }
+      }
+    },
+    "选择文件…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
+          }
+        }
+      }
+    },
+    "选择文件以预览" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a File to Preview"
+          }
+        }
+      }
+    },
+    "选择文件打开方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose How to Open Files"
           }
         }
       }
@@ -5820,6 +8989,9 @@
         }
       }
     },
+    "通知" : {
+
+    },
     "遮蔽变量值" : {
       "localizations" : {
         "en" : {
@@ -5830,12 +9002,42 @@
         }
       }
     },
+    "部分回合缺少文件改动记录。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File change records are incomplete for this conversation."
+          }
+        }
+      }
+    },
     "部分展开" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Partially expanded"
+          }
+        }
+      }
+    },
+    "部分目录无法读取。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some directories could not be read."
+          }
+        }
+      }
+    },
+    "配置已变更，请重新检查。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuration changed. Check again."
           }
         }
       }
@@ -5912,6 +9114,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Locate Project…"
+          }
+        }
+      }
+    },
+    "重新检查" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Again"
           }
         }
       }
@@ -5996,16 +9208,6 @@
         }
       }
     },
-    "重试读取环境变量" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry Loading Environment Variables"
-          }
-        }
-      }
-    },
     "队列状态待核实" : {
       "localizations" : {
         "en" : {
@@ -6022,6 +9224,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide Sidebar"
+          }
+        }
+      }
+    },
+    "隐藏目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide File Tree"
+          }
+        }
+      }
+    },
+    "随首条消息一起发送" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent with the first message"
+          }
+        }
+      }
+    },
+    "需要认证" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication required"
           }
         }
       }
@@ -6076,12 +9308,52 @@
         }
       }
     },
+    "项目目录" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project File Tree"
+          }
+        }
+      }
+    },
+    "项目维护" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project Maintenance"
+          }
+        }
+      }
+    },
+    "项目资料" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project details"
+          }
+        }
+      }
+    },
     "预览 %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preview %@"
+          }
+        }
+      }
+    },
+    "预览 Markdown 格式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Formatted Markdown"
           }
         }
       }
@@ -6217,6 +9489,196 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Default Model"
+          }
+        }
+      }
+    },
+    "会话标题" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation Titles"
+          }
+        }
+      }
+    },
+    "启用模型生成后，命名规则和首条消息的正文会发送给标题模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When model generation is on, naming rules and the first message’s text are sent to the title model."
+          }
+        }
+      }
+    },
+    "生成方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generation Method"
+          }
+        }
+      }
+    },
+    "自动" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        }
+      }
+    },
+    "指定模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a Model"
+          }
+        }
+      }
+    },
+    "关闭模型生成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "跟随首个支持纯文本生成的智能体。没有可用模型时使用首条消息标题。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the first agent that supports text-only generation. If none is available, use the first message."
+          }
+        }
+      }
+    },
+    "使用首条消息或附件作为标题。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the first message or attachment as the title."
+          }
+        }
+      }
+    },
+    "命名规则" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naming Rules"
+          }
+        }
+      }
+    },
+    "例如使用简体中文，按「模块 · 具体事项」命名。留空时使用默认规则。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For example, use Simplified Chinese and format titles as “Module · Specific Topic.” Leave blank to use the default rules."
+          }
+        }
+      }
+    },
+    "命名规则不能超过 4 KB。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naming rules must be 4 KB or less."
+          }
+        }
+      }
+    },
+    "无法保存会话标题设置。请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t save conversation title settings. Try again."
+          }
+        }
+      }
+    },
+    "正在保存会话标题设置…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving conversation title settings…"
+          }
+        }
+      }
+    },
+    "标题模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Title Model"
+          }
+        }
+      }
+    },
+    "选择模型" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Model"
+          }
+        }
+      }
+    },
+    "无法读取标题模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load the title models."
+          }
+        }
+      }
+    },
+    "所选模型当前不可用。将使用首条消息标题。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected model is unavailable. The first message will be used as the title."
+          }
+        }
+      }
+    },
+    "没有可用的标题模型。需要 Claude Agent ACP 0.88 起的 0.x 版本、Claude Code 2.1.293 或更新版本，以及 API 或云服务认证。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No title models are available. Requires Claude Agent ACP 0.88 or later 0.x, Claude Code 2.1.293 or later, and API or cloud provider credentials."
+          }
+        }
+      }
+    },
+    "正在读取标题模型…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading title models…"
           }
         }
       }

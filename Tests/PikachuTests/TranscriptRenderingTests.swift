@@ -1,11 +1,138 @@
 import XCTest
 import SwiftUI
+import os
 import AgentRuntimeCore
-@testable import PiRuntimeAdapter
 @testable import OrchestrationCore
 @testable import Pikachu
 
 final class TranscriptRenderingTests: XCTestCase {
+    func testLegacyHandoffSummaryKeepsRequestAndPathsSeparate() {
+        let paths = (1...8).map { "Sources/Module \($0).swift" }
+        let context = "最近的用户请求\n继续\n\n相关文件\n" + paths.joined(separator: "\n")
+        let summary = LegacyHandoffSummary(context: context)
+        XCTAssertEqual(summary.request, "继续")
+        XCTAssertNil(summary.reply)
+        XCTAssertNil(summary.excerpt)
+        XCTAssertEqual(summary.relatedPaths, paths)
+
+        let pathWithTrailingSpace = LegacyHandoffSummary(context: "相关文件\nSources/Exact name.swift ")
+        XCTAssertEqual(pathWithTrailingSpace.relatedPaths, ["Sources/Exact name.swift "])
+
+        let english = LegacyHandoffSummary(context: """
+        Latest user request
+        Continue the work
+
+        Keep this paragraph
+
+        Latest agent response
+        Finished the first step
+
+        Related files
+        README
+        Sources/A.swift
+        README
+        """.replacingOccurrences(of: "\n", with: "\r\n"))
+        XCTAssertEqual(english.request, "Continue the work\n\nKeep this paragraph")
+        XCTAssertEqual(english.reply, "Finished the first step")
+        XCTAssertEqual(english.relatedPaths, ["README", "Sources/A.swift"])
+    }
+
+    func testLegacyHandoffSummaryTreatsUnrecognizedFileSectionAsText() {
+        let text = "Custom notes\n\nRelated files\nCheck the build after the next edit."
+        let summary = LegacyHandoffSummary(context: text)
+        XCTAssertEqual(summary.excerpt, text)
+        XCTAssertTrue(summary.relatedPaths.isEmpty)
+    }
+
+    @MainActor func testExpandedLegacyHandoffRowKeepsPathListOutOfTheTimeline() throws {
+        func makeRow(pathCount: Int, expanded: Bool, request: String = "继续") -> some View {
+            let paths = (1...pathCount).map { "Modules/OrchestrationCore/File\($0).swift" }.joined(separator: "\n")
+            let handoff = SessionHandoff(id: UUID(), source: UUID(), sourceAgent: "Alternate", targetAgent: "Antigravity",
+                                         coverage: .available, context: "最近的用户请求\n\(request)\n\n相关文件\n\(paths)",
+                                         delivered: true)
+            let item = TranscriptItem(id: handoff.id.uuidString, kind: .notice, text: "Alternate → Antigravity")
+            item.handoff = handoff
+            let disclosure = HandoffRowExpansion()
+            disclosure.binding(for: handoff.id).wrappedValue = expanded
+            return TranscriptRow(item: item, width: 530, handoffExpansion: disclosure, contentChanged: {})
+                .frame(width: 530)
+        }
+        let collapsed = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 8, expanded: false)).cgImage)
+        let oneFile = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 1, expanded: true)).cgImage)
+        let threeFiles = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 3, expanded: true)).cgImage)
+        let eightFiles = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 8, expanded: true)).cgImage)
+        let manyFiles = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 30, expanded: true)).cgImage)
+        XCTAssertGreaterThan(oneFile.height, collapsed.height)
+        XCTAssertGreaterThan(threeFiles.height, oneFile.height)
+        XCTAssertEqual(threeFiles.height, eightFiles.height)
+        XCTAssertEqual(eightFiles.height, manyFiles.height)
+        let paragraphs = (1...6).map { "第 \($0) 段" }.joined(separator: "\n\n")
+        let longRequest = try XCTUnwrap(ImageRenderer(content: makeRow(pathCount: 8, expanded: true,
+                                                                       request: paragraphs)).cgImage)
+        XCTAssertGreaterThan(longRequest.height - eightFiles.height, 80)
+    }
+
+    @MainActor func testHandoffEditorKeepsLongFileListsInABoundedViewport() throws {
+        func render(fileCount: Int) throws -> CGImage {
+            let source = UUID()
+            let files = (1...fileCount).map { index in
+                let path = "Modules/OrchestrationCore/File\(index).swift"
+                return SessionHandoffFile(path: path, changes: [
+                    .init(segmentID: source, turnID: UUID(),
+                          file: .init(path: path, kind: .modified, added: 4, deleted: 1))
+                ])
+            }
+            let draft = SessionHandoffDraft(userRequest: "继续", notes: "", files: files,
+                                           hasIncompleteFileHistory: false, segmentCount: 1)
+            let preview = SessionHandoffPreview(sourceAgent: "Antigravity", directory: "/tmp/project",
+                                               coverage: .available, draft: draft, excerpts: [],
+                                               source: source, history: nil, token: UUID())
+            let view = HandoffContextEditor(preview: preview, target: "Alternate", draft: .constant(draft),
+                                            context: .constant(""), omitHistory: .constant(false))
+                .frame(width: 530)
+            return try XCTUnwrap(ImageRenderer(content: view).cgImage)
+        }
+
+        let threeFiles = try render(fileCount: 3)
+        let sixFiles = try render(fileCount: 6)
+        let twentyFourFiles = try render(fileCount: 24)
+        XCTAssertGreaterThan(sixFiles.height, threeFiles.height)
+        XCTAssertEqual(sixFiles.height, twentyFourFiles.height)
+    }
+
+    @MainActor func testHandoffUserBubbleRendersOriginalTextForLiveAndReplayedRows() throws {
+        let sentAt = Date(timeIntervalSince1970: 1_790_000_000)
+        let file = URL(fileURLWithPath: "/tmp/handoff-fixture.txt")
+        let context = String(repeating: "Prior agent's handoff notes. ", count: 30)
+
+        func render(_ item: TranscriptItem) throws -> CGImage {
+            let renderer = ImageRenderer(content: TranscriptRow(item: item, width: 530, contentChanged: {})
+                .frame(width: 530))
+            return try XCTUnwrap(renderer.cgImage)
+        }
+
+        for files: [URL] in [[], [file]] {
+            for message in ["Continue the task", String(repeating: "Another line of the user's request.\n", count: 6) + "Last line."] {
+                let prompt = UserPrompt(text: message, files: files, handoffContext: context)
+                let expected = TranscriptItem(id: "user", kind: .user, text: prompt.text, sentAt: sentAt, attachedFiles: files)
+                let live = TranscriptItem(id: "user", kind: .user, text: prompt.runtimeText, sentAt: sentAt,
+                                          submission: prompt, originalText: prompt.text, attachedFiles: files)
+                let controller = SessionController()
+                controller.showHistory([.init(id: "user", kind: .user, text: prompt.runtimeText, sentAt: sentAt)],
+                                       recordedMessages: [.init(id: prompt.id, text: prompt.text, files: files,
+                                                                sentAt: sentAt, handoffContext: context)])
+                let replayed = try XCTUnwrap(controller.transcript.first)
+                XCTAssertEqual(replayed.editableText, prompt.text)
+
+                // Check that rendering the merged payload takes only the space of the user's original text.
+                let expectedHeight = try render(expected).height
+                for item in [live, replayed] {
+                    XCTAssertEqual(try render(item).height, expectedHeight)
+                }
+            }
+        }
+    }
+
     func testMarkdownTableKeepsAlignmentEmptyCellsAndInlineFormatting() throws {
         let blocks = MarkdownBlocks.parse("""
         | 功能 | RPC | 说明 |
@@ -102,22 +229,201 @@ final class TranscriptRenderingTests: XCTestCase {
         }
     }
 
-    @MainActor func testMarkdownTableCodeStylingPreservesTextAndLinkAttributes() throws {
-        let blocks = MarkdownBlocks.parse("""
+    func testMarkdownBlockSpacingUsesOneGapAndSupportsListParagraphs() {
+        let chat = MarkdownStyle(profile: .conversation, width: .wide, typography: .init())
+        let document = MarkdownStyle(profile: .editorial, width: .wide, typography: .init())
+        XCTAssertEqual(MarkdownBlockSpacing.between(nil, .heading(1), style: chat), 0)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.paragraph, .paragraph, style: chat), 12)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.paragraph, .paragraph, style: document), 16)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.paragraph, .paragraph, style: chat, paragraphGap: 8), 8)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.heading(1), .paragraph, style: chat), 16)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.heading(1), .heading(2), style: chat), 12)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.heading(1), .heading(2), style: document), 16)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.paragraph, .heading(3), style: chat), 20)
+        XCTAssertEqual(MarkdownBlockSpacing.between(.heading(4), .quote([]), style: chat), 8)
+    }
+
+    func testMarkdownProfilesResolveWidthBeforeTextScale() {
+        for scale in [1.0, 1.25, 1.5] {
+            let chat = MarkdownStyle(profile: .conversation, width: MarkdownWidth(720), typography: .init(), scale: scale)
+            let document = MarkdownStyle(profile: .editorial, width: MarkdownWidth(1000), typography: .init(), scale: scale)
+            let narrow = MarkdownStyle(profile: .editorial, width: MarkdownWidth(319), typography: .init(), scale: scale)
+            XCTAssertEqual(chat.heading(1).size, 24 * scale)
+            XCTAssertEqual(document.heading(1).size, 28 * scale)
+            XCTAssertEqual(narrow.heading(1).size, 22 * scale)
+            XCTAssertEqual(narrow.heading(2).size, 18 * scale)
+            XCTAssertEqual(narrow.body.size, 14 * scale)
+            XCTAssertEqual(narrow.heading(6).weight, .medium)
+            XCTAssertGreaterThan(document.body.lineHeight, chat.body.lineHeight)
+        }
+        XCTAssertEqual(MarkdownWidth(320).editorialContentWidth(in: 320), 288)
+        XCTAssertEqual(MarkdownWidth(480).editorialContentWidth(in: 480), 440)
+        XCTAssertEqual(MarkdownWidth(1000).editorialContentWidth(in: 1000), 720)
+    }
+
+    func testMarkdownFixturePreservesRichBlocksAndUnsupportedLiteralContent() throws {
+        let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "Verification/Fixtures/markdown-typography/README.md")
+        let source = try String(contentsOf: fixture, encoding: .utf8)
+        let blocks = MarkdownBlocks.parse(source)
+        let headings = blocks.compactMap { block -> Int? in
+            if case .heading(let level) = block.kind { return level }
+            return nil
+        }
+        XCTAssertEqual(headings, [1, 2, 3, 4, 5, 6])
+        XCTAssertTrue(blocks.contains { $0.text == "<aside>HTML remains literal.</aside>" })
+        XCTAssertTrue(blocks.contains { $0.text.contains("[^note]: 脚注定义") })
+        XCTAssertTrue(blocks.contains { $0.text.contains("脚注引用 [^note]") })
+        XCTAssertTrue(blocks.contains { $0.content.runs.contains { $0.link?.absoluteString == "https://example.invalid/guide" } })
+        XCTAssertEqual(blocks.flatMap { $0.content.runs.compactMap(\.imageURL) }.count, 3)
+        XCTAssertTrue(blocks.contains { if case .code("rust") = $0.kind { return $0.text.contains("\tfn") && $0.text.contains("\n\n") }; return false })
+
+        let lists = blocks.filter { if case .list = $0.kind { return true }; return false }
+        XCTAssertTrue(try XCTUnwrap(lists.first).isLooseList)
+        guard case .list(false, let tasks) = try XCTUnwrap(lists.last).kind else {
+            return XCTFail("Expected task list")
+        }
+        XCTAssertEqual(tasks.map(\.taskChecked), [true, false])
+        XCTAssertEqual(tasks[0].blocks.first?.text, "Parse Markdown")
+
+        let literal = MarkdownBlocks.parse("- \\[x] literal\r\n\r\n```\r\n[^literal]: code\r\n```")
+        guard case .list(false, let items) = try XCTUnwrap(literal.first).kind else {
+            return XCTFail("Expected literal list")
+        }
+        XCTAssertNil(items.first?.taskChecked)
+        XCTAssertEqual(literal.last?.text, "[^literal]: code")
+    }
+
+    func testMarkdownBlockIdentitySurvivesLateReferencesAndEmptyTableRows() throws {
+        let prefix = "# 稳定 👩🏽‍💻\r\n\r\n| a | b |\r\n| - | - |\r\n| | |\r\n\r\nSee [the guide][guide]."
+        let final = prefix + "\r\n\r\n[guide]: https://example.invalid/"
+        let stable = MarkdownBlockID.entries(MarkdownBlocks.parse(prefix), sourceOffset: \.sourceOffset)
+        let updated = MarkdownBlockID.entries(MarkdownBlocks.parse(final), sourceOffset: \.sourceOffset)
+        XCTAssertEqual(updated.map(\.id), stable.map(\.id))
+        XCTAssertEqual(Set(stable.map(\.id)).count, stable.count)
+        XCTAssertEqual(updated.last?.value.content.runs.compactMap(\.link).first?.absoluteString, "https://example.invalid/")
+        XCTAssertEqual(updated.last?.value.sourceOffset, prefix.utf8.count - "See [the guide][guide].".utf8.count)
+
+        let before = MarkdownBlockID.documentEntries(MarkdownBlocks.parse("# Guide\n\nSection one"))
+        let after = MarkdownBlockID.documentEntries(MarkdownBlocks.parse("New intro\n\n# Guide\n\nSection one"))
+        XCTAssertEqual(before.map(\.id), after.dropFirst().map(\.id))
+    }
+
+    func testMarkdownDistinguishesCaretReferencesFromLiteralNotes() throws {
+        let linked = MarkdownBlocks.parse("""
+        [label][^NOTE] and [^note] and [^note][] and [relative][^path].
+
+        [^note]: <https://example.invalid/guide> "Guide"
+        [^path]: docs/README.md
+        """)
+        let paragraph = try XCTUnwrap(linked.first)
+        XCTAssertEqual(linked.count, 1)
+        XCTAssertEqual(paragraph.text, "label and ^note and ^note and relative.")
+        XCTAssertEqual(paragraph.content.runs.compactMap(\.link).map(\.absoluteString), [
+            "https://example.invalid/guide", "https://example.invalid/guide", "https://example.invalid/guide", "docs/README.md"
+        ])
+
+        let literal = MarkdownBlocks.parse("""
+        Paragraph with a note[^read].
+
+        [^read]: Footnote explanation.
+
+        ```text
+        [^code]: https://example.invalid/code
+        ```
+
+        <pre>
+        [^html]: https://example.invalid/html
+        </pre>
+        """)
+        XCTAssertEqual(literal.map(\.text), [
+            "Paragraph with a note[^read].",
+            "[^read]: Footnote explanation.",
+            "[^code]: https://example.invalid/code",
+            "<pre>\n[^html]: https://example.invalid/html\n</pre>"
+        ])
+    }
+
+    @MainActor func testMarkdownStreamingUsesLatestCanonicalSourceAndResetsPendingWork() async throws {
+        let stale = DispatchSemaphore(value: 0)
+        let parsing = OSAllocatedUnfairLock(initialState: "")
+        let state = MarkdownStreamingState(interval: .zero) { source in
+            if source == "Stale" || source == "Abandoned" {
+                parsing.withLock { $0 = source }
+                _ = stale.wait(timeout: .now() + 2)
+            }
+            return MarkdownBlocks.parse(source)
+        }
+        defer { state.reset(); stale.signal() }
+        state.submit(.init(text: "Stale", streaming: true))
+        for _ in 0..<100 where parsing.withLock({ $0 }) != "Stale" {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(parsing.withLock { $0 }, "Stale")
+        let source = "# Guide\n\n```swift\n    let value = 1\n\n```"
+        state.submit(.init(text: source, streaming: false))
+        stale.signal()
+        for _ in 0..<100 where state.snapshot?.matches(source) != true {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(state.snapshot?.blocks, MarkdownBlocks.parse(source))
+        let completed = try XCTUnwrap(state.snapshot)
+        XCTAssertFalse(state.releaseCompletedSnapshot(revision: completed.revision &+ 1))
+        XCTAssertTrue(state.releaseCompletedSnapshot(revision: completed.revision))
+        XCTAssertNil(state.snapshot)
+        XCTAssertFalse(state.isActive)
+
+        state.submit(.init(text: "Abandoned", streaming: true))
+        for _ in 0..<100 where parsing.withLock({ $0 }) != "Abandoned" {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(parsing.withLock { $0 }, "Abandoned")
+        state.reset()
+        state.submit(.init(text: "# New run", streaming: true))
+        stale.signal()
+        for _ in 0..<100 where state.snapshot?.matches("# New run") != true {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTAssertEqual(state.snapshot?.source, "# New run")
+        XCTAssertEqual(state.snapshot?.blocks.first?.kind, .heading(1))
+    }
+
+    @MainActor func testMarkdownTableInlineStylingPreservesTextAndLinkedCode() throws {
+        let layout = MarkdownContentCache().layout(for: """
         | Cell |
         | --- |
-        | `select_this` [Open link](https://example.com/table-link) **bold** |
-        """)
-        guard case .table(let table) = try XCTUnwrap(blocks.first).kind else {
+        | [`select_this`](https://example.com/code-link) [Open link](https://example.com/table-link) **bold** |
+        """, typography: .init())
+        guard case .table(let table) = try XCTUnwrap(layout.blocks.first).kind else {
             return XCTFail("Expected a table")
         }
 
         let cell = table.rows[1].cells[0]
-        let styled = MarkdownTableFonts(typography: .init(), isHeader: false).stylingCode(in: cell)
+        let styled = MarkdownTextFonts(typography: .init())
+            .stylingInlineText(in: cell, interactiveLinks: layout.interactiveLinks)
         XCTAssertEqual(String(styled.characters), "select_this Open link bold")
         XCTAssertEqual(styled.runs.map(\.inlinePresentationIntent), cell.runs.map(\.inlinePresentationIntent))
         XCTAssertEqual(styled.runs.compactMap(\.link), cell.runs.compactMap(\.link))
-        XCTAssertNotNil(styled.runs.first?.swiftUI.font)
+        let code = try XCTUnwrap(styled.runs.first)
+        XCTAssertEqual(code.link?.absoluteString, "https://example.com/code-link")
+        XCTAssertNotNil(code.swiftUI.font)
+        for run in styled.runs where run.link != nil {
+            XCTAssertEqual(run.swiftUI.foregroundColor, PikachuTheme.infoText)
+            XCTAssertEqual(run.swiftUI.underlineStyle, .single)
+        }
+    }
+
+    func testMarkdownLinkLabelsRetainNestedInlineSemantics() throws {
+        let source = "中文 [**bold** and *emphasis* and `` code ``](https://example.invalid) [`unresolved`](missing.md)"
+        let block = try XCTUnwrap(MarkdownBlocks.parse(source).first)
+        XCTAssertEqual(block.text, "中文 bold and emphasis and code unresolved")
+        let linkedRuns = block.content.runs.filter { $0.link?.scheme == "https" }
+        XCTAssertTrue(linkedRuns.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+        XCTAssertTrue(linkedRuns.contains { $0.inlinePresentationIntent?.contains(.emphasized) == true })
+        XCTAssertTrue(linkedRuns.contains { $0.inlinePresentationIntent?.contains(.code) == true })
+        XCTAssertTrue(block.content.runs.contains {
+            $0.link?.relativeString == "missing.md" && $0.inlinePresentationIntent?.contains(.code) == true
+        })
     }
 
     func testMarkdownListsKeepStartingNumberNestingAndContinuation() throws {
@@ -337,6 +643,21 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(showsIndicator([item, reply, next]))
         item.tool?.state = .running
         XCTAssertFalse(showsIndicator([item, reply, next]), "A parallel tool in an earlier group is still running")
+
+        turn.thoughtText = "Checking remaining diffs"
+        XCTAssertTrue(showsIndicator([item, reply, next]), "Live thought text keeps thinking row visible below tool group")
+
+        let headerOnlyTurn = TurnRecord(startedAt: .now)
+        headerOnlyTurn.thoughtText = "Planning approach"
+        let headerOnly = TranscriptDisplayRow.project(
+            [TranscriptItem(id: "user", kind: .user, text: "Help", turn: nil)],
+            turnStarts: [.init(turn: headerOnlyTurn, precedingItemID: "user")],
+            showsThinking: true
+        )
+        guard case .thinking(let initialThinkingTurn) = headerOnly.last else {
+            return XCTFail("Expected thinking below turn header when thought text is present")
+        }
+        XCTAssertTrue(initialThinkingTurn === headerOnlyTurn)
     }
 
     @MainActor func testToolGroupIconFollowsLastRunningToolInTranscriptOrder() {
@@ -373,37 +694,6 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(presentation.qualifiers.isEmpty)
     }
 
-    @MainActor func testDirectoryFindAndWriteSummariesRecognizePiToolAliases() throws {
-        for prefix in ["", "pikachu_"] {
-            let list = try toolPresentation(prefix + "ls", arguments: #"{"path":"Pikachu\/Features","limit":20}"#)
-            guard case .list(let directory) = list.parameters else { return XCTFail("Expected a directory listing") }
-            XCTAssertEqual(list.operationLabel.map { String(localized: $0) }, String(localized: "列出目录"))
-            XCTAssertEqual(list.object, "Pikachu/Features")
-            XCTAssertEqual(directory.limit, 20)
-            XCTAssertEqual(try toolPresentation(prefix + "ls", arguments: "{}").object, String(localized: "当前目录"))
-
-            let find = try toolPresentation(prefix + "find", arguments: #"{"pattern":"**/*.swift","path":"Pikachu","limit":10}"#)
-            guard case .find(let search) = find.parameters else { return XCTFail("Expected a file search") }
-            XCTAssertEqual(find.operationLabel.map { String(localized: $0) }, String(localized: "查找文件"))
-            XCTAssertEqual(find.object, "**/*.swift")
-            XCTAssertEqual(search.limit, 10)
-            XCTAssertTrue(find.accessibilityDescription.contains("Pikachu"))
-
-            let write = try toolPresentation(prefix + "write", arguments: #"{"path":"Pikachu/View.swift","content":"body"}"#)
-            guard case .write(let path) = write.parameters else { return XCTFail("Expected a file write") }
-            XCTAssertEqual(write.operationLabel.map { String(localized: $0) }, String(localized: "写入文件"))
-            XCTAssertEqual(path, "Pikachu/View.swift")
-            XCTAssertEqual(write.object, "View.swift")
-            XCTAssertFalse(write.accessibilityDescription.contains("body"))
-
-            var tool = RuntimeTool(id: "long-write", name: prefix + "write")
-            PiEventMapper.setToolArguments(["path": "Pikachu/View.swift", "content": String(repeating: "x", count: 20_000)], on: &tool)
-            XCTAssertEqual(tool.argumentsTruncated, true)
-            let item = TranscriptItem(id: tool.id, kind: .tool, tool: tool)
-            let longWrite = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
-            XCTAssertEqual(longWrite.object, "View.swift")
-        }
-    }
 
     @MainActor func testDirectoryFindAndWriteAreNotCountedAsOther() {
         let names = ["ls", "pikachu_ls", "find", "pikachu_find", "write", "pikachu_write"]
@@ -433,78 +723,7 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(ToolOutputPresentation(output: String(repeating: "x", count: 5_000), failed: false).hasMore)
     }
 
-    @MainActor func testLiveAndRestoredLongEditsUseStructuredArguments() async throws {
-        let old = String(repeating: "x", count: 9_000)
-        let new = String(repeating: "y", count: 9_000)
-        let oversized = String(repeating: "z", count: 1_048_576)
-        let overLineLimit = String(repeating: "old\n", count: 257)
-        let overRemainingBudget = String(repeating: "a", count: 50_000)
-        let arguments: [String: Any] = [
-            "path": "Example.swift",
-            "replacementCount": 99,
-            "edits": [
-                ["oldText": oversized, "newText": oversized],
-                ["oldText": overLineLimit, "newText": "new"],
-                ["oldText": old, "newText": new],
-                ["oldText": overRemainingBudget, "newText": "new"],
-                ["oldText": "tail before", "newText": "tail after"]
-            ]
-        ]
-        var mapper = PiEventMapper()
-        _ = mapper.map(["type": "tool_execution_start", "toolCallId": "edit", "toolName": "pikachu_edit", "args": arguments])
-        let events = mapper.map(["type": "tool_execution_end", "toolCallId": "edit", "result": ["content": "OK"]])
-        guard case .tool(let live) = try XCTUnwrap(events.first) else { return XCTFail("Expected a tool result") }
 
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let argumentData = try JSONSerialization.data(withJSONObject: arguments)
-        let argumentJSON = String(decoding: argumentData, as: UTF8.self)
-        let source = """
-        {"type":"session","version":3,"id":"long-edit","cwd":"/tmp"}
-        {"type":"message","id":"answer","parentId":null,"message":{"role":"assistant","content":[{"type":"toolCall","id":"edit","name":"pikachu_edit","arguments":\(argumentJSON)}]}}
-        {"type":"message","id":"result","parentId":"answer","message":{"role":"toolResult","toolCallId":"edit","toolName":"pikachu_edit","content":"OK","isError":false}}
-
-        """
-        try source.write(to: url, atomically: true, encoding: .utf8)
-        let history = try await PiHistoryReader(roots: []).read(url)
-        let controller = SessionController()
-        controller.showHistory(history.items, turns: history.turns)
-        let restored = try XCTUnwrap(controller.transcript.last?.tool)
-
-        for tool in [live, restored] {
-            XCTAssertEqual(tool.state, .completed)
-            XCTAssertEqual(tool.arguments.count, 16_384)
-            XCTAssertEqual(tool.argumentsTruncated, true)
-            let item = TranscriptItem(id: tool.id, kind: .tool, tool: tool)
-            let presentation = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
-            guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected structured edit") }
-            XCTAssertEqual(edit.path, "Example.swift")
-            XCTAssertEqual(edit.replacementCount, 5)
-            XCTAssertEqual(edit.omittedPreviewCount, 3)
-            XCTAssertEqual(edit.edits.map(\.oldText), [old, "tail before"])
-            let replacement = try XCTUnwrap(edit.edits.first)
-            XCTAssertEqual(ToolEditDiff.lines(for: replacement), [
-                .init(kind: .removal, text: old),
-                .init(kind: .insertion, text: new)
-            ])
-        }
-    }
-
-    @MainActor func testEditPreviewKeepsPathAndCountWhenAllReplacementsAreOmitted() throws {
-        let overLineLimit = String(repeating: "old\n", count: 257)
-        let arguments = ["path": "Example.swift", "edits": [["oldText": overLineLimit, "newText": "new"]]] as [String: Any]
-        var tool = RuntimeTool(id: "edit", name: "edit", state: .completed)
-        PiEventMapper.setToolArguments(arguments, on: &tool)
-        let encoded = try JSONEncoder().encode(tool)
-        let decoded = try JSONDecoder().decode(RuntimeTool.self, from: encoded)
-        let item = TranscriptItem(id: decoded.id, kind: .tool, tool: decoded)
-        let presentation = ToolCallPresentation(try XCTUnwrap(item.toolSummary))
-        guard case .edit(let edit) = presentation.parameters else { return XCTFail("Expected an edit without previews") }
-        XCTAssertEqual(edit.path, "Example.swift")
-        XCTAssertEqual(edit.replacementCount, 1)
-        XCTAssertEqual(edit.omittedPreviewCount, 1)
-        XCTAssertTrue(edit.edits.isEmpty)
-    }
 
     @MainActor func testRawEditSummaryDerivesReplacementCountFromActualArguments() throws {
         let oneReplacement = #"{"path":"Example.swift","replacementCount":99,"edits":[{"oldText":"old","newText":"new"}]}"#
@@ -544,61 +763,7 @@ final class TranscriptRenderingTests: XCTestCase {
         return ToolCallPresentation(try XCTUnwrap(item.toolSummary))
     }
 
-    @MainActor func testRestoredBashOutputPreservesPiTruncationBelowTheAppLimit() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let source = """
-        {"type":"session","version":3,"id":"truncated-tool","cwd":"/tmp"}
-        {"type":"message","id":"answer","parentId":null,"message":{"role":"assistant","content":[{"type":"toolCall","id":"bash-call","name":"bash","arguments":{"command":"fixture"}}]}}
-        {"type":"message","id":"result","parentId":"answer","message":{"role":"toolResult","toolCallId":"bash-call","toolName":"bash","content":"retained output","isError":false,"details":{"truncation":{"truncated":true}}}}
 
-        """
-        try source.write(to: url, atomically: true, encoding: .utf8)
-
-        let reader = PiHistoryReader(roots: [])
-        let controller = SessionController()
-        let history = try await reader.read(url)
-        controller.showHistory(history.items, turns: history.turns)
-        let tool = try XCTUnwrap(controller.transcript.last?.tool)
-        XCTAssertEqual(tool.output, "retained output")
-        XCTAssertTrue(tool.truncated)
-    }
-
-    @MainActor func testDuplicateProtocolToolIDsHaveDistinctStableDisplayIDsOnRefresh() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let source = """
-        {"type":"session","version":3,"id":"duplicate-tools","cwd":"/tmp"}
-        {"type":"message","id":"answer","parentId":null,"message":{"role":"assistant","content":[{"type":"toolCall","id":"reused","name":"read","arguments":{"path":"first"}},{"type":"toolCall","id":"reused","name":"read","arguments":{"path":"second"}}]}}
-        {"type":"message","id":"result","parentId":"answer","message":{"role":"toolResult","toolCallId":"reused","toolName":"read","content":"local fixture","isError":false}}
-
-        """
-        try source.write(to: url, atomically: true, encoding: .utf8)
-
-        let reader = PiHistoryReader(roots: [])
-        let controller = SessionController()
-        let initial = try await reader.read(url)
-        controller.showHistory(initial.items, turns: initial.turns)
-        let previousRows = TranscriptDisplayRow.project(controller.transcript)
-        let previousIDs = previousRows.map(\.id)
-        XCTAssertEqual(previousIDs.count, 2)
-        XCTAssertEqual(Set(previousIDs).count, previousIDs.count)
-        XCTAssertEqual(controller.transcript.compactMap { $0.tool?.state }, [.interrupted, .completed])
-        XCTAssertEqual(Set(controller.transcript.map(\.id)).count, 2)
-        XCTAssertEqual(controller.transcript.last?.tool?.output, "local fixture")
-        let legacySummary = try XCTUnwrap(controller.transcript.last?.toolSummary)
-        let legacy = ToolCallPresentation(legacySummary)
-        guard case .read(let read) = legacy.parameters else { return XCTFail("Expected a restored read summary") }
-        XCTAssertEqual(read.path, "second")
-        XCTAssertEqual(legacy.object, "second")
-
-        let refreshed = try await reader.read(url)
-        controller.showHistory(refreshed.items, turns: refreshed.turns)
-        let refreshedRows = TranscriptDisplayRow.project(controller.transcript)
-        XCTAssertEqual(refreshedRows.map(\.id), previousIDs)
-        XCTAssertFalse(try XCTUnwrap(previousRows.first).hasSameItems(as: XCTUnwrap(refreshedRows.first)))
-        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), source)
-    }
 
     @MainActor func testRunningToolsShareAStableGroupAndUpdateItsIconAsTheyFinish() {
         let user = TranscriptItem(id: "user", kind: .user, text: "Question")
@@ -666,41 +831,6 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertTrue(detail.wrappedValue)
     }
 
-    @MainActor func testHistoryUsesUserEntryIDsForToolFirstAndEmptyRoundsWithEqualTimestamps() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jsonl")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let source = """
-        {"type":"session","version":3,"id":"turn-anchors","cwd":"/tmp"}
-        {"type":"message","id":"u1","parentId":null,"message":{"role":"user","content":"same text","timestamp":1795000000000}}
-        {"type":"message","id":"a1","parentId":"u1","message":{"role":"assistant","content":[{"type":"toolCall","id":"first","name":"read","arguments":{}}],"stopReason":"toolUse","timestamp":1795000001000}}
-        {"type":"message","id":"r1","parentId":"a1","message":{"role":"toolResult","toolCallId":"first","toolName":"read","content":"failed","isError":true}}
-        {"type":"message","id":"retry","parentId":"r1","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"UND_ERR_SOCKET","timestamp":1795000001500}}
-        {"type":"message","id":"a2","parentId":"retry","message":{"role":"assistant","content":"first response","stopReason":"stop","timestamp":1795000002000}}
-        {"type":"message","id":"u2","parentId":"a2","message":{"role":"user","content":"same text","timestamp":1795000000000}}
-        {"type":"message","id":"a3","parentId":"u2","message":{"role":"assistant","content":[],"stopReason":"stop","timestamp":1795000003000}}
-
-        """
-        try source.write(to: url, atomically: true, encoding: .utf8)
-        let history = try await PiHistoryReader(roots: []).read(url)
-        XCTAssertEqual(history.turns.map(\.firstUserItemID), ["history:u1", "history:u2"])
-        let controller = SessionController()
-        let first = RecordedTurnRecord(anchorAssistantTimestampMs: 1_795_000_001_000,
-                                       endAssistantTimestampMs: 1_795_000_002_000,
-                                       endedAt: Date(), durationSeconds: 5, status: .failed)
-        controller.showHistory(history.items, turns: history.turns, recordedTurns: [first])
-        let rows = TranscriptDisplayRow.project(controller.transcript)
-        XCTAssertEqual(rows.map(\.id), [
-            "history:u1", "turn-header:turn:a1", "history-tool:0:history:a1", "history-end:history:retry", "history:a2",
-            "history:u2", "turn-header:turn:a3",
-        ])
-        guard case .turnHeader(let firstTurn) = rows[1], case .turnHeader(let secondTurn) = rows[6] else {
-            return XCTFail("Expected two distinct headers")
-        }
-        XCTAssertEqual(firstTurn.status, .completed)
-        XCTAssertTrue(controller.transcript.contains { $0.kind == .notice && $0.text.contains("UND_ERR_SOCKET") })
-        XCTAssertEqual(firstTurn.durationSeconds, 5)
-        XCTAssertNil(secondTurn.durationSeconds)
-    }
 
     @MainActor func testLateQueuedAcknowledgementKeepsIdenticalFollowUpsInOrder() async throws {
         let first = UserPrompt(text: "repeat", mode: .followUp)
@@ -744,69 +874,6 @@ final class TranscriptRenderingTests: XCTestCase {
         _ = await controller.disconnect()
     }
 
-    @MainActor func testPiUserStartsKeepSteeringAndFollowUpHistoryAttachmentsWithTheirInputs() async throws {
-        let steer = UserPrompt(text: "steer", files: [URL(fileURLWithPath: "/tmp/steer.txt")])
-        let follow = UserPrompt(text: "follow", mode: .followUp, files: [URL(fileURLWithPath: "/tmp/follow.txt")])
-        let runtime = TranscriptQueueRuntime()
-        let controller = SessionController()
-        await controller.connect(runtime)
-        func receive(_ event: AgentEvent) { controller.receive(.init(instanceID: runtime.instanceID, event: event)) }
-        var mapper = PiEventMapper()
-        func userStart(_ text: String, _ timestamp: Int64) {
-            let events = mapper.map(["type": "message_start", "message": [
-                "role": "user", "timestamp": timestamp, "content": [["type": "text", "text": text]],
-            ]])
-            XCTAssertEqual(events.count, 1)
-            events.forEach(receive)
-        }
-        let prompts = [steer.id: steer, follow.id: follow]
-        var stored: [RecordedMessageRecord] = []
-        controller.onUserMessageTimestamp = { id, timestamp in
-            guard let id, let prompt = prompts[id] else { return }
-            stored.append(.init(id: id, text: prompt.text, files: prompt.files, sentAt: nil, messageTimestampMs: timestamp))
-        }
-        await controller.sendDraft(.init(text: "initial"))
-        userStart("initial", 1_795_000_000_000)
-        receive(.assistantCompleted(UUID(), "Working"))
-        await controller.sendDraft(steer)
-        receive(.queue(.init(steering: [steer.runtimeText])))
-        await controller.sendDraft(follow)
-        receive(.queue(.init(steering: [steer.runtimeText], followUp: [follow.runtimeText])))
-        userStart(follow.runtimeText, 1_795_000_000_999)
-        XCTAssertTrue(stored.isEmpty, "A payload still in the queue cannot acquire a timestamp")
-
-        let steeringTime: Int64 = 1_795_000_001_000
-        let followUpTime: Int64 = 1_795_000_002_000
-        receive(.queue(.init(followUp: [follow.runtimeText])))
-        userStart("Unrelated user message", 1_795_000_001_001)
-        userStart(steer.runtimeText, steeringTime)
-        receive(.assistantCompleted(UUID(), "Steering reply"))
-        receive(.queue(.init()))
-        userStart(follow.runtimeText, followUpTime)
-        receive(.assistantCompleted(UUID(), "Follow-up reply"))
-        receive(.settled(aborted: false))
-        XCTAssertEqual(stored.map(\.id), [steer.id, follow.id])
-        XCTAssertEqual(stored.map(\.messageTimestampMs), [steeringTime, followUpTime])
-
-        let history = SessionController()
-        let items: [HistoryItem] = [
-            .init(id: "history:steer", kind: .user, text: steer.runtimeText, messageTimestampMs: steeringTime),
-            .init(id: "history:follow", kind: .user, text: follow.runtimeText, messageTimestampMs: followUpTime),
-        ]
-        history.showHistory(items, recordedMessages: stored)
-        XCTAssertEqual(history.transcript.map(\.editableText), [steer.text, follow.text])
-        XCTAssertEqual(history.transcript.map(\.editableFiles), [steer.files, follow.files])
-
-        let incorrect = stored.map { record in
-            var incorrectRecord = record
-            incorrectRecord.messageTimestampMs = record.id == steer.id ? followUpTime : steeringTime
-            return incorrectRecord
-        }
-        history.showHistory(items, recordedMessages: incorrect)
-        XCTAssertEqual(history.transcript.map(\.editableText), [steer.runtimeText, follow.runtimeText])
-        XCTAssertEqual(history.transcript.map(\.editableFiles), [[], []])
-        _ = await controller.disconnect()
-    }
 
     @MainActor func testQueuedAcknowledgementBeforeOlderDequeueKeepsFollowUpIdentity() async {
         for firstMode in [SendMode.followUp, .steer] {
@@ -914,8 +981,8 @@ final class TranscriptRenderingTests: XCTestCase {
         let follow = UserPrompt(text: "follow", mode: .followUp, files: [root.appendingPathComponent("follow.txt")])
         let runtime = TranscriptQueueRuntime(delayedPrompt: follow.id)
         let store = TranscriptWorkspaceStore()
-        let workspace = WorkspaceController(store: store, reader: PiHistoryReader(roots: [])) { _, _ in runtime }
-        await workspace.start()
+        let workspace = WorkspaceController(store: store) { _, _ in runtime }
+        await workspace.start(); workspace.setACPAgents([.antigravityPreset()])
         _ = await workspace.addProject(root)
         let sessionID = try XCTUnwrap(workspace.selected?.id)
         await workspace.send(sessionID, submitted: initial)
@@ -943,163 +1010,7 @@ final class TranscriptRenderingTests: XCTestCase {
         _ = await controller.disconnect()
     }
 
-    @MainActor func testStopInterleavedWithBufferedDequeuePreservesFirstAndRecoversSecond() async {
-        for dequeueBeforeStop in [true, false] {
-            let attachment = URL(fileURLWithPath: "/tmp/stop-interleave.txt")
-            let first = UserPrompt(text: "repeat", mode: .followUp, files: [attachment])
-            let second = UserPrompt(text: "repeat", mode: .followUp, files: [attachment])
-            let firstTime: Int64 = 1_795_000_004_000
-            let runtime = StopInterleaveRuntime()
-            let controller = SessionController()
-            var recordedStarts: [Int64: UUID] = [:]
-            controller.onUserMessageTimestamp = { id, ts in
-                if let id { recordedStarts[ts] = id }
-            }
-            await controller.connect(runtime)
-            var mapper = PiEventMapper()
-            func receive(_ event: AgentEvent) {
-                controller.receive(.init(instanceID: runtime.instanceID, event: event))
-            }
-            func raw(_ record: [String: Any]) { mapper.map(record).forEach(receive) }
-            func queue(_ followUp: [String]) {
-                raw(["type": "queue_update", "steering": [String](), "followUp": followUp])
-            }
-            func previousDequeue() {
-                queue([second.runtimeText])
-                raw(["type": "message_start", "message": [
-                    "role": "user", "timestamp": firstTime,
-                    "content": [["type": "text", "text": first.runtimeText]],
-                ]])
-            }
-            func row(_ prompt: UserPrompt) -> TranscriptItem? {
-                controller.transcript.first { $0.id == "user:\(prompt.id)" }
-            }
 
-            await controller.sendDraft(.init(text: "initial"))
-            receive(.assistantCompleted(UUID(), "Initial reply"))
-            await controller.sendDraft(first)
-            queue([first.runtimeText])
-            await controller.sendDraft(second)
-            queue([first.runtimeText, second.runtimeText])
-            if dequeueBeforeStop { previousDequeue() }
-            let stop = Task { await controller.stop() }
-            await runtime.gate.waitForStop()
-            receive(.phase(.stopping))
-            if !dequeueBeforeStop { previousDequeue() }
-            queue([])
-            receive(.recoveredDrafts(UUID(), [.init(text: second.runtimeText, mode: .followUp)]))
-            raw(["type": "agent_settled", "aborted": true])
-            await runtime.gate.finishStop()
-            await stop.value
-
-            XCTAssertEqual(row(first)?.delivery, .accepted)
-            XCTAssertEqual(row(first)?.messageTimestampMs, firstTime)
-            XCTAssertEqual(recordedStarts, [firstTime: first.id])
-            XCTAssertEqual(row(second)?.delivery, .recovered)
-            XCTAssertEqual(controller.recoveredDrafts, [
-                .init(id: second.id, text: second.text, mode: .followUp, files: second.files),
-            ])
-
-            await controller.sendDraft(.init(text: "fresh execution"))
-            receive(.assistantCompleted(UUID(), "Fresh reply"))
-            let freshTurn = controller.activeTurn?.id
-            let third = UserPrompt(text: "next queued", mode: .followUp)
-            await controller.sendDraft(third)
-            queue([third.runtimeText])
-            XCTAssertEqual(controller.activeTurn?.id, freshTurn)
-            _ = await controller.disconnect(force: true)
-        }
-    }
-
-    @MainActor func testStopRecoveryOrderAndSingleQueuedDequeueAndAbortFailure() async {
-        // 1. recoveredDrafts arrives before buffered queue/user-start events drain.
-        do {
-            let file1 = URL(fileURLWithPath: "/tmp/first.txt")
-            let file2 = URL(fileURLWithPath: "/tmp/second.txt")
-            let first = UserPrompt(text: "same", mode: .followUp, files: [file1])
-            let second = UserPrompt(text: "same", mode: .followUp, files: [file2])
-            let firstTime: Int64 = 1_795_000_005_000
-            let runtime = StopInterleaveRuntime()
-            let controller = SessionController()
-            var recordedStarts: [Int64: UUID] = [:]
-            controller.onUserMessageTimestamp = { id, ts in
-                if let id { recordedStarts[ts] = id }
-            }
-            await controller.connect(runtime)
-            var mapper = PiEventMapper()
-            func receive(_ event: AgentEvent) { controller.receive(.init(instanceID: runtime.instanceID, event: event)) }
-            func raw(_ record: [String: Any]) { mapper.map(record).forEach(receive) }
-            func queue(_ followUp: [String]) { raw(["type": "queue_update", "steering": [String](), "followUp": followUp]) }
-
-            await controller.sendDraft(.init(text: "initial"))
-            receive(.assistantCompleted(UUID(), "Initial reply"))
-            await controller.sendDraft(first)
-            queue([first.runtimeText])
-            await controller.sendDraft(second)
-            queue([first.runtimeText, second.runtimeText])
-
-            let stop = Task { await controller.stop() }
-            await runtime.gate.waitForStop()
-            receive(.phase(.stopping))
-            receive(.recoveredDrafts(UUID(), [.init(text: second.runtimeText, mode: .followUp)]))
-            queue([second.runtimeText])
-            raw(["type": "message_start", "message": [
-                "role": "user", "timestamp": firstTime,
-                "content": [["type": "text", "text": first.runtimeText]],
-            ]])
-            queue([])
-            raw(["type": "agent_settled", "aborted": true])
-            await runtime.gate.finishStop()
-            await stop.value
-
-            XCTAssertEqual(controller.transcript.first { $0.id == "user:\(first.id)" }?.delivery, .accepted)
-            XCTAssertEqual(controller.transcript.first { $0.id == "user:\(first.id)" }?.messageTimestampMs, firstTime)
-            XCTAssertEqual(recordedStarts, [firstTime: first.id])
-            XCTAssertEqual(controller.transcript.first { $0.id == "user:\(second.id)" }?.delivery, .recovered)
-            XCTAssertEqual(controller.recoveredDrafts, [
-                .init(id: second.id, text: second.text, mode: .followUp, files: second.files),
-            ])
-            _ = await controller.disconnect(force: true)
-        }
-
-        // 2. Single queued item dequeued right before stop (empty buffered queue_update) and abort failure.
-        for stopFailure in [false, true] {
-            let file = URL(fileURLWithPath: "/tmp/single.txt")
-            let first = UserPrompt(text: "only", mode: .followUp, files: [file])
-            let firstTime: Int64 = 1_795_000_006_000
-            let runtime = StopInterleaveRuntime(stopFailure: stopFailure)
-            let controller = SessionController()
-            await controller.connect(runtime)
-            var mapper = PiEventMapper()
-            func receive(_ event: AgentEvent) { controller.receive(.init(instanceID: runtime.instanceID, event: event)) }
-            func raw(_ record: [String: Any]) { mapper.map(record).forEach(receive) }
-            func queue(_ followUp: [String]) { raw(["type": "queue_update", "steering": [String](), "followUp": followUp]) }
-
-            await controller.sendDraft(.init(text: "initial"))
-            receive(.assistantCompleted(UUID(), "Initial reply"))
-            await controller.sendDraft(first)
-            queue([first.runtimeText])
-
-            let stop = Task { await controller.stop() }
-            await runtime.gate.waitForStop()
-            receive(.phase(.stopping))
-            queue([])
-            raw(["type": "message_start", "message": [
-                "role": "user", "timestamp": firstTime,
-                "content": [["type": "text", "text": first.runtimeText]],
-            ]])
-            receive(.recoveredDrafts(UUID(), []))
-            if !stopFailure { raw(["type": "agent_settled", "aborted": true]) }
-            await runtime.gate.finishStop()
-            await stop.value
-
-            XCTAssertEqual(controller.transcript.first { $0.id == "user:\(first.id)" }?.delivery, .accepted)
-            XCTAssertEqual(controller.transcript.first { $0.id == "user:\(first.id)" }?.messageTimestampMs, firstTime)
-            XCTAssertTrue(controller.recoveredDrafts.isEmpty)
-            XCTAssertEqual(controller.phase, stopFailure ? .uncertain : .idle)
-            _ = await controller.disconnect(force: true)
-        }
-    }
 
     func testMarkdownFileLinksEnrichWorkspacePathsInlineCodeRelativeLinksAndPreserveCodeBlocks() throws {
         let workspace = FileManager.default.temporaryDirectory.appendingPathComponent("pikachu-links-\(UUID().uuidString)", isDirectory: true)
@@ -1294,6 +1205,63 @@ final class TranscriptRenderingTests: XCTestCase {
         XCTAssertEqual(plan(.custom, custom: "true"), .run(.init(
             executable: URL(fileURLWithPath: "/bin/sh"),
             arguments: ["-c", "true"])))
+    }
+
+    @MainActor func testTranscriptMarkdownStoreCachesAcrossReuseAndValidatesLinksAsynchronously() async throws {
+        final class DiskCheckRecorder: @unchecked Sendable {
+            private let lock = NSLock()
+            private(set) var checkedPaths: [String] = []
+            func record(_ path: String) -> Bool {
+                lock.lock()
+                checkedPaths.append(path)
+                lock.unlock()
+                return FileManager.default.fileExists(atPath: path)
+            }
+            var count: Int {
+                lock.lock(); defer { lock.unlock() }
+                return checkedPaths.count
+            }
+        }
+
+        let workspace = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pikachu-store-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace.appendingPathComponent("Pikachu"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+
+        let existing = workspace.appendingPathComponent("Pikachu/App.swift").standardizedFileURL
+        try Data("struct App {}\n".utf8).write(to: existing)
+
+        let recorder = DiskCheckRecorder()
+        let store = TranscriptMarkdownStore(capacity: 32, pathTTL: .seconds(5)) { path in
+            recorder.record(path)
+        }
+
+        let source = "Check Pikachu/App.swift and Pikachu/Missing.swift"
+        let first = store.layout(for: source, typography: .init(), workspaceDirectory: workspace)
+        XCTAssertEqual(recorder.count, 0, "Synchronous scroll layout must not hit disk fileExists")
+        XCTAssertTrue(first.layout.interactiveLinks.isEmpty)
+        let initialVersion = first.revision.version
+
+        for _ in 0..<40 where store.hasPendingLinkChecks {
+            try await Task.sleep(for: .milliseconds(15))
+        }
+        XCTAssertFalse(store.hasPendingLinkChecks)
+        XCTAssertGreaterThan(recorder.count, 0)
+        XCTAssertEqual(first.revision.version, initialVersion + 1)
+
+        let countAfterResolve = recorder.count
+        let second = store.layout(for: source, typography: .init(), workspaceDirectory: workspace)
+        XCTAssertEqual(store.cachedLayoutCount, 1)
+        XCTAssertEqual(recorder.count, countAfterResolve, "Cached layout hit must not re-check disk")
+        XCTAssertEqual(second.layout.interactiveLinks.map(\.path), [existing.path])
+
+        // A message containing only non-existent paths must not trigger an extra UI revision bump.
+        let missingOnly = store.layout(for: "Only Pikachu/NeverCreated.swift", typography: .init(), workspaceDirectory: workspace)
+        let missingInitialVersion = missingOnly.revision.version
+        for _ in 0..<40 where store.hasPendingLinkChecks {
+            try await Task.sleep(for: .milliseconds(15))
+        }
+        XCTAssertEqual(missingOnly.revision.version, missingInitialVersion)
     }
 
     @MainActor private func tool(_ id: String, state: ToolState) -> TranscriptItem {

@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 import OrchestrationCore
 
@@ -8,15 +9,19 @@ struct NativeTranscript: NSViewRepresentable {
     @Environment(\.pikachuTypography) private var typography
     let rows: [TranscriptDisplayRow]
     @Binding var follow: Bool
+    var scrolledToTop: Binding<Bool>? = nil
+    var extraTopClearance: CGFloat = 0
     var composerClearance: CGFloat = 0
     var jump: Jump?
     var workspaceDirectory: URL? = nil
     var onOpenFile: ((URL) -> Void)? = nil
+    var onOpenHandoffFile: HandoffFileOpener? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
-    var onPreviewImage: ((URL) -> Void)? = nil
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
     var replyFooters: [String: TranscriptReplyFooter] = [:]
     var queueFooter: TranscriptQueueFooter? = nil
+    var scrollState: TranscriptScrollState? = nil
     static let topClearance: CGFloat = 20
     private static let rowVerticalInset: CGFloat = 3
 
@@ -41,7 +46,7 @@ struct NativeTranscript: NSViewRepresentable {
         table.delegate = coordinator; table.dataSource = coordinator
         table.setAccessibilityIdentifier("transcript")
         scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
-        scroll.verticalScroller = TranscriptScroller(frame: .zero)
+        WorkbenchScroller.install(in: scroll, axis: .vertical)
         scroll.verticalScroller?.controlSize = .small
         scroll.autohidesScrollers = true
         scroll.automaticallyAdjustsContentInsets = false
@@ -60,40 +65,31 @@ struct NativeTranscript: NSViewRepresentable {
         NotificationCenter.default.addObserver(coordinator,selector:#selector(Coordinator.scrolled(_:)),name:NSView.boundsDidChangeNotification,object:scroll.contentView)
         NotificationCenter.default.addObserver(coordinator, selector: #selector(Coordinator.userScrolled(_:)),
                                                name: NSScrollView.didLiveScrollNotification, object: scroll)
+        NotificationCenter.default.addObserver(coordinator, selector: #selector(Coordinator.liveScrollWillStart(_:)),
+                                               name: NSScrollView.willStartLiveScrollNotification, object: scroll)
+        NotificationCenter.default.addObserver(coordinator, selector: #selector(Coordinator.liveScrollDidEnd(_:)),
+                                               name: NSScrollView.didEndLiveScrollNotification, object: scroll)
         return scroll
     }
     func updateNSView(_ scroll: TranscriptScroll, context: Context) {
         context.coordinator.onOpenFile = onOpenFile
+        context.coordinator.onOpenHandoffFile = onOpenHandoffFile
         context.coordinator.onEditUserMessage = onEditUserMessage
         context.coordinator.onPreviewImage = onPreviewImage
         context.coordinator.onShowToolOutput = onShowToolOutput
+        context.coordinator.scrolledToTopBinding = scrolledToTop
+        context.coordinator.attach(scrollState: scrollState)
         context.coordinator.update(rows, follow: $follow, fontSize: typography.size,
                                    workspaceDirectory: workspaceDirectory,
                                    replyFooters: replyFooters, queueFooter: queueFooter)
-        context.coordinator.updateViewport(composerClearance: composerClearance, jump: jump)
+        context.coordinator.updateViewport(topClearance: extraTopClearance,
+                                           composerClearance: composerClearance,
+                                           jump: jump)
     }
     static func dismantleNSView(_ scroll: TranscriptScroll, coordinator: Coordinator) {
         coordinator.stopScrollSample()
         coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil
         NotificationCenter.default.removeObserver(coordinator)
-    }
-
-    final class TranscriptScroller: NSScroller {
-        override class var isCompatibleWithOverlayScrollers: Bool { true }
-
-        override func drawKnob() {
-            let knob = rect(for: .knob)
-            guard !knob.isEmpty else { return }
-            let width = min(6, knob.width)
-            let thumb = NSRect(x: bounds.maxX - width, y: knob.minY, width: width, height: knob.height)
-            let increasedContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-            PikachuTheme.scrollbarThumbColor(active: hitPart == .knob, increasedContrast: increasedContrast).setFill()
-            NSBezierPath(roundedRect: thumb, xRadius: width / 2, yRadius: width / 2).fill()
-        }
-
-        override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {
-            if flag { super.drawKnobSlot(in: slotRect, highlight: flag) }
-        }
     }
 
     final class TranscriptScroll: NSScrollView {
@@ -145,13 +141,12 @@ struct NativeTranscript: NSViewRepresentable {
             if event.phase == .began {
                 gestureRoute = nil
                 gestureTarget = nil
-                // A scroller is outside its clip view, so enclosingScrollView
-                // can skip the scroll view that owns it.
+                // Include the hit itself when locating the innermost scroll view.
                 if event.hasPreciseScrollingDeltas, !event.modifierFlags.contains(.shift),
                    let hit = transcriptHit(at: location),
                    let target = sequence(first: hit, next: { $0.superview })
                        .first(where: { $0 is NSScrollView }) as? NSScrollView,
-                   target.hasHorizontalScroller, !target.hasVerticalScroller {
+                   TranscriptHorizontalScrollMarker.matches(target) {
                     gestureRoute = .awaitingDirection(.zero)
                     gestureTarget = target
                 }
@@ -259,20 +254,57 @@ struct NativeTranscript: NSViewRepresentable {
         private var fontSize: InterfaceFontSize = .standard
         private var workspaceDirectory: URL?
         var onOpenFile: ((URL) -> Void)?
+        var onOpenHandoffFile: HandoffFileOpener?
         var onEditUserMessage: ((TranscriptItem) -> Void)?
-        var onPreviewImage: ((URL) -> Void)?
+        var onPreviewImage: ((ImagePreviewSelection) -> Void)?
         var onShowToolOutput: ((ToolOutputSelection) -> Void)?
+        var scrolledToTopBinding: Binding<Bool>?
         private let toolExpansion = ToolCallExpansion()
         private let turnChangesExpansion = TurnChangesExpansion()
+        private let handoffExpansion = HandoffRowExpansion()
         private let replyHover = TranscriptReplyHover()
+        private let markdownStore = TranscriptMarkdownStore()
+        private weak var scrollState: TranscriptScrollState?
         private var follow = true
         private var followBinding: Binding<Bool>?
+        private var scrolledToTop = false
         private var lastJump: Jump?
+        private var lastExtraTopClearance: CGFloat = 0
+        private var lastComposerClearance: CGFloat = 0
+        private var lastReadingColumnWidth: CGFloat?
+        private var isLiveScrolling = false
+        private var deferredBottomFollow = false
         private var scheduled = false
         private var refreshing = false
         private var changed = IndexSet(), upgrades = IndexSet()
         private var heights: [String:CGFloat] = [:], pendingHeights: [String:CGFloat] = [:]
         private var sampleDriver: TranscriptScrollSample?
+        func attach(scrollState: TranscriptScrollState?) {
+            guard self.scrollState !== scrollState else { return }
+            self.scrollState = scrollState
+            if let scrollState {
+                scrollState.coordinator = self
+                follow = scrollState.follow
+                scrolledToTop = scrollState.scrolledToTop
+            }
+        }
+        func setFollowFromUser(_ value: Bool) {
+            follow = value
+            followBinding?.wrappedValue = value
+            scrollState?.follow = value
+            if value {
+                scrollState?.jump = nil
+                schedule()
+            }
+        }
+        func jumpTo(messageID: String) {
+            follow = false
+            followBinding?.wrappedValue = false
+            scrollState?.follow = false
+            let next = Jump(messageID: messageID)
+            scrollState?.jump = next
+            updateViewport(topClearance: lastExtraTopClearance, composerClearance: lastComposerClearance, jump: next)
+        }
         func startScrollSample() -> Bool {
             guard !follow, rows.count >= 5_000, let scroll, let table, scroll.window?.isKeyWindow == true else { return false }
             stopScrollSample()
@@ -290,35 +322,66 @@ struct NativeTranscript: NSViewRepresentable {
         func stopScrollSample() { sampleDriver?.stop(); sampleDriver = nil }
         // Match SwiftUI's full viewport even when a legacy scroller consumes clip width.
         private var viewportWidth: CGFloat { scroll?.bounds.width ?? 600 }
+        private func hostingRect(in tableView: NSTableView) -> NSRect {
+            let visible = tableView.visibleRect
+            guard !visible.isEmpty else { return visible }
+            let margin = min(max(visible.height, 480), 1_200)
+            return visible.insetBy(dx: 0, dy: -margin)
+        }
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { false }
         private func estimate(_ row: Int) -> CGFloat {
             guard rows.indices.contains(row) else { return 120 }
+            let typography = PikachuTypography(size: fontSize)
             switch rows[row].content {
-            case .turnHeader: return ceil(PikachuTypography(size: fontSize).pointSize(for: .caption) * 1.25) + 14
+            case .modelChange: return ceil(typography.pointSize(for: .callout) * 1.38) + 18
+            case .turnHeader: return ceil(typography.pointSize(for: .caption) * 1.25) + 14
             case .toolCalls, .thinking: return 24
             case .turnChanges: return 38
-            case .item: return 120
+            case .item(let item): return estimateItemHeight(item, typography: typography)
             }
+        }
+        private func estimateItemHeight(_ item: TranscriptItem, typography: PikachuTypography) -> CGFloat {
+            let columnWidth = max(200, WorkbenchReadingColumn.width(in: viewportWidth))
+            let bodySize = typography.pointSize(for: .body)
+            let lineHeight = ceil(bodySize * 1.38)
+            let rawText = item.kind == .user ? item.editableText : item.text
+            let textWidth = item.kind == .user ? min(columnWidth * 0.72, columnWidth - 28) : columnWidth
+            let charsPerLine = max(16, Int(floor(textWidth / (bodySize * 0.62))))
+            var lineCount = 0
+            rawText.enumerateSubstrings(in: rawText.startIndex..<rawText.endIndex, options: [.byLines, .substringNotRequired]) { _, range, _, _ in
+                let length = rawText.distance(from: range.lowerBound, to: range.upperBound)
+                lineCount += max(1, (length + charsPerLine - 1) / charsPerLine)
+            }
+            if lineCount == 0 { lineCount = 1 }
+            var estimated = CGFloat(lineCount) * lineHeight + (item.kind == .user ? 46 : 16)
+            if item.kind == .user, !item.attachedFiles.isEmpty {
+                estimated += 88
+            }
+            return min(2_400, max(44, estimated))
         }
         func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
             guard rows.indices.contains(row) else { return 120 }; return heights[rows[row].id] ?? estimate(row)
         }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard rows.indices.contains(row) else { return nil }
-            if !tableView.rect(ofRow:row).intersects(tableView.visibleRect) {
+            if !tableView.rect(ofRow: row).intersects(hostingRect(in: tableView)) {
                 let cell = (tableView.makeView(withIdentifier:.init("summary-cell"),owner:nil) as? SummaryCell) ?? SummaryCell()
                 cell.viewportWidth = viewportWidth
                 cell.label.font = PikachuTypography(size: fontSize).nsFont(.body)
                 switch rows[row].content {
+                case .modelChange(_, let change):
+                    cell.label.stringValue = change.title
                 case .item(let item):
-                    cell.label.stringValue = item.text
+                    cell.label.stringValue = item.kind == .user ? item.editableText : item.text
                 case .turnHeader(let turn):
                     cell.label.stringValue = TurnHeaderSummary(turn: turn).accessibilityText
                 case .turnChanges(let turn):
                     cell.label.stringValue = String(localized: "本轮 \(turn.fileChanges?.files.count ?? 0) 个文件变更")
-                case .thinking:
-                    cell.label.stringValue = String(localized: "思考中")
+                case .thinking(let turn):
+                    cell.label.stringValue = turn.thoughtText.isEmpty
+                        ? String(localized: "思考中")
+                        : "\(String(localized: "思考中"))：\(turn.thoughtText)"
                 case .toolCalls(let tools):
                     if tools.count == 1, let tool = tools.first?.toolSummary {
                         cell.label.stringValue = ToolCallPresentation(tool).accessibilityDescription
@@ -335,6 +398,50 @@ struct NativeTranscript: NSViewRepresentable {
             }
             configure(cell,row:row); return cell
         }
+        private lazy var premeasureHost: NSHostingView<TranscriptHost> = {
+            let host = NSHostingView(rootView: TranscriptHost(
+                row: nil, width: 600, fontSize: .standard, toolExpansion: toolExpansion,
+                onEditUserMessage: nil, changed: {}
+            ))
+            host.sizingOptions = [.intrinsicContentSize]
+            return host
+        }()
+        private func makeTranscriptHost(for content: NativeTranscriptRow, width: CGFloat, cell: HostCell?) -> TranscriptHost {
+            let id = content.id
+            let openHandoffFile: HandoffFileOpener?
+            if onOpenHandoffFile == nil {
+                openHandoffFile = nil
+            } else {
+                openHandoffFile = { [weak self] path, directory in
+                    guard let open = self?.onOpenHandoffFile else { return .cancelled }
+                    return await open(path, directory)
+                }
+            }
+            return TranscriptHost(
+                row: content,
+                width: width,
+                fontSize: fontSize,
+                workspaceDirectory: workspaceDirectory,
+                markdownStore: markdownStore,
+                toolExpansion: toolExpansion,
+                onOpenFile: onOpenFile == nil ? nil : { [weak self] in
+                    self?.onOpenFile?($0)
+                },
+                onOpenHandoffFile: openHandoffFile,
+                onEditUserMessage: onEditUserMessage,
+                onPreviewImage: onPreviewImage == nil ? nil : { [weak self] in
+                    self?.onPreviewImage?($0)
+                },
+                onShowToolOutput: { [weak self] in self?.onShowToolOutput?($0) },
+                turnChangesExpansion: turnChangesExpansion,
+                handoffExpansion: handoffExpansion,
+                replyHover: replyHover,
+                queueFooter: queueFooter?.itemID == id ? queueFooter?.text : nil
+            ) { [weak self, weak cell] in
+                guard let cell else { return }
+                self?.scheduleMeasure(for: cell, expectedID: id)
+            }
+        }
         private func configure(_ cell: HostCell, row: Int) {
             let content = rows[row], id = content.id
             cell.representedID = id
@@ -342,26 +449,31 @@ struct NativeTranscript: NSViewRepresentable {
             let width = WorkbenchReadingColumn.width(in: viewportWidth)
             cell.columnLeading.constant = WorkbenchReadingColumn.inset(in: viewportWidth)
             let needsMeasurement = heights[id] == nil || cell.host.rootView.width != width || cell.host.rootView.row?.id != id || cell.host.rootView.workspaceDirectory != workspaceDirectory
-            cell.host.rootView = TranscriptHost(
-                row: content,
-                width: width,
-                fontSize: fontSize,
-                workspaceDirectory: workspaceDirectory,
-                toolExpansion: toolExpansion,
-                onOpenFile: onOpenFile == nil ? nil : { [weak self] in
-                    self?.onOpenFile?($0)
-                },
-                onEditUserMessage: onEditUserMessage,
-                onPreviewImage: { [weak self] in self?.onPreviewImage?($0) },
-                onShowToolOutput: { [weak self] in self?.onShowToolOutput?($0) },
-                turnChangesExpansion: turnChangesExpansion,
-                replyHover: replyHover,
-                queueFooter: queueFooter?.itemID == id ? queueFooter?.text : nil
-            ) { [weak self, weak cell] in
-                self?.scheduleMeasure(for: cell, expectedID: id)
-            }
+            cell.host.rootView = makeTranscriptHost(for: content, width: width, cell: cell)
             if needsMeasurement {
+                let measured = ceil(cell.host.fittingSize.height) + 2 * NativeTranscript.rowVerticalInset
+                if measured.isFinite, measured >= 20, measured < 1_000_000,
+                   abs((pendingHeights[id] ?? heights[id] ?? estimate(row)) - measured) > 1 {
+                    pendingHeights[id] = measured
+                    changed.insert(row)
+                    if !refreshing { schedule() }
+                }
                 scheduleMeasure(for: cell, expectedID: id)
+            }
+        }
+        private func premeasureBufferedRowIfNeeded(_ row: Int, width: CGFloat) {
+            guard rows.indices.contains(row) else { return }
+            let content = rows[row], id = content.id
+            guard heights[id] == nil, pendingHeights[id] == nil else { return }
+            premeasureHost.rootView = makeTranscriptHost(for: content, width: width, cell: nil)
+            let measured = ceil(premeasureHost.fittingSize.height) + 2 * NativeTranscript.rowVerticalInset
+            guard measured.isFinite, measured >= 20, measured < 1_000_000 else { return }
+            if abs(estimate(row) - measured) > 1 {
+                pendingHeights[id] = measured
+                changed.insert(row)
+                if !refreshing { schedule() }
+            } else {
+                heights[id] = measured
             }
         }
         private func scheduleMeasure(for cell: HostCell?, expectedID: String) {
@@ -381,7 +493,7 @@ struct NativeTranscript: NSViewRepresentable {
             let height = max(20, ceil(cell.host.frame.height) + 2 * NativeTranscript.rowVerticalInset)
             guard height.isFinite, height < 1_000_000,
                   abs((pendingHeights[id] ?? heights[id] ?? estimate(row)) - height) > 1,
-                  table.rect(ofRow: row).intersects(table.visibleRect) else { return }
+                  table.rect(ofRow: row).intersects(hostingRect(in: table)) else { return }
             pendingHeights[id] = height; changed.insert(row); schedule()
         }
         private func schedule() {
@@ -389,40 +501,67 @@ struct NativeTranscript: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let table = self.table else { return }; self.scheduled = false; self.refreshing = true
                 defer { self.refreshing = false }
-                let upgrades = self.upgrades, changes = self.changed, pending = self.pendingHeights
-                self.upgrades = []; self.changed = []; self.pendingHeights = [:]
-                let anchor = self.follow || changes.isEmpty ? nil : self.readAnchor()
-                if !upgrades.isEmpty { table.reloadData(forRowIndexes:upgrades,columnIndexes:IndexSet(integer:0)) }
-                // Commit cached heights immediately before invalidating AppKit's
-                // row cache; the delegate never changes estimates between notes.
-                self.heights.merge(pending) { _,new in new }
-                if !changes.isEmpty, self.follow {
-                    NSAnimationContext.runAnimationGroup { context in
-                        context.duration = 0
+                let upgrades = self.upgrades
+                self.upgrades = []
+                let anchor = self.follow ? nil : self.readAnchor()
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0
+                    context.allowsImplicitAnimation = false
+                    if !upgrades.isEmpty {
+                        table.reloadData(forRowIndexes: upgrades, columnIndexes: IndexSet(integer: 0))
+                    }
+                    let changes = self.changed, pending = self.pendingHeights
+                    self.changed = []; self.pendingHeights = [:]
+                    // Commit cached heights immediately before invalidating AppKit's
+                    // row cache; the delegate never changes estimates between notes.
+                    self.heights.merge(pending) { _, new in new }
+                    if !changes.isEmpty {
                         table.noteHeightOfRows(withIndexesChanged: changes)
                     }
-                } else if !changes.isEmpty {
-                    table.noteHeightOfRows(withIndexesChanged: changes)
+                    if self.follow {
+                        self.scrollToLatest()
+                    } else if let anchor, !changes.isEmpty, changes.contains(where: { $0 < anchor.index }) {
+                        self.restoreAnchor(anchor, at: anchor.index)
+                    }
                 }
-                if self.follow {
-                    self.scrollToLatest()
-                } else if let anchor {
-                    self.restoreAnchor(anchor, at: anchor.index)
-                }
+                CATransaction.commit()
+                self.updateScrolledToTop()
             }
         }
         @objc func scrolled(_ notification: Notification) {
             guard !refreshing, let table else { return }
-            let visible = table.rows(in:table.visibleRect)
-            guard visible.location != NSNotFound else { return }
-            for row in visible.location..<NSMaxRange(visible) where rows.indices.contains(row) {
+            updateScrolledToTop()
+            let buffered = table.rows(in: hostingRect(in: table))
+            guard buffered.location != NSNotFound else { return }
+            let width = WorkbenchReadingColumn.width(in: viewportWidth)
+            var premeasured = 0
+            for row in buffered.location..<NSMaxRange(buffered) where rows.indices.contains(row) {
                 let view = table.view(atColumn: 0, row: row, makeIfNecessary: false)
                 if view is SummaryCell {
                     upgrades.insert(row)
                     schedule()
                 } else if let hostCell = view as? HostCell {
                     stageHeight(hostCell)
+                } else if view == nil, premeasured < 12 {
+                    let id = rows[row].id
+                    if heights[id] == nil, pendingHeights[id] == nil {
+                        premeasureBufferedRowIfNeeded(row, width: width)
+                        premeasured += 1
+                    }
                 }
+            }
+        }
+        @objc func liveScrollWillStart(_ notification: Notification) {
+            isLiveScrolling = true
+        }
+        @objc func liveScrollDidEnd(_ notification: Notification) {
+            isLiveScrolling = false
+            updateFollowAfterUserScroll()
+            if deferredBottomFollow {
+                deferredBottomFollow = false
+                if follow { schedule() }
             }
         }
         // Programmatic row-height and scroll changes also move the clip view.
@@ -443,7 +582,16 @@ struct NativeTranscript: NSViewRepresentable {
             guard follow != isAtBottom else { return }
             follow = isAtBottom
             followBinding?.wrappedValue = isAtBottom
-            if follow { schedule() }
+            scrollState?.follow = isAtBottom
+            if follow {
+                if isLiveScrolling {
+                    deferredBottomFollow = true
+                } else {
+                    schedule()
+                }
+            } else {
+                deferredBottomFollow = false
+            }
         }
 
         private func scrollToLatest() {
@@ -452,17 +600,43 @@ struct NativeTranscript: NSViewRepresentable {
             moveClip(toY: bottom - scroll.contentView.bounds.height, in: scroll)
         }
 
-        func updateViewport(composerClearance: CGFloat, jump: Jump?) {
+        func updateViewport(topClearance: CGFloat = 0, composerClearance: CGFloat, jump: Jump?) {
             guard let scroll, let table else { return }
+            lastExtraTopClearance = topClearance
+            lastComposerClearance = composerClearance
+            let top = NativeTranscript.topClearance + topClearance
             let bottom = composerClearance + 8
-            if scroll.contentInsets.top != NativeTranscript.topClearance || abs(scroll.contentInsets.bottom - bottom) > 0.5 {
-                scroll.contentInsets = NSEdgeInsets(top: NativeTranscript.topClearance, left: 0, bottom: bottom, right: 0)
+            if abs(scroll.contentInsets.top - top) > 0.5 || abs(scroll.contentInsets.bottom - bottom) > 0.5 {
+                scroll.contentInsets = NSEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
                 if follow { schedule() }
             }
+            updateScrolledToTop()
             guard let jump, jump != lastJump,
                   let row = rows.firstIndex(where: { $0.id == jump.messageID }) else { return }
             lastJump = jump
-            moveClip(toY: table.rect(ofRow: row).minY - NativeTranscript.topClearance, in: scroll)
+            moveClip(toY: table.rect(ofRow: row).minY - top, in: scroll)
+        }
+
+        private func updateScrolledToTop() {
+            guard let table, let scroll, !rows.isEmpty else {
+                publishScrolledToTop(false)
+                return
+            }
+            let contentHeight = table.rect(ofRow: rows.count - 1).maxY
+            let visibleHeight = scroll.contentView.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
+            let hasOverflow = contentHeight > visibleHeight + 4
+            let atTop = hasOverflow && scroll.contentView.bounds.minY <= -scroll.contentInsets.top + 12
+            publishScrolledToTop(atTop)
+        }
+
+        private func publishScrolledToTop(_ value: Bool) {
+            guard scrolledToTop != value else { return }
+            scrolledToTop = value
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.scrolledToTopBinding?.wrappedValue = self.scrolledToTop
+                self.scrollState?.scrolledToTop = self.scrolledToTop
+            }
         }
 
         func update(_ content: [TranscriptDisplayRow], follow binding: Binding<Bool>, fontSize: InterfaceFontSize = .standard,
@@ -470,12 +644,17 @@ struct NativeTranscript: NSViewRepresentable {
                     replyFooters: [String: TranscriptReplyFooter] = [:], queueFooter: TranscriptQueueFooter? = nil) {
             let values = content.map { NativeTranscriptRow(content: $0, replyFooter: replyFooters[$0.id]) }
             followBinding = binding
-            let shouldFollow = binding.wrappedValue && !follow
-            follow = binding.wrappedValue
+            let effectiveFollow = scrollState?.follow ?? binding.wrappedValue
+            let shouldFollow = effectiveFollow && !follow
+            follow = effectiveFollow
             let fontChanged = self.fontSize != fontSize
             self.fontSize = fontSize
             let workspaceChanged = self.workspaceDirectory != workspaceDirectory
             self.workspaceDirectory = workspaceDirectory
+            if workspaceChanged { markdownStore.clearPathCache() }
+            if lastReadingColumnWidth == nil {
+                lastReadingColumnWidth = WorkbenchReadingColumn.width(in: viewportWidth)
+            }
             let replaced = rows.count != values.count || zip(rows, values).contains { !$0.hasSameItems(as: $1) }
             let footerChanged = self.queueFooter != queueFooter
             guard replaced || fontChanged || workspaceChanged || footerChanged else {
@@ -507,6 +686,7 @@ struct NativeTranscript: NSViewRepresentable {
                     guard let old = previous[row.id] else { return nil }
                     // Keep an expanded row's last measurement until its updated view is laid out.
                     if case .toolCalls = row.content, case .toolCalls = old.content { return row.id }
+                    if case .thinking = row.content, case .thinking = old.content { return row.id }
                     return old.hasSameItems(as: row) ? row.id : nil
                 })
                 heights = heights.filter { retained.contains($0.key) }
@@ -591,6 +771,9 @@ struct NativeTranscript: NSViewRepresentable {
         private func readAnchor() -> ViewportAnchor? {
             guard let table, let scroll else { return nil }
             let y = scroll.contentView.bounds.minY
+            if y < 0, let first = rows.first {
+                return .init(index: 0, row: first, offset: y)
+            }
             // The viewport can start in the inter-row gap.
             let row = table.rows(in: NSRect(x: 0, y: max(0, y), width: table.bounds.width, height: table.intercellSpacing.height + 1)).location
             guard rows.indices.contains(row) else { return nil }
@@ -604,7 +787,7 @@ struct NativeTranscript: NSViewRepresentable {
             let offset: CGFloat
             switch (anchor.row.content, replacement.content) {
             case (.item, .item), (.turnHeader, .turnHeader), (.turnChanges, .turnChanges),
-                 (.toolCalls, .toolCalls):
+                 (.toolCalls, .toolCalls), (.thinking, .thinking):
                 offset = anchor.row.id == replacement.id ? min(anchor.offset, max(0, rect.height - 1)) : 0
             default:
                 // A folded group has no corresponding point inside the old tool detail.
@@ -631,18 +814,27 @@ struct NativeTranscript: NSViewRepresentable {
                 if follow { schedule() }
                 return
             }
-            let visible = table.rows(in:table.visibleRect)
-            guard visible.location != NSNotFound else { return }
-            for row in visible.location..<NSMaxRange(visible) where rows.indices.contains(row) {
-                let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false)
-                if let hostCell = cell as? HostCell {
-                    hostCell.columnLeading.constant = WorkbenchReadingColumn.inset(in: viewportWidth)
-                    if hostCell.host.rootView.width != WorkbenchReadingColumn.width(in: viewportWidth) {
-                        configure(hostCell, row: row)
+            let newColumnWidth = WorkbenchReadingColumn.width(in: viewportWidth)
+            let columnWidthChanged = lastReadingColumnWidth.map { abs($0 - newColumnWidth) > 0.5 } ?? false
+            lastReadingColumnWidth = newColumnWidth
+            let buffered = table.rows(in: hostingRect(in: table))
+            var bufferedIDs: Set<String> = []
+            if buffered.location != NSNotFound {
+                for row in buffered.location..<NSMaxRange(buffered) where rows.indices.contains(row) {
+                    bufferedIDs.insert(rows[row].id)
+                    let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false)
+                    if let hostCell = cell as? HostCell {
+                        hostCell.columnLeading.constant = WorkbenchReadingColumn.inset(in: viewportWidth)
+                        if hostCell.host.rootView.width != newColumnWidth {
+                            configure(hostCell, row: row)
+                        }
+                    } else if let summaryCell = cell as? SummaryCell {
+                        summaryCell.viewportWidth = viewportWidth
                     }
-                } else if let summaryCell = cell as? SummaryCell {
-                    summaryCell.viewportWidth = viewportWidth
                 }
+            }
+            if columnWidthChanged {
+                heights = heights.filter { bufferedIDs.contains($0.key) }
             }
             schedule()
         }
@@ -693,6 +885,52 @@ struct NativeTranscript: NSViewRepresentable {
         required init?(coder: NSCoder) { fatalError("init(coder:) is unsupported") }
     }
 }
+
+struct TranscriptHorizontalScrollView<Content: View>: View {
+    var showsIndicators = false
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            content().background { TranscriptHorizontalScrollMarker() }
+        }
+        .scrollIndicators(showsIndicators ? .automatic : .never)
+    }
+}
+
+/// Identifies the native scroll view even when SwiftUI removes its scroller.
+struct TranscriptHorizontalScrollMarker: NSViewRepresentable {
+    private static let identifier = NSUserInterfaceItemIdentifier("Pikachu.TranscriptHorizontalScroll")
+
+    static func matches(_ scrollView: NSScrollView) -> Bool {
+        scrollView.identifier == identifier
+    }
+
+    func makeNSView(context: Context) -> Attachment { Attachment() }
+
+    func updateNSView(_ view: Attachment, context: Context) { view.markScrollView() }
+
+    final class Attachment: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func isAccessibilityElement() -> Bool { false }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            markScrollView()
+        }
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            markScrollView()
+        }
+
+        func markScrollView() {
+            guard let scrollView = enclosingScrollView, !(scrollView is NativeTranscript.TranscriptScroll) else { return }
+            scrollView.identifier = TranscriptHorizontalScrollMarker.identifier
+        }
+    }
+}
+
 @MainActor private struct NativeTranscriptRow {
     let content: TranscriptDisplayRow
     let replyFooter: TranscriptReplyFooter?
@@ -716,12 +954,15 @@ private struct TranscriptHost: View {
     let width: CGFloat
     let fontSize: InterfaceFontSize
     var workspaceDirectory: URL? = nil
+    var markdownStore: TranscriptMarkdownStore? = nil
     let toolExpansion: ToolCallExpansion
     var onOpenFile: ((URL) -> Void)? = nil
+    var onOpenHandoffFile: HandoffFileOpener? = nil
     let onEditUserMessage: ((TranscriptItem) -> Void)?
-    var onPreviewImage: ((URL) -> Void)? = nil
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     var onShowToolOutput: ((ToolOutputSelection) -> Void)? = nil
     var turnChangesExpansion = TurnChangesExpansion()
+    var handoffExpansion = HandoffRowExpansion()
     var replyHover = TranscriptReplyHover()
     var queueFooter: String? = nil
     let changed: () -> Void
@@ -733,6 +974,9 @@ private struct TranscriptHost: View {
                     replyRegion(row) { messageRow(item) }
                 case .item(let item):
                     messageRow(item)
+                case .modelChange(_, let change):
+                    SessionTransitionRow(title: change.title)
+                        .accessibilityIdentifier(row.id)
                 case .turnHeader(let turn):
                     TurnHeaderView(turn: turn)
                         .accessibilityIdentifier(row.id)
@@ -744,10 +988,12 @@ private struct TranscriptHost: View {
                                            contentChanged: changed)
                         }
                     }
-                case .thinking:
-                    TranscriptThinkingRow()
+                case .thinking(let turn):
+                    TranscriptThinkingRow(turn: turn, expanded: toolExpansion.thinkingBinding(for: turn),
+                                          contentChanged: changed)
                 case .toolCalls(let tools):
-                    ToolCallsRow(items: tools, expansion: toolExpansion, onShowOutput: onShowToolOutput, contentChanged: changed)
+                    ToolCallsRow(items: tools, expansion: toolExpansion, onShowOutput: onShowToolOutput,
+                                 onPreviewImage: onPreviewImage, contentChanged: changed)
                 }
             }
             .id(row.id)
@@ -761,9 +1007,12 @@ private struct TranscriptHost: View {
     }
 
     private func messageRow(_ item: TranscriptItem) -> some View {
-        TranscriptRow(item: item, width: width, workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile,
+        TranscriptRow(item: item, width: width, workspaceDirectory: workspaceDirectory,
+                      markdownStore: markdownStore, onOpenFile: onOpenFile,
+                      onOpenHandoffFile: onOpenHandoffFile,
                       onEditUserMessage: onEditUserMessage,
-                      onPreviewImage: onPreviewImage, queueFooter: queueFooter, contentChanged: changed)
+                      onPreviewImage: onPreviewImage, queueFooter: queueFooter,
+                      handoffExpansion: handoffExpansion, contentChanged: changed)
     }
 
     private func replyRegion<Content: View>(_ row: NativeTranscriptRow, @ViewBuilder content: () -> Content) -> some View {

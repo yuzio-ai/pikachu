@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct IconButtonLabel: View {
@@ -144,6 +145,107 @@ struct FileTextIcon: View {
             context.stroke(lines, with: .foreground, style: gitIconStroke)
         }
         .frame(width: 13, height: 13)
+        .accessibilityHidden(true)
+    }
+}
+
+struct ProviderLogo: View {
+    let provider: String
+    var model: String? = nil
+    private static let frameSide: CGFloat = 13
+    private static let defaultSide: CGFloat = 12
+
+    /// Visible marks sit in one optical band next to 13 pt text, so wide or
+    /// thin-stroked marks may fill the whole frame instead of the default 12 pt.
+    private struct Mark {
+        let asset: String
+        let side: CGFloat
+    }
+    private static let marks: [String: Mark] = [
+        "openai": .init(asset: "openai", side: defaultSide), "openai-codex": .init(asset: "openai", side: defaultSide),
+        "anthropic": .init(asset: "anthropic", side: defaultSide),
+        // The whale reads smaller than square marks; it needs the full frame.
+        "deepseek": .init(asset: "deepseek", side: frameSide),
+        "google": .init(asset: "googlegemini", side: frameSide), "google-vertex": .init(asset: "googlegemini", side: frameSide),
+        "google-gemini-cli": .init(asset: "googlegemini", side: frameSide), "gemini": .init(asset: "googlegemini", side: frameSide),
+        "antigravity": .init(asset: "antigravity", side: frameSide),
+        "acp:antigravity": .init(asset: "antigravity", side: frameSide),
+        "google-antigravity": .init(asset: "antigravity", side: frameSide),
+        // Qwen's mark is detailed enough that 12 pt cannot resolve its inner strokes.
+        "qwen": .init(asset: "qwen", side: frameSide), "qwen-token-plan": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-cn": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-individual": .init(asset: "qwen", side: frameSide),
+        "qwen-token-plan-individual-cn": .init(asset: "qwen", side: frameSide),
+        "dashscope": .init(asset: "qwen", side: frameSide),
+        // GLM ships as Z.ai; the bold bars already carry enough weight at 12 pt.
+        "zai": .init(asset: "zai", side: defaultSide), "zai-coding-cn": .init(asset: "zai", side: defaultSide),
+        "glm": .init(asset: "zai", side: defaultSide), "zhipu": .init(asset: "zai", side: defaultSide),
+    ]
+    private static let aggregatorProviders: Set<String> = [
+        "", "antigravity", "acp:antigravity", "google-antigravity"
+    ]
+    private static let images: [String: NSImage] = {
+        var images: [String: NSImage] = [:]
+        for name in Set(marks.values.map(\.asset)) {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "ProviderLogos"),
+                  let image = NSImage(contentsOf: url) else { continue }
+            image.isTemplate = true
+            images[name] = image
+        }
+        return images
+    }()
+
+    private static func mark(for provider: String, model: String? = nil) -> Mark? {
+        let normalizedProvider = provider.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let direct = marks[normalizedProvider]
+        let canInferFromModel = direct == nil
+            || aggregatorProviders.contains(normalizedProvider)
+            || normalizedProvider.hasPrefix("acp:")
+        if canInferFromModel, let model, let inferred = inferredMark(forModel: model) {
+            return inferred
+        }
+        return direct
+    }
+
+    private static func inferredMark(forModel model: String) -> Mark? {
+        let lower = model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !lower.isEmpty else { return nil }
+        if lower.contains("gemini") { return .init(asset: "googlegemini", side: frameSide) }
+        if lower.contains("claude") { return .init(asset: "anthropic", side: defaultSide) }
+        if lower.contains("deepseek") { return .init(asset: "deepseek", side: frameSide) }
+        if lower.contains("qwen") { return .init(asset: "qwen", side: frameSide) }
+        if lower.contains("glm") { return .init(asset: "zai", side: defaultSide) }
+        if lower.contains("gpt") || lower.contains("codex")
+            || lower.range(of: #"\bo[134](?:\b|-)"#, options: .regularExpression) != nil {
+            return .init(asset: "openai", side: defaultSide)
+        }
+        return nil
+    }
+
+    /// Maps a provider/model pair to the bundled mark, or nil when no asset
+    /// matches and the generic chip icon applies.
+    static func assetName(for provider: String, model: String? = nil) -> String? {
+        mark(for: provider, model: model)?.asset
+    }
+
+    /// The calibrated draw size inside the 13 pt frame.
+    static func drawSide(for provider: String, model: String? = nil) -> CGFloat {
+        mark(for: provider, model: model)?.side ?? defaultSide
+    }
+
+    var body: some View {
+        Group {
+            if let mark = Self.mark(for: provider, model: model), let image = Self.images[mark.asset] {
+                Image(nsImage: image).resizable().scaledToFit()
+                    .frame(width: mark.side, height: mark.side)
+            } else {
+                Image(systemName: "cpu")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Self.defaultSide, height: Self.defaultSide)
+            }
+        }
+        .frame(width: Self.frameSide, height: Self.frameSide)
         .accessibilityHidden(true)
     }
 }

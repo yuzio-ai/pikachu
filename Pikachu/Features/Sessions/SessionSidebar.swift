@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import AgentRuntimeCore
 import OrchestrationCore
 
 struct SessionSidebarFilter: Equatable {
@@ -30,7 +31,7 @@ struct SidebarSessionGroups {
         let projectsByID = Dictionary(projects.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let normalized = filter.normalized
         let matching = sessions.compactMap { session -> Row? in
-            guard let project = projectsByID[session.projectID] else { return nil }
+            guard session.archivedAt == nil, let project = projectsByID[session.projectID] else { return nil }
             let row = Row(session: session, project: project)
             return Self.matches(row, filter: normalized) ? row : nil
         }.sorted {
@@ -45,6 +46,7 @@ struct SidebarSessionGroups {
         let term = filter.query
         return (filter.projectID == nil || filter.projectID == row.project.id)
             && (term.isEmpty || row.session.displayTitle.localizedStandardContains(term)
+                || row.project.displayName.localizedStandardContains(term)
                 || row.project.name.localizedStandardContains(term))
     }
 
@@ -116,7 +118,10 @@ struct SessionSidebar: View {
     let openProject: () -> Void
     let createSession: () -> Void
     let openSettings: () -> Void
+    let manageSession: (SessionManagementAction, UUID) -> Void
     var toolSearchPaths: [String] = []
+    var showsImportHistory = false
+    var importHistory: () -> Void = {}
     @AppStorage("session-sidebar-open-expanded") private var openExpanded = true
     @State private var filteredOpenExpansion: Bool?
 
@@ -125,7 +130,8 @@ struct SessionSidebar: View {
         let showsOpen = filter.isActive ? filteredOpenExpansion ?? (groups.count(in: .open) > 0) : openExpanded
         VStack(spacing: 0) {
             SessionSidebarControls(workspace: workspace, filter: $filter, openExpanded: showsOpen,
-                                   openProject: openProject, createSession: createSession) {
+                                   openProject: openProject, createSession: createSession,
+                                   showsImportHistory: showsImportHistory, importHistory: importHistory) {
                 if filter.isActive { filteredOpenExpansion = !showsOpen }
                 else { openExpanded = !showsOpen }
             }
@@ -135,11 +141,12 @@ struct SessionSidebar: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 6)
             }
-            SessionSidebarList(workspace: workspace, filter: filter, groups: groups, openExpanded: showsOpen)
+            SessionSidebarList(workspace: workspace, filter: filter, groups: groups, openExpanded: showsOpen,
+                               manageSession: manageSession)
             SessionSidebarFooter(workspace: workspace, openSettings: openSettings, toolSearchPaths: toolSearchPaths)
         }
         .foregroundStyle(PikachuTheme.primaryText)
-        .background(PikachuTheme.sidebar)
+        .background(PikachuTheme.pageBackground)
         .onChange(of: filter.isActive) { filteredOpenExpansion = nil }
     }
 }
@@ -161,9 +168,10 @@ private struct SessionHistoryWarning: View {
             .foregroundStyle(PikachuTheme.warningText)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(PikachuTheme.warningSurface, in: .capsule)
+            .background(showsDetails ? Color.clear : PikachuTheme.warningSurface, in: .capsule)
         }
-        .buttonStyle(FlatControlButtonStyle(inset: false, cornerRadius: 12))
+        .buttonStyle(FlatControlButtonStyle(isOpen: showsDetails, inset: false, cornerRadius: 12))
+        .accessibilityValue(showsDetails ? Text("已展开") : Text("已折叠"))
         .accessibilityIdentifier("session-history-warning")
         .popover(isPresented: $showsDetails, arrowEdge: .trailing) {
             ScrollView {
@@ -177,6 +185,8 @@ private struct SessionHistoryWarning: View {
             .scrollBounceBehavior(.basedOnSize)
             .defaultScrollAnchor(.top)
             .frame(idealHeight: 110, maxHeight: 220)
+            .background(PikachuTheme.pageBackground)
+            .presentationBackground(PikachuTheme.pageBackground)
         }
     }
 }
@@ -187,7 +197,10 @@ private struct SessionSidebarControls: View {
     let openExpanded: Bool
     let openProject: () -> Void
     let createSession: () -> Void
+    let showsImportHistory: Bool
+    let importHistory: () -> Void
     let toggleOpen: () -> Void
+    @State private var searchHovered = false
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -217,6 +230,7 @@ private struct SessionSidebarControls: View {
             .padding(.horizontal, 7)
             .frame(minHeight: 28)
             .padding(.vertical, 3)
+            .background(searchHovered ? PikachuTheme.controlHover : .clear, in: .rect(cornerRadius: 7))
             .overlay {
                 if searchFocused {
                     RoundedRectangle(cornerRadius: 7)
@@ -224,21 +238,31 @@ private struct SessionSidebarControls: View {
                         .allowsHitTesting(false)
                 }
             }
+            .contentShape(.rect(cornerRadius: 7))
+            .onHover { searchHovered = $0 }
             projectMenu
             SidebarIconButton("添加项目", icon: IconButtonLabel(assetName: "SidebarFolderPlus"), action: openProject)
                 .disabled(!workspace.canManageProjects)
                 .accessibilityIdentifier("open-project")
             SidebarIconButton("新建会话", icon: IconButtonLabel(assetName: "SidebarChat"), action: createSession)
-                .disabled(!workspace.canManageProjects || workspace.state.projects.isEmpty)
+                .disabled(!workspace.canManageProjects)
                 .accessibilityIdentifier("new-session")
         }
         .padding(10)
     }
 
     private var projectMenu: some View {
-        FlatMenu(width: 250) {
+        let isFiltered = filter.projectID != nil
+        return FlatMenu(width: 250, triggerSelected: isFiltered) {
             IconButtonLabel(assetName: "SidebarListFilter")
-                .foregroundStyle(filter.projectID == nil ? PikachuTheme.secondaryText : PikachuTheme.accentText)
+                .foregroundStyle(isFiltered ? PikachuTheme.accentText : PikachuTheme.secondaryText)
+                .overlay(alignment: .topTrailing) {
+                    if isFiltered {
+                        Circle().fill(PikachuTheme.accentText)
+                            .frame(width: 4, height: 4).padding(3)
+                            .accessibilityHidden(true)
+                    }
+                }
         } content: { select in
             ScrollView {
                 VStack(alignment: .leading, spacing: 3) {
@@ -255,6 +279,12 @@ private struct SessionSidebarControls: View {
                 FlatMenuRow(title: Text(openExpanded ? "收起待处理会话" : "展开待处理会话"))
             }
             .accessibilityIdentifier("toggle-open-sessions")
+            if showsImportHistory {
+                Button { select(importHistory) } label: {
+                    FlatMenuRow(title: Text("从 Agent 导入会话"))
+                }
+                .disabled(!workspace.canManageProjects || workspace.state.projects.isEmpty)
+            }
         }
         .fixedSize()
         .help("侧栏筛选与显示")
@@ -269,7 +299,7 @@ private struct SessionSidebarControls: View {
         return Button { select { filter.projectID = projectID } } label: {
             FlatMenuRow(title: title, selected: selected)
         }
-        .buttonStyle(FlatControlButtonStyle(isOpen: selected))
+        .buttonStyle(FlatControlButtonStyle(isSelected: selected))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
@@ -294,6 +324,7 @@ private struct SessionSidebarList: View {
     let filter: SessionSidebarFilter
     let groups: SidebarSessionGroups
     let openExpanded: Bool
+    let manageSession: (SessionManagementAction, UUID) -> Void
     @AppStorage("session-sidebar-settled-expanded") private var settledExpanded = false
     @State private var filteredSettledExpansion: Bool?
     @State private var batches = SidebarSettledBatches()
@@ -319,7 +350,7 @@ private struct SessionSidebarList: View {
                             LazyVStack(spacing: 8) {
                                 ForEach(openRows) { row in
                                     SidebarSessionCard(workspace: workspace, session: row.session, project: row.project,
-                                                       selected: row.id == selected, focus: $focus)
+                                                       selected: row.id == selected, focus: $focus, manageSession: manageSession)
                                 }
                             }
                         }
@@ -329,10 +360,10 @@ private struct SessionSidebarList: View {
                                 .foregroundStyle(PikachuTheme.secondaryText)
                                 .padding(.vertical, 9)
                         }
-                        Spacer(minLength: !openRows.isEmpty && count > 0 ? 24 : 12)
+                        Spacer(minLength: !openRows.isEmpty && count > 0 ? 32 : 12)
                         SettledSidebarSection(workspace: workspace, rows: settledRows, selected: selected, count: count,
                                               expanded: expanded, nextCount: SidebarSettledBatches.remainingInNextBatch(total: count, limit: limit),
-                                              focus: $focus) {
+                                              focus: $focus, manageSession: manageSession) {
                             if filter.isActive { filteredSettledExpansion = !expanded }
                             else { settledExpanded = !expanded }
                             if !expanded { revealSettled.toggle() }
@@ -346,6 +377,7 @@ private struct SessionSidebarList: View {
                     .frame(minHeight: max(0, viewport.size.height - 2 * listPadding))
                     .padding(listPadding)
                 }
+                .scrollIndicators(.never, axes: .vertical)
                 .defaultScrollAnchor(.top, for: .sizeChanges)
                 .onChange(of: revealSettled) {
                     if selectedIndex != nil, let selected {
@@ -395,6 +427,7 @@ private struct SettledSidebarSection: View {
     let expanded: Bool
     let nextCount: Int
     let focus: FocusState<SidebarFocus?>.Binding
+    let manageSession: (SessionManagementAction, UUID) -> Void
     let toggleExpansion: () -> Void
     let showMore: () -> Void
 
@@ -404,7 +437,7 @@ private struct SettledSidebarSection: View {
                 .id(SessionProcessingStatus.settled)
             ForEach(rows) { row in
                 SidebarSessionCard(workspace: workspace, session: row.session, project: row.project,
-                                   selected: row.id == selected, focus: focus)
+                                   selected: row.id == selected, focus: focus, manageSession: manageSession)
             }
             if expanded && nextCount > 0 {
                 Button(action: showMore) {
@@ -431,7 +464,7 @@ private struct SettledSidebarHeader: View {
     var body: some View {
         Button(action: toggle) {
             HStack(spacing: 7) {
-                Text(LocalizedStringResource("session.group.settled", defaultValue: "已处理",
+                Text(LocalizedStringResource("session.group.settled", defaultValue: "已完成",
                                              comment: "Short sidebar heading for settled sessions"))
                     .fontWeight(.medium)
                 Spacer(minLength: 4)
@@ -448,7 +481,7 @@ private struct SettledSidebarHeader: View {
         }
         .buttonStyle(FlatControlButtonStyle(inset: false))
         .disabled(count == 0)
-        .accessibilityLabel("已处理会话")
+        .accessibilityLabel("已完成会话")
         .accessibilityValue(expanded ? "已展开，\(count) 个" : "已收起，\(count) 个")
         .accessibilityIdentifier("sessions-settled")
     }
@@ -456,6 +489,7 @@ private struct SettledSidebarHeader: View {
 
 enum SidebarSessionStatus: String {
     case running, awaitingApproval, awaitingInput, draft, review, cleaning, retrying, compacting, stopping
+    case connecting, blocked, failed, historyIssue
 
     var label: LocalizedStringResource {
         switch self {
@@ -468,25 +502,32 @@ enum SidebarSessionStatus: String {
         case .retrying: "重试中"
         case .compacting: "压缩中"
         case .stopping: "停止中"
+        case .connecting: "连接中"
+        case .blocked: "已阻止"
+        case .failed: "发生错误"
+        case .historyIssue: "历史异常"
         }
     }
 
     var needsAction: Bool {
         switch self {
-        case .awaitingApproval, .awaitingInput, .review: true
+        case .awaitingApproval, .awaitingInput, .review, .blocked, .failed, .historyIssue: true
         default: false
         }
     }
 
     var isRunning: Bool { self == .running || self == .retrying }
 
-    @MainActor static func resolve(execution: SessionController?, needsReview: Bool, hasDraft: Bool) -> Self? {
+    @MainActor static func resolve(execution: SessionController?, needsReview: Bool, hasDraft: Bool,
+                                   hasExecutionError: Bool = false) -> Self? {
         if let execution {
-            if execution.connection == .blocked || execution.phase == .uncertain { return .review }
+            if execution.connection == .blocked { return .blocked }
+            if execution.phase == .uncertain { return .review }
             if execution.connection == .closing { return .cleaning }
             if execution.isStopping { return .stopping }
-            if execution.interactions.contains(where: { $0.toolApproval != nil }) { return .awaitingApproval }
+            if execution.interactions.contains(where: \.isPermissionApproval) { return .awaitingApproval }
             if !execution.interactions.isEmpty { return .awaitingInput }
+            if execution.connection == .connecting { return .connecting }
             if execution.connection == .connected {
                 switch execution.phase {
                 case .running: return .running
@@ -496,6 +537,7 @@ enum SidebarSessionStatus: String {
                 }
             }
         }
+        if hasExecutionError || execution?.failure != nil { return .failed }
         if needsReview { return .review }
         return hasDraft ? .draft : nil
     }
@@ -506,6 +548,8 @@ enum SidebarCardIndicator: Equatable {
 
     var label: String {
         switch self {
+        case .status(.blocked): String(localized: "进程清理待核实 · 已阻止继续执行")
+        case .status(.historyIssue): String(localized: "历史读取异常或尾部未写完")
         case .status(let status): String(localized: status.label)
         case .unreadCompletion: String(localized: "任务已完成，尚未查看")
         case .reminderDue: String(localized: "提醒已到期")
@@ -515,6 +559,7 @@ enum SidebarCardIndicator: Equatable {
 
     var color: Color {
         switch self {
+        case .status(.blocked), .status(.failed): PikachuTheme.errorText
         case .status(let status) where status.needsAction: PikachuTheme.warningText
         case .reminderDue: PikachuTheme.warningText
         case .status(let status) where status.isRunning: PikachuTheme.runningText
@@ -526,6 +571,7 @@ enum SidebarCardIndicator: Equatable {
 
     var dotColor: Color {
         switch self {
+        case .status(.blocked), .status(.failed): color
         case .status(let status) where status.needsAction: PikachuTheme.sidebarWarningDot
         case .reminderDue: PikachuTheme.sidebarWarningDot
         case .status(let status) where status.isRunning: PikachuTheme.sidebarRunningDot
@@ -534,19 +580,22 @@ enum SidebarCardIndicator: Equatable {
         }
     }
 
-    var inlineLabel: String? {
+    var badgeLabel: LocalizedStringResource {
         switch self {
-        case .status(.awaitingApproval), .status(.awaitingInput): label
-        default: nil
+        case .status(let status): status.label
+        case .unreadCompletion: "未读"
+        case .reminderDue: "提醒已到期"
+        case .reminderSnoozed: "已暂缓"
         }
     }
 
-    // The first entry is the card's only dot; all entries remain available in the details.
+    // The first entry is visible on the card. All entries remain available in the details.
     static func ordered(execution: SidebarSessionStatus?, needsReview: Bool, hasDraft: Bool,
-                        unread: Bool, reminder: SessionReminderState) -> [Self] {
+                        unread: Bool, reminder: SessionReminderState, hasHistoryIssue: Bool = false) -> [Self] {
         var indicators: [Self] = []
         if let execution, execution.needsAction { indicators.append(.status(execution)) }
         if needsReview, execution != .review { indicators.append(.status(.review)) }
+        if hasHistoryIssue { indicators.append(.status(.historyIssue)) }
         if reminder == .due { indicators.append(.reminderDue) }
         if let execution, execution.isRunning { indicators.append(.status(execution)) }
         if unread { indicators.append(.unreadCompletion) }
@@ -564,24 +613,30 @@ private struct SidebarSessionCard: View {
     let project: ProjectRecord
     let selected: Bool
     let focus: FocusState<SidebarFocus?>.Binding
+    let manageSession: (SessionManagementAction, UUID) -> Void
     @State private var isHovered = false
     @State private var reminderPresented = false
+    private var isOpen: Bool { session.sidebarStatus == .open }
     private var timeWidth: CGFloat { typography.sidebarTimeWidth }
     private var actionSlotWidth: CGFloat { 2 * IconButtonLabel.side + 3 }
+    private var trailingSlotWidth: CGFloat { max(actionSlotWidth, timeWidth) }
     private let horizontalInset: CGFloat = 8
-    private let openVerticalInset: CGFloat = 7
+    private let openVerticalInset: CGFloat = 9
 
     private var showsActions: Bool {
         isHovered || focus.wrappedValue?.sessionID == session.id || reminderPresented
     }
 
     private func indicators(reminder: SessionReminderState) -> [SidebarCardIndicator] {
-        let isOpen = session.sidebarStatus == .open
+        let presentation = isOpen ? workspace.presentations[session.id] : nil
+        let hasHistoryIssue = presentation?.loadError != nil
         return SidebarCardIndicator.ordered(
             execution: isOpen ? SidebarSessionStatus.resolve(execution: workspace.execution(for: session.id),
-                                                            needsReview: false, hasDraft: false) : nil,
+                                                            needsReview: false, hasDraft: false,
+                                                            hasExecutionError: !hasHistoryIssue && presentation?.executionError != nil) : nil,
             needsReview: isOpen && session.submissions.contains(where: \.needsReview),
-            hasDraft: isOpen && workspace.hasDraft(session), unread: session.hasUnreadCompletion, reminder: reminder)
+            hasDraft: isOpen && workspace.hasDraft(session), unread: session.hasUnreadCompletion, reminder: reminder,
+            hasHistoryIssue: hasHistoryIssue)
     }
 
     private var model: (provider: String?, name: String?) {
@@ -598,34 +653,28 @@ private struct SidebarSessionCard: View {
         return [providerName, model.name ?? String(localized: "模型未知")].compactMap { $0 }.joined(separator: " · ")
     }
 
+    private var agentDisplayName: String {
+        if session.runtimeID.isEmpty { return String(localized: "未知") }
+        let resolved = workspace.runtimeDisplayName(for: session.runtimeID)
+        if resolved != session.runtimeID { return resolved }
+        return CodingAgentLabel.displayName(for: session.runtimeID, agents: workspace.acpAgents)
+    }
+
     private var agentHelp: String {
         let agentName = switch session.runtimeID {
-        case "pi": "Pi Coding Agent"
         case "": String(localized: "未知")
-        default: session.runtimeID
+        default: agentDisplayName
         }
         return String(localized: "Agent：\(agentName)")
     }
 
     private var agentIcon: some View {
-        Group {
-            if session.runtimeID == "pi" {
-                Image("PiAgentLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 17, height: 17)
-            } else {
-                Image(systemName: "terminal")
-                    .font(.system(size: 11))
-                    .frame(width: 13, height: 13)
-            }
-        }
-        .accessibilityHidden(true)
+        CodingAgentIcon(runtimeID: session.runtimeID, displayName: agentDisplayName, agents: workspace.acpAgents)
     }
 
     private var modelAndAgentIcons: some View {
         HStack(spacing: 5) {
-            ProviderLogo(provider: model.provider ?? "")
+            ProviderLogo(provider: model.provider ?? "", model: model.name)
             agentIcon
         }
         .foregroundStyle(PikachuTheme.tertiaryText)
@@ -644,14 +693,14 @@ private struct SidebarSessionCard: View {
         let shape = RoundedRectangle(cornerRadius: 8)
         let indicators = indicators(reminder: reminder)
         return Group {
-            if session.sidebarStatus == .open {
+            if isOpen {
                 selectionButton(indicators: indicators)
                     .accessibilityActions {
                         if workspace.initialized && workspace.storageError == nil {
                             Button("暂缓提醒") { reminderPresented = true }
                         }
                         if workspace.settleBlockReason(for: session) == nil {
-                            Button("标记已处理") { move(to: .settled) }
+                            Button("标记已完成") { move(to: .settled) }
                         }
                     }
                     .overlay(alignment: .topTrailing) {
@@ -694,11 +743,29 @@ private struct SidebarSessionCard: View {
                 .accessibilityHidden(true)
         }
         .onHover { isHovered = $0 }
+        .contextMenu {
+            Button { manageSession(.archive, session.id) } label: {
+                Label("归档", systemImage: "archivebox")
+            }
+            .disabled(workspace.sessionArchiveBlockReason(for: session) != nil)
+            if session.canDeleteRemoteHistory == true && session.remoteHistoryDeleted != true {
+                Button(role: .destructive) { manageSession(.deleteRemoteHistory, session.id) } label: {
+                    Label("从 Agent 历史删除", systemImage: "trash")
+                }
+                .disabled(workspace.sessionArchiveBlockReason(for: session) != nil)
+            }
+            if workspace.isDeletableDraft(session) {
+                Button(role: .destructive) { manageSession(.deleteDraft, session.id) } label: {
+                    Label("删除草稿", systemImage: "trash")
+                }
+                .disabled(!workspace.canDeleteDraft(session))
+            }
+        }
     }
 
     private var cardFill: Color {
-        if selected { return PikachuTheme.sidebarRowSelected }
-        if isHovered || reminderPresented { return PikachuTheme.sidebarRowHover }
+        if selected { return PikachuTheme.selected }
+        if isHovered || reminderPresented { return PikachuTheme.controlHover }
         return .clear
     }
 
@@ -707,51 +774,30 @@ private struct SidebarSessionCard: View {
             DiagnosticMetrics.shared.record("history-select", tag: session.id.uuidString)
             Task { await workspace.openSessionForReview(session.id) }
         } label: {
-            Group {
-                if session.sidebarStatus == .open {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 4) {
-                            HStack(spacing: 5) {
-                                projectBadge.fixedSize()
-                                Text(verbatim: project.displayName)
-                                    .pikachuFont(.caption)
-                                    .foregroundStyle(PikachuTheme.secondaryText)
-                                    .lineLimit(1)
-                            }
-                            Spacer(minLength: 0)
-                            activitySlot
-                        }
-                        .frame(minHeight: IconButtonLabel.side)
+            VStack(alignment: .leading, spacing: 5) {
+                if isOpen {
+                    HStack(spacing: 4) {
                         HStack(spacing: 5) {
-                            statusDot(indicators.first)
-                            Text(session.displayTitle).pikachuFont(.callout, weight: selected ? .medium : .regular).lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            if let indicator = indicators.first, let label = indicator.inlineLabel {
-                                Text(label)
-                                    .pikachuFont(.caption2, weight: .medium)
-                                    .foregroundStyle(indicator.color)
-                                    .lineLimit(1)
-                                    .fixedSize()
-                                    .accessibilityHidden(true)
+                            projectBadge.fixedSize()
+                            Text(verbatim: project.displayName)
+                                .pikachuFont(.caption)
+                                .foregroundStyle(PikachuTheme.secondaryText)
+                                .lineLimit(1)
+                            if let indicator = indicators.first {
+                                statusBadge(indicator)
+                                    .layoutPriority(1)
                             }
-                            modelAndAgentIcons
                         }
-                    }
-                } else {
-                    HStack(spacing: 7) {
-                        projectBadge
-                        statusDot(indicators.first)
-                        Text(session.displayTitle).pikachuFont(.callout, weight: selected ? .medium : .regular).lineLimit(1)
-                            .foregroundStyle(selected || isHovered ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        modelAndAgentIcons
+                        Spacer(minLength: 0)
                         activitySlot
                     }
+                    .frame(minHeight: IconButtonLabel.side)
                 }
+                titleRow(indicator: indicators.first)
             }
             .padding(.horizontal, horizontalInset)
-            .padding(.vertical, session.sidebarStatus == .open ? openVerticalInset : 5)
-            .frame(minHeight: session.sidebarStatus == .settled ? 30 : nil)
+            .padding(.vertical, isOpen ? openVerticalInset : 7)
+            .frame(minHeight: isOpen ? nil : 34)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -763,13 +809,48 @@ private struct SidebarSessionCard: View {
         .accessibilityIdentifier("session-\(session.id)")
     }
 
-    @ViewBuilder private func statusDot(_ indicator: SidebarCardIndicator?) -> some View {
-        if let indicator {
+    private func titleRow(indicator: SidebarCardIndicator?) -> some View {
+        HStack(spacing: 7) {
+            if !isOpen {
+                HStack(spacing: 5) {
+                    projectBadge
+                    Circle()
+                        .fill(indicator?.dotColor ?? .clear)
+                        .frame(width: 7, height: 7)
+                }
+                .accessibilityHidden(true)
+            }
+
+            Text(session.displayTitle)
+                .pikachuFont(.callout, weight: selected ? .medium : .regular)
+                .foregroundStyle(isOpen || selected || isHovered ? PikachuTheme.primaryText : PikachuTheme.secondaryText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if isOpen {
+                modelAndAgentIcons.frame(width: trailingSlotWidth, alignment: .trailing)
+            } else {
+                activitySlot
+            }
+        }
+    }
+
+    private func statusBadge(_ indicator: SidebarCardIndicator) -> some View {
+        HStack(spacing: 4) {
             Circle()
                 .fill(indicator.dotColor)
-                .frame(width: 7, height: 7)
-                .accessibilityHidden(true)
+                .frame(width: 6, height: 6)
+            Text(indicator.badgeLabel)
+                .pikachuFont(.caption2, weight: .medium)
+                .foregroundStyle(indicator.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(indicator.color.opacity(0.12), in: .capsule)
+        .accessibilityHidden(true)
     }
 
     private var fullActivityTime: String {
@@ -787,7 +868,7 @@ private struct SidebarSessionCard: View {
                 ProjectBadge(project: project, compact: true)
             }
             hoverDetailRow(Text(verbatim: modelHelp)) {
-                ProviderLogo(provider: model.provider ?? "")
+                ProviderLogo(provider: model.provider ?? "", model: model.name)
             }
             hoverDetailRow(Text(verbatim: agentHelp)) {
                 agentIcon
@@ -820,11 +901,8 @@ private struct SidebarSessionCard: View {
     }
 
     private var activitySlot: some View {
-        let isOpen = session.sidebarStatus == .open
-        // Keep the project column stable when actions replace the timestamp.
-        let slotWidth = isOpen ? max(actionSlotWidth, timeWidth) : timeWidth
-        return activityTime
-            .frame(width: slotWidth, alignment: .trailing)
+        activityTime
+            .frame(width: trailingSlotWidth, alignment: .trailing)
             .opacity(showsActions ? 0 : 1)
             .accessibilityHidden(true)
     }
@@ -832,7 +910,9 @@ private struct SidebarSessionCard: View {
     private var activityTime: some View {
         let activity = session.activity
         let date = activity.date
-        let format: Date.FormatStyle = Calendar.current.isDateInToday(date) ? .dateTime.hour().minute() : .dateTime.month().day()
+        let format: Date.FormatStyle = Calendar.current.isDateInToday(date)
+            ? .dateTime.hour().minute()
+            : .dateTime.month(.defaultDigits).day()
         return Text(date, format: format)
             .pikachuFont(.caption2)
             .foregroundStyle(PikachuTheme.tertiaryText)
@@ -858,8 +938,8 @@ private struct SidebarSessionCard: View {
             .disabled(blocked != nil || !showsActions)
             .revealedAction(showsActions)
             .accessibilityHidden(!showsActions)
-            .help(blocked.map { String(localized: $0) } ?? String(localized: "标记已处理"))
-            .accessibilityLabel("标记已处理")
+            .help(blocked.map { String(localized: $0) } ?? String(localized: "标记已完成"))
+            .accessibilityLabel("标记已完成")
             .accessibilityHint(blocked.map { String(localized: $0) } ?? "")
         }
     }
@@ -918,7 +998,8 @@ private struct SidebarReminderMenu: View {
         return FlatMenu(width: 166, presentation: $isPresented) {
             IconButtonLabel(systemName: presentation.0)
                 .foregroundStyle(state == .none ? PikachuTheme.secondaryText : PikachuTheme.warningText)
-                .background(state == .none ? Color.clear : PikachuTheme.warningSurface, in: .rect(cornerRadius: 5))
+                .background(state == .none || isPresented ? Color.clear : PikachuTheme.warningSurface,
+                            in: .rect(cornerRadius: 5))
         } content: { select in
             SessionReminderMenuActions(workspace: workspace, sessionID: sessionID, state: state, select: select)
         }

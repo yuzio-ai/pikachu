@@ -3,7 +3,7 @@ import AgentRuntimeCore
 import OrchestrationCore
 
 /// Local projection baseline, deliberately separate from native display latency.
-/// No history is read or restored and no model or Pi process is started.
+/// Synthetic events exercise the projection without starting an agent process.
 @MainActor func measureProjectionBaseline() async throws {
     var samples: [[String: Any]] = []
     for count in [100, 5_000] {

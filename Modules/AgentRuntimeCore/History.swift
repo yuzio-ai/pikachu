@@ -18,8 +18,8 @@ public struct RuntimeConfigurationOptions: Sendable {
     public var thinkingLevels: [String]
     public init(models: [RuntimeModel], thinkingLevels: [String]) { self.models = models; self.thinkingLevels = thinkingLevels }
 }
-public enum HistoryItemKind: String, Sendable { case user, assistant, tool, notice }
-public struct HistoryItem: Sendable, Identifiable {
+public enum HistoryItemKind: String, Sendable, Codable, Equatable { case user, assistant, tool, notice }
+public struct HistoryItem: Sendable, Identifiable, Codable, Equatable {
     public let id: String
     public let kind: HistoryItemKind
     public var text: String
@@ -74,42 +74,5 @@ public struct RuntimeHistory: Sendable {
         self.usage = usage
         self.activityAt = activityAt; self.lastObservedModel = lastObservedModel
         self.needsAttention = needsAttention || incompleteTail
-    }
-}
-
-public struct RuntimeHistorySummary: Sendable {
-    public let sessionID: String
-    public let file: URL
-    public let cwd: String
-    public let title: String
-    public let activityAt: Date?
-    public let model: RuntimeSelection?
-    public let needsAttention: Bool
-
-    public init(_ history: RuntimeHistory) {
-        sessionID = history.sessionID
-        file = history.file
-        cwd = history.cwd
-        title = history.title
-        activityAt = history.activityAt
-        model = history.lastObservedModel ?? history.selection
-        needsAttention = history.needsAttention
-    }
-}
-public struct HistoryDiscovery: Sendable {
-    public var sessions: [RuntimeHistory]
-    public var issues: [String]
-    public init(sessions: [RuntimeHistory], issues: [String]) { self.sessions = sessions; self.issues = issues }
-}
-public protocol RuntimeHistoryReader: Sendable {
-    func read(_ file: URL) async throws -> RuntimeHistory
-    func discover(locations: [String]) async throws -> HistoryDiscovery
-    func discoverSummaries(locations: [String]) async throws -> (sessions: [RuntimeHistorySummary], issues: [String])
-}
-
-public extension RuntimeHistoryReader {
-    func discoverSummaries(locations: [String]) async throws -> (sessions: [RuntimeHistorySummary], issues: [String]) {
-        let discovery = try await discover(locations: locations)
-        return (discovery.sessions.map(RuntimeHistorySummary.init), discovery.issues)
     }
 }

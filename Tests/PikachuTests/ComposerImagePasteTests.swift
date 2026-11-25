@@ -3,6 +3,41 @@ import XCTest
 @testable import Pikachu
 
 final class ComposerImagePasteTests: XCTestCase {
+    @MainActor func testComposerReturnMappingPreservesExplicitSendAndNewline() throws {
+        let editor = NSTextView(frame: .zero)
+        var sent = 0
+        func handle(_ key: UInt16, _ flags: NSEvent.ModifierFlags = [], _ shortcut: ComposerSendShortcut,
+                    canSend: Bool = true, repeating: Bool = false) throws -> Bool {
+            let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags,
+                                                     timestamp: 0, windowNumber: 0, context: nil,
+                                                     characters: "\r", charactersIgnoringModifiers: "\r",
+                                                     isARepeat: repeating, keyCode: key))
+            return ComposerInputEvents.handleReturn(event, modifiers: flags, editor: editor,
+                                                    shortcut: shortcut, canSend: canSend) { sent += 1 }
+        }
+
+        for key: UInt16 in [36, 76] {
+            editor.string = "before"
+            editor.setSelectedRange(NSRange(location: 6, length: 0))
+            XCTAssertTrue(try handle(key, .shift, .returnKey))
+            XCTAssertTrue(try handle(key, [], .commandReturn))
+            XCTAssertEqual(editor.string, "before\n\n")
+            XCTAssertTrue(try handle(key, [], .returnKey, canSend: false))
+            XCTAssertTrue(try handle(key, [], .returnKey, repeating: true))
+            XCTAssertTrue(try handle(key, [], .returnKey))
+            XCTAssertTrue(try handle(key, .command, .commandReturn))
+            XCTAssertFalse(try handle(key, .option, .returnKey))
+        }
+        XCTAssertEqual(sent, 4)
+
+        editor.setMarkedText("中文", selectedRange: NSRange(location: 2, length: 0),
+                             replacementRange: NSRange(location: NSNotFound, length: 0))
+        XCTAssertTrue(editor.hasMarkedText())
+        XCTAssertFalse(try handle(36, [], .returnKey))
+        XCTAssertFalse(try handle(76, .command, .commandReturn))
+        XCTAssertEqual(sent, 4)
+    }
+
     @MainActor func testPlainTextIsNotAnImage() {
         let pasteboard = NSPasteboard.withUniqueName()
         defer { pasteboard.releaseGlobally() }

@@ -3,81 +3,35 @@ import AppKit
 import SwiftUI
 import XCTest
 import AgentRuntimeCore
-import OrchestrationCore
-@testable import PiRuntimeAdapter
+@testable import OrchestrationCore
 @testable import Pikachu
 
 final class TurnFileChangesTests: XCTestCase {
-    func testGitFollowUpClosesPreviousTurnAndSteeringKeepsItsBaseline() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let scratch = root.appendingPathComponent("scratch", isDirectory: true)
-        let folder = scratch.appendingPathComponent("round-ABC123", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
 
-        func git(_ arguments: [String]) throws -> String {
-            let process = Process()
-            let output = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-            process.arguments = ["-C", root.path] + arguments
-            process.standardOutput = output
-            try process.run()
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { throw CocoaError(.fileReadUnknown) }
-            return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .newlines)
-        }
-        func checkpoint(_ phase: String, _ tree: String) -> [String: Any] {
-            ["type": "extension_ui_request", "method": "setStatus", "statusKey": PiTurnFileChanges.statusKey,
-             "statusText": #"{"phase":"\#(phase)","tree":"\#(tree)","folder":"round-ABC123"}"#]
-        }
-        func write(_ path: String, _ text: String) throws {
-            try text.write(to: root.appendingPathComponent(path), atomically: true, encoding: .utf8)
-        }
-        func tree(_ paths: String...) throws -> String {
-            _ = try git(["add", "--"] + paths)
-            return try git(["write-tree"])
-        }
+    @MainActor func testHandoffFileCoverageKeepsVisibleUnknownTurnsInEarlierSnapshots() {
+        let old = TurnRecord(status: .completed)
+        let captured = RecordedTurnRecord(status: .completed,
+                                          fileChanges: .init(files: [.init(path: "new", kind: .added, added: 1, deleted: 0)]))
+        var snapshot = SessionHistorySnapshot(transcript: [
+            .init(id: "old-reply", kind: .assistant, text: "Older reply", turn: old)
+        ], coverage: .available)
+        snapshot.fileChangeRecords = [captured]
+        let id = UUID()
+        let history = SessionHandoffFileHistory(id: id, coverage: .available, turns: snapshot.fileRecords)
+        let mixed = snapshot.preview(source: id, agent: "Alternate", directory: "/tmp", token: UUID(),
+                                     retainingHistory: false, fileHistory: [history]).draft
+        XCTAssertTrue(mixed.hasIncompleteFileHistory)
+        XCTAssertEqual(mixed.selectedFiles.map(\.path), ["new"])
 
-        _ = try git(["init", "-q"])
-        _ = try git(["init", "-q", "--bare", "--template=", folder.path])
-        let alternates = folder.appendingPathComponent("objects/info/alternates")
-        try (root.appendingPathComponent(".git/objects").path + "\n").write(to: alternates, atomically: true, encoding: .utf8)
-        try write("existing.txt", "before turn\n")
-        let start = try tree("existing.txt")
-        try write("first.txt", "first\n")
-        let steering = try tree("first.txt")
-        _ = try git(["mv", "existing.txt", "renamed\tfile.txt"])
-        try Data([0, 1]).write(to: root.appendingPathComponent("data.bin"))
-        let followUp = try tree("data.bin")
-        try write("second.txt", "second\n")
-        let end = try tree("second.txt")
-
-        var reporter = PiTurnFileChanges(scratch: scratch)
-        XCTAssertTrue(reporter.map(checkpoint("start", start), events: []).isEmpty)
-        XCTAssertTrue(reporter.map([:], events: [.queue(.init(steering: ["interrupt"], followUp: ["next"]))]).count == 1)
-        XCTAssertTrue(reporter.map([:], events: [.queue(.init(followUp: ["next"]))]).count == 1)
-        XCTAssertTrue(reporter.map(checkpoint("user", steering), events: []).isEmpty)
-        XCTAssertTrue(reporter.map([:], events: [.queue(.init())]).isEmpty)
-        XCTAssertTrue(reporter.map([:], events: [.queue(.init(followUp: ["later"]))]).isEmpty)
-        let first = try XCTUnwrap(reporter.map(checkpoint("user", followUp), events: []).first)
-        guard case .turnFileChanges(let firstChanges) = first else { return XCTFail("Expected changes before dequeue") }
-        XCTAssertEqual(Set(firstChanges.files.map(\.path)), ["first.txt", "data.bin", "renamed\tfile.txt"])
-        XCTAssertEqual(firstChanges.files.first { $0.kind == .renamed }?.previousPath, "existing.txt")
-        XCTAssertEqual(firstChanges.files.first { $0.path == "first.txt" }?.added, 1)
-        XCTAssertNil(firstChanges.files.first { $0.path == "data.bin" }?.added)
-        let next = reporter.map([:], events: [.userMessageTimestamp(1_795_000_000_000)])
-        XCTAssertEqual(next.count, 3)
-        guard case .queue(let release) = next.first else { return XCTFail("Expected original queue removal") }
-        XCTAssertTrue(release.isEmpty)
-
-        let second = try XCTUnwrap(reporter.map(checkpoint("end", end), events: []).first)
-        guard case .turnFileChanges(let secondChanges) = second else { return XCTFail("Expected second turn changes") }
-        XCTAssertEqual(secondChanges.files.map(\.path), ["second.txt"])
-        XCTAssertEqual(secondChanges.files.first?.added, 1)
-        _ = reporter.map([:], events: [.settled(aborted: false)])
-        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        let knownEmpty = RecordedTurnRecord(id: old.id, status: .completed, fileChanges: .init(files: []))
+        let completeHistory = SessionHandoffFileHistory(id: id, coverage: .available,
+                                                        turns: snapshot.fileRecords(including: [knownEmpty]))
+        let complete = snapshot.preview(source: id, agent: "Alternate", directory: "/tmp", token: UUID(),
+                                        retainingHistory: false, fileHistory: [completeHistory]).draft
+        XCTAssertFalse(complete.hasIncompleteFileHistory)
+        XCTAssertEqual(complete.selectedFiles.map(\.path), ["new"])
     }
+
 
     @MainActor func testOnlyFinishedTurnsWithChangesGetASeparateFooter() {
         let changes = TurnFileChanges(files: [.init(path: "a.txt", kind: .added, added: 1, deleted: 0)])

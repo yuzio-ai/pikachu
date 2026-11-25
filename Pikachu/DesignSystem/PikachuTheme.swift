@@ -3,8 +3,8 @@ import SwiftUI
 
 enum PikachuTheme {
     static let workspace = adaptive(light: 0xFBFBFB, dark: 0x181818)
-    static let sidebar = adaptive(light: 0xF4F4F4, dark: 0x202020)
-    static let sidebarRowHover = adaptive(light: 0xFAFAFA, dark: 0x272727)
+    static let pageBackgroundColor = adaptiveNSColor(light: 0xF4F4F4, dark: 0x202020)
+    static let pageBackground = Color(nsColor: pageBackgroundColor)
     static let sidebarRowSelected = adaptive(light: 0xFFFFFF, dark: 0x303030)
     static let surface = adaptive(light: 0xFFFFFF, dark: 0x242424)
     static let mutedSurface = adaptive(light: 0xF2F2F2, dark: 0x2B2B2B)
@@ -34,8 +34,6 @@ enum PikachuTheme {
     static let lightningYellow = Color(nsColor: rgb(0xF0B524))
 
     private static let primaryTextColor = adaptiveNSColor(light: 0x222222, dark: 0xF2F2F2)
-    private static let scrollbarThumb = adaptiveNSColor(light: 0x929292, dark: 0x797979)
-    private static let activeScrollbarThumb = adaptiveNSColor(light: 0x666666, dark: 0xAAAAAA)
 
     private static let projectTints = [
         infoText, // blue
@@ -59,7 +57,7 @@ enum PikachuTheme {
 
     static func scrollbarThumbColor(active: Bool, increasedContrast: Bool) -> NSColor {
         if increasedContrast { return primaryTextColor }
-        return active ? activeScrollbarThumb : scrollbarThumb
+        return primaryTextColor.withAlphaComponent(active ? 0.38 : 0.18)
     }
 
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
@@ -117,18 +115,31 @@ extension View {
     }
 
     /// Leave the outer outline, arrow and shadow to the native popover rather than drawing a second card inside it.
-    func anchoredPopoverCard(width: CGFloat, inset: CGFloat = AnchoredCardStyle.inset) -> some View {
+    func anchoredPopoverCard(width: CGFloat, inset: CGFloat = AnchoredCardStyle.inset,
+                             background: Color = PikachuTheme.pageBackground) -> some View {
         pikachuFont(.callout)
             .padding(inset)
             .frame(width: width, alignment: .leading)
-            .flatPanelContent()
-            .presentationBackground(PikachuTheme.surface)
+            .anchoredPopoverSurface(background: background)
+    }
+
+    func anchoredAdaptivePopoverCard(minWidth: CGFloat, maxWidth: CGFloat, inset: CGFloat = AnchoredCardStyle.inset,
+                                     background: Color = PikachuTheme.pageBackground) -> some View {
+        pikachuFont(.callout)
+            .padding(inset)
+            .frame(minWidth: minWidth, maxWidth: maxWidth, alignment: .leading)
+            .anchoredPopoverSurface(background: background)
+    }
+
+    private func anchoredPopoverSurface(background: Color) -> some View {
+        flatPanelContent(background: background)
+            .presentationBackground(background)
             .presentationCornerRadius(AnchoredCardStyle.cornerRadius)
     }
 
-    func flatPanelContent() -> some View {
+    func flatPanelContent(background: Color = PikachuTheme.pageBackground) -> some View {
         foregroundStyle(PikachuTheme.primaryText, PikachuTheme.secondaryText)
-            .background(PikachuTheme.surface)
+            .background(background)
     }
 
     func flatSurface(_ fill: Color = PikachuTheme.surface, radius: CGFloat = 8,
@@ -163,5 +174,21 @@ struct PikachuDivider: View {
         Rectangle().fill(PikachuTheme.border)
             .frame(width: axis == .vertical ? 1 : nil, height: axis == .horizontal ? 1 : nil)
             .accessibilityHidden(true)
+    }
+}
+
+struct FeedbackBanner: View {
+    let text: String
+    let warning: Bool
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: warning ? "exclamationmark.triangle" : "info.circle")
+                .pikachuFont(.caption)
+                .foregroundStyle(warning ? PikachuTheme.warningText : Color.secondary)
+            Text(text).pikachuFont(.callout).textSelection(.enabled); Spacer(minLength: 0)
+        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .flatSurface(PikachuTheme.mutedSurface, radius: 10)
+            .padding(.horizontal, 12).padding(.vertical, 4)
+            .accessibilityElement(children: .ignore).accessibilityLabel(text)
     }
 }

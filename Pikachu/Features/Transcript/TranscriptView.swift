@@ -4,8 +4,29 @@ import Observation
 import OrchestrationCore
 import AgentRuntimeCore
 
+@MainActor @Observable final class TranscriptScrollState {
+    var follow = true
+    var scrolledToTop = false
+    var jump: NativeTranscript.Jump?
+    @ObservationIgnored weak var coordinator: NativeTranscript.Coordinator?
+
+    func requestFollow() {
+        follow = true
+        jump = nil
+        coordinator?.setFollowFromUser(true)
+    }
+
+    func requestJump(to messageID: String) {
+        follow = false
+        coordinator?.jumpTo(messageID: messageID)
+    }
+}
+
 struct TranscriptView: View {
     let items: [TranscriptItem]
+    var frozenItems: [TranscriptItem] = []
+    var frozenRows: [TranscriptDisplayRow] = []
+    var activeHandoff: TranscriptItem? = nil
     var turnStarts: [TranscriptTurnStart] = []
     var diagnosticSession = ""
     var historyLoading = false
@@ -13,52 +34,43 @@ struct TranscriptView: View {
     var queue = RuntimeQueue()
     var queueIsKnown = true
     var showsEmptyState = true
+    var showingCachedHistory = false
     var composerClearance: CGFloat = 0
     var workspaceDirectory: URL? = nil
     var onOpenFile: ((URL) -> Void)? = nil
+    var onOpenHandoffFile: HandoffFileOpener? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
-    @State private var follow = true
-    @State private var jump: NativeTranscript.Jump?
-    @State private var previewImage: AttachmentImagePreview.Selection?
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
+    var onSyncFullHistory: (() -> Void)? = nil
+    var scrollState: TranscriptScrollState? = nil
+    @State private var fallbackScrollState = TranscriptScrollState()
     @State private var toolOutput: ToolOutputSelection?
+    private var activeScrollState: TranscriptScrollState { scrollState ?? fallbackScrollState }
 
     var body: some View {
         Group {
-            if !items.isEmpty || !turnStarts.isEmpty {
-                let rows = TranscriptDisplayRow.project(items, turnStarts: turnStarts, showsThinking: showsThinking)
-                NativeTranscript(rows: rows, follow: $follow,
-                                 composerClearance: composerClearance, jump: jump,
-                                 workspaceDirectory: workspaceDirectory,
-                                 onOpenFile: onOpenFile,
-                                 onEditUserMessage: onEditUserMessage,
-                                 onPreviewImage: { previewImage = .init(file: $0) },
-                                 onShowToolOutput: { toolOutput = $0 },
-                                 replyFooters: TranscriptReplyFooter.project(rows),
-                                 queueFooter: TranscriptQueueFooter.project(items, queue: queue, isKnown: queueIsKnown))
-                    .overlay {
-                        TranscriptMessageRail(messages: items.filter { $0.kind == .user },
-                                              selectedID: follow ? nil : jump?.messageID) { message in
-                            follow = false
-                            jump = .init(messageID: message.id)
-                        }
-                        .id(diagnosticSession)
-                        .padding(.bottom, composerClearance)
-                    }
-                    .overlay(alignment: .bottom) {
-                        if !follow {
-                            Button {
-                                follow = true
-                            } label: {
-                                Label { Text("回到最新") } icon: {
-                                    Image(systemName: "arrow.down").pikachuFont(.callout)
-                                }
-                            }
-                                .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
-                                .pikachuFont(.caption)
-                                .padding(.bottom, composerClearance + 8)
-                                .accessibilityIdentifier("transcript-jump-to-latest")
-                        }
-                    }
+            if !items.isEmpty || !turnStarts.isEmpty || !frozenRows.isEmpty || activeHandoff != nil {
+                TranscriptBodyContent(
+                    items: items,
+                    frozenItems: frozenItems,
+                    frozenRows: frozenRows,
+                    activeHandoff: activeHandoff,
+                    turnStarts: turnStarts,
+                    diagnosticSession: diagnosticSession,
+                    showsThinking: showsThinking,
+                    queue: queue,
+                    queueIsKnown: queueIsKnown,
+                    showingCachedHistory: showingCachedHistory,
+                    composerClearance: composerClearance,
+                    workspaceDirectory: workspaceDirectory,
+                    scrollState: activeScrollState,
+                    onOpenFile: onOpenFile,
+                    onOpenHandoffFile: onOpenHandoffFile,
+                    onEditUserMessage: onEditUserMessage,
+                    onPreviewImage: onPreviewImage,
+                    onShowToolOutput: { toolOutput = $0 },
+                    onSyncFullHistory: onSyncFullHistory
+                )
             } else if showsEmptyState && !historyLoading {
                 FlatEmptyState("新会话", systemImage: "bubble.left", description: Text("在下方输入编码任务。"))
                     .padding(.bottom, composerClearance)
@@ -67,14 +79,181 @@ struct TranscriptView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(item: $previewImage) { selection in
-            AttachmentImagePreview(file: selection.file)
-        }
         .sheet(item: $toolOutput) { selection in
             ToolOutputPanel(selection: selection)
         }
         .onChange(of: diagnosticSession) { _, _ in toolOutput = nil }
         .diagnosticDraw("history:\(diagnosticSession):\(historyLoading):\(items.count)")
+    }
+}
+
+private struct TranscriptBodyContent: View {
+    let items: [TranscriptItem]
+    let frozenItems: [TranscriptItem]
+    let frozenRows: [TranscriptDisplayRow]
+    let activeHandoff: TranscriptItem?
+    let turnStarts: [TranscriptTurnStart]
+    let diagnosticSession: String
+    let showsThinking: Bool
+    let queue: RuntimeQueue
+    let queueIsKnown: Bool
+    let showingCachedHistory: Bool
+    let composerClearance: CGFloat
+    let workspaceDirectory: URL?
+    let scrollState: TranscriptScrollState
+    let onOpenFile: ((URL) -> Void)?
+    let onOpenHandoffFile: HandoffFileOpener?
+    let onEditUserMessage: ((TranscriptItem) -> Void)?
+    let onPreviewImage: ((ImagePreviewSelection) -> Void)?
+    let onShowToolOutput: (ToolOutputSelection) -> Void
+    let onSyncFullHistory: (() -> Void)?
+
+    var body: some View {
+        TranscriptProjectionHost(
+            items: items,
+            frozenRows: frozenRows,
+            activeHandoff: activeHandoff,
+            turnStarts: turnStarts,
+            showsThinking: showsThinking,
+            queue: queue,
+            queueIsKnown: queueIsKnown,
+            showingCachedHistory: showingCachedHistory,
+            composerClearance: composerClearance,
+            workspaceDirectory: workspaceDirectory,
+            scrollState: scrollState,
+            onOpenFile: onOpenFile,
+            onOpenHandoffFile: onOpenHandoffFile,
+            onEditUserMessage: onEditUserMessage,
+            onPreviewImage: onPreviewImage,
+            onShowToolOutput: onShowToolOutput
+        )
+        .overlay {
+            TranscriptMessageRailOverlay(
+                messages: (frozenItems + items).filter { $0.kind == .user },
+                scrollState: scrollState
+            )
+            .id(diagnosticSession)
+            .padding(.bottom, composerClearance)
+        }
+        .overlay(alignment: .top) {
+            TranscriptCachedTopOverlay(
+                showingCachedHistory: showingCachedHistory,
+                scrollState: scrollState,
+                onSyncFullHistory: onSyncFullHistory
+            )
+        }
+        .overlay(alignment: .bottom) {
+            TranscriptJumpToLatestOverlay(
+                composerClearance: composerClearance,
+                scrollState: scrollState
+            )
+        }
+    }
+}
+
+private struct TranscriptProjectionHost: View {
+    let items: [TranscriptItem]
+    let frozenRows: [TranscriptDisplayRow]
+    let activeHandoff: TranscriptItem?
+    let turnStarts: [TranscriptTurnStart]
+    let showsThinking: Bool
+    let queue: RuntimeQueue
+    let queueIsKnown: Bool
+    let showingCachedHistory: Bool
+    let composerClearance: CGFloat
+    let workspaceDirectory: URL?
+    let scrollState: TranscriptScrollState
+    let onOpenFile: ((URL) -> Void)?
+    let onOpenHandoffFile: HandoffFileOpener?
+    let onEditUserMessage: ((TranscriptItem) -> Void)?
+    let onPreviewImage: ((ImagePreviewSelection) -> Void)?
+    let onShowToolOutput: (ToolOutputSelection) -> Void
+
+    var body: some View {
+        let activeRows = TranscriptDisplayRow.project(items, turnStarts: turnStarts, showsThinking: showsThinking)
+        let rows = frozenRows + TranscriptDisplayRow.placingHandoff(activeHandoff, in: activeRows)
+        NativeTranscript(
+            rows: rows,
+            follow: .constant(true),
+            extraTopClearance: showingCachedHistory ? 36 : 0,
+            composerClearance: composerClearance,
+            workspaceDirectory: workspaceDirectory,
+            onOpenFile: onOpenFile,
+            onOpenHandoffFile: onOpenHandoffFile,
+            onEditUserMessage: onEditUserMessage,
+            onPreviewImage: onPreviewImage,
+            onShowToolOutput: onShowToolOutput,
+            replyFooters: TranscriptReplyFooter.project(rows),
+            queueFooter: TranscriptQueueFooter.project(items, queue: queue, isKnown: queueIsKnown),
+            scrollState: scrollState
+        )
+    }
+}
+
+private struct TranscriptMessageRailOverlay: View {
+    let messages: [TranscriptItem]
+    let scrollState: TranscriptScrollState
+
+    var body: some View {
+        TranscriptMessageRail(
+            messages: messages,
+            selectedID: scrollState.follow ? nil : scrollState.jump?.messageID
+        ) { message in
+            scrollState.requestJump(to: message.timelineID)
+        }
+    }
+}
+
+private struct TranscriptCachedTopOverlay: View {
+    let showingCachedHistory: Bool
+    let scrollState: TranscriptScrollState
+    let onSyncFullHistory: (() -> Void)?
+
+    var body: some View {
+        if showingCachedHistory && scrollState.scrolledToTop {
+            HStack(spacing: 8) {
+                Label {
+                    Text("已到离线缓存顶部 · 仅展示近期记录")
+                } icon: {
+                    Image(systemName: "info.circle")
+                        .pikachuFont(.caption)
+                }
+                .foregroundStyle(PikachuTheme.secondaryText)
+                if let onSyncFullHistory {
+                    Button("同步完整历史", action: onSyncFullHistory)
+                        .buttonStyle(FlatControlButtonStyle(treatment: .outlined, inset: false, cornerRadius: 12))
+                        .pikachuFont(.caption)
+                        .accessibilityIdentifier("transcript-sync-full-history")
+                }
+            }
+            .pikachuFont(.caption)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .flatSurface(PikachuTheme.surface, radius: 16)
+            .padding(.top, 10)
+            .accessibilityIdentifier("transcript-cached-history-top-hint")
+        }
+    }
+}
+
+private struct TranscriptJumpToLatestOverlay: View {
+    let composerClearance: CGFloat
+    let scrollState: TranscriptScrollState
+
+    var body: some View {
+        if !scrollState.follow {
+            Button {
+                scrollState.requestFollow()
+            } label: {
+                Label { Text("回到最新") } icon: {
+                    Image(systemName: "arrow.down").pikachuFont(.callout)
+                }
+            }
+            .buttonStyle(FlatControlButtonStyle(treatment: .outlined))
+            .pikachuFont(.caption)
+            .padding(.bottom, composerClearance + 8)
+            .accessibilityIdentifier("transcript-jump-to-latest")
+        }
     }
 }
 
@@ -89,7 +268,7 @@ struct TranscriptQueueFooter: Equatable {
         let text = isKnown
             ? String(localized: "等待交付：补充 \(queue.steering.count) · 后续 \(queue.followUp.count)")
             : String(localized: "队列状态待核实")
-        return Self(itemID: item.id, text: text)
+        return Self(itemID: item.timelineID, text: text)
     }
 }
 
@@ -121,7 +300,7 @@ struct TranscriptQueueFooter: Equatable {
         var footers: [String: Self] = [:]
         for (turnID, items) in replies {
             guard let last = items.last else { continue }
-            footers[changeRows[turnID] ?? last.id] = Self(items: items, endedAt: last.turn?.endedAt)
+            footers[changeRows[turnID] ?? last.timelineID] = Self(items: items, endedAt: last.turn?.endedAt)
         }
         return footers
     }
@@ -146,7 +325,7 @@ struct AssistantReplyActions: View {
 
     private var isHovering: Bool {
         guard let hoveredRow = hover.rowID else { return false }
-        return hoveredRow == rowID || hoveredRow == reply.items.last?.id
+        return hoveredRow == rowID || hoveredRow == reply.items.last?.timelineID
     }
 
     private var timeDisplay: String {
@@ -265,7 +444,7 @@ private struct TranscriptMessageRail: View {
                     }
                 }
                 .scrollBounceBehavior(.basedOnSize)
-                .scrollIndicators(.hidden)
+                .scrollIndicators(.never)
                 .onScrollPhaseChange { _, phase in
                     hover.setScrolling(phase.isScrolling)
                 }
@@ -288,7 +467,7 @@ private struct TranscriptMessageRail: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .overlayPreferenceValue(TranscriptMarkerAnchor.self, alignment: .topLeading) { anchor in
                     if let anchor, hover.isPresented, let request, request.markerID == pointedMarker,
-                       let hoveredMessage = messages.first(where: { $0.id == request.markerID }) {
+                       let hoveredMessage = messages.first(where: { $0.timelineID == request.markerID }) {
                         let previewWidth = min(290, max(0, geometry.size.width - 44))
                         let anchorY = geometry[anchor].midY
                         preview(for: hoveredMessage)
@@ -321,20 +500,22 @@ private struct TranscriptMessageRail: View {
         // The rail has no row spacing; view coordinates plus the scroll offset identify the row.
         let contentY = y + offset
         guard contentY >= 0, contentY < CGFloat(messages.count) * markerHeight else { return nil }
-        return messages[Int(contentY / markerHeight)].id
+        return messages[Int(contentY / markerHeight)].timelineID
     }
 
     private func marker(for message: TranscriptItem) -> some View {
-        let hovered = hover.hoveredID == message.id
-        let isSelected = selectedID == message.id
+        let hovered = hover.hoveredID == message.timelineID
+        let isSelected = selectedID == message.timelineID
         let snippet = previewText(for: message)
+        let length: CGFloat = isSelected ? 16 : (hovered ? 12 : 9)
+        let opacity = isSelected ? 0.95 : (hovered ? 0.65 : 0.35)
         return Button {
             hover.dismissPreview()
             onJump(message)
         } label: {
             Capsule()
-                .fill(PikachuTheme.secondaryText.opacity(hovered || isSelected ? 0.85 : 0.35))
-                .frame(width: hovered || isSelected ? 16 : 9, height: 2.5)
+                .fill(PikachuTheme.secondaryText.opacity(opacity))
+                .frame(width: length, height: 2.5)
                 .frame(width: 24, height: markerHeight, alignment: .leading)
                 .padding(.leading, 5)
                 .frame(width: 24, alignment: .leading)
@@ -345,7 +526,7 @@ private struct TranscriptMessageRail: View {
         .accessibilityLabel(snippet)
         .accessibilityHint("跳到这条消息")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("transcript-marker-\(message.id)")
+        .accessibilityIdentifier("transcript-marker-\(message.timelineID)")
         .anchorPreference(key: TranscriptMarkerAnchor.self, value: .bounds) { hovered ? $0 : nil }
     }
 
@@ -514,23 +695,32 @@ struct TranscriptRow: View {
     let item: TranscriptItem
     let width: CGFloat
     var workspaceDirectory: URL? = nil
+    var markdownStore: TranscriptMarkdownStore? = nil
     var onOpenFile: ((URL) -> Void)? = nil
+    var onOpenHandoffFile: HandoffFileOpener? = nil
     var onEditUserMessage: ((TranscriptItem) -> Void)? = nil
-    var onPreviewImage: ((URL) -> Void)? = nil
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     var queueFooter: String? = nil
+    var handoffExpansion = HandoffRowExpansion()
     let contentChanged: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let request = item.expiredInteraction {
+            if let handoff = item.handoff {
+                HandoffTranscriptRow(title: item.text, handoff: handoff,
+                                     expanded: handoffExpansion.binding(for: handoff.id),
+                                     width: width, workspaceDirectory: workspaceDirectory,
+                                     openFile: onOpenHandoffFile, contentChanged: contentChanged)
+            } else if let request = item.expiredInteraction {
                 ExpiredInteractionRow(request: request, contentChanged: contentChanged)
             } else if item.kind == .user {
                 UserMessageRow(item: item, width: width, onEdit: onEditUserMessage,
                                onPreviewImage: onPreviewImage, queueFooter: queueFooter)
                     .padding(.top, 8)
             } else {
-                MarkdownContent(text: item.text, streaming: item.streaming, width: width,
-                                workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile)
+                MarkdownContent(text: item.text, streaming: item.streaming, width: width, profile: .conversation,
+                                workspaceDirectory: workspaceDirectory, onOpenFile: onOpenFile,
+                                markdownStore: markdownStore, contentChanged: contentChanged)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
             }
@@ -538,7 +728,418 @@ struct TranscriptRow: View {
         .onChange(of: item.text) { _, _ in contentChanged() }
         .onChange(of: item.streaming) { _, _ in contentChanged() }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(item.id)
+        .accessibilityIdentifier(item.timelineID)
+    }
+}
+
+@MainActor @Observable final class HandoffRowExpansion {
+    private var expandedIDs: Set<UUID> = []
+
+    func binding(for id: UUID) -> Binding<Bool> {
+        Binding(get: { self.expandedIDs.contains(id) }, set: { expanded in
+            if expanded { self.expandedIDs.insert(id) }
+            else { self.expandedIDs.remove(id) }
+        })
+    }
+}
+
+struct SessionTransitionRow: View {
+    let title: String
+    var detail: String? = nil
+    var color = PikachuTheme.secondaryText
+    var titleWeight: Font.Weight? = nil
+    var expanded: Bool? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 10) {
+            PikachuDivider().frame(minWidth: 8)
+            if let action {
+                Button(action: action) { label }
+                    .buttonStyle(FlatControlButtonStyle(inset: false))
+                    .accessibilityValue(expanded.map { $0 ? Text("已展开") : Text("已折叠") } ?? Text(""))
+            } else {
+                label
+            }
+            PikachuDivider().frame(minWidth: 8)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var label: some View {
+        HStack(spacing: 5) {
+            Text(verbatim: title).pikachuFont(.callout, weight: titleWeight).foregroundStyle(color)
+            if let detail {
+                Text(verbatim: "· \(detail)").pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+            }
+            if action != nil { FlatDisclosureChevron(expanded == true ? .up : .forward) }
+        }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(1)
+        .padding(.vertical, 3)
+    }
+}
+
+typealias HandoffFileOpener = @MainActor (ProjectFilePath, URL) async -> ProjectFilesModel.TranscriptOpenOutcome
+
+enum HandoffFileEntry: Identifiable {
+    case change(SessionHandoffFile)
+    case reference(String)
+
+    var path: String {
+        switch self {
+        case .change(let file): file.path
+        case .reference(let path): path
+        }
+    }
+
+    var change: SessionHandoffFile? {
+        if case .change(let file) = self { return file }
+        return nil
+    }
+
+    var id: String { path }
+}
+
+private struct HandoffTranscriptRow: View {
+    let title: String
+    let handoff: SessionHandoff
+    @Binding var expanded: Bool
+    let width: CGFloat
+    let workspaceDirectory: URL?
+    let openFile: HandoffFileOpener?
+    let contentChanged: () -> Void
+
+    private var hasDetails: Bool {
+        !handoff.context.isEmpty || handoff.targetModel != nil ||
+            handoff.coverage != .available || handoff.draft?.hasIncompleteFileHistory == true
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            SessionTransitionRow(title: title,
+                                 detail: handoff.context.isEmpty ? String(localized: "未携带历史") : String(localized: "已交接上下文"),
+                                 titleWeight: .semibold,
+                                 expanded: hasDetails ? expanded : nil,
+                                 action: hasDetails ? { expanded.toggle() } : nil)
+            if expanded && hasDetails {
+                HandoffTranscriptDetails(handoff: handoff, width: width,
+                                         workspaceDirectory: workspaceDirectory, openFile: openFile,
+                                         contentChanged: contentChanged)
+            }
+        }
+        .onChange(of: expanded) { _, _ in contentChanged() }
+    }
+}
+
+private struct HandoffTranscriptDetails: View {
+    let handoff: SessionHandoff
+    let width: CGFloat
+    let workspaceDirectory: URL?
+    let openFile: HandoffFileOpener?
+    let contentChanged: () -> Void
+
+    var body: some View {
+        let draft = handoff.draft
+        let legacy = draft == nil && !handoff.context.isEmpty ? LegacyHandoffSummary(context: handoff.context) : nil
+        let files = draft?.selectedFiles.map(HandoffFileEntry.change)
+            ?? legacy?.relatedPaths.map(HandoffFileEntry.reference) ?? []
+        let request = draft.map { $0.omitsHistory ? "" : $0.userRequest } ?? legacy?.request ?? ""
+        let hasRequest = !request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        VStack(alignment: .leading, spacing: 14) {
+            if let model = handoff.targetModel { Text("目标模型 · \(model.name)").foregroundStyle(.secondary) }
+            if handoff.coverage == .partial { Text("原会话仅有部分历史可用。") }
+            if handoff.coverage == .unavailable { Text("原会话没有可读取的历史。") }
+            if handoff.draft?.hasIncompleteFileHistory == true {
+                Text("部分回合缺少文件改动记录。").foregroundStyle(PikachuTheme.warningText)
+            }
+            if hasRequest {
+                HandoffDetailExcerpt(title: "上次请求", text: request, showsBubble: true)
+            } else if let draft, !draft.omitsHistory,
+                      !draft.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                HandoffDetailExcerpt(title: "其他交接内容", text: draft.notes)
+            } else if let reply = legacy?.reply {
+                HandoffDetailExcerpt(title: "最近的智能体回复", text: reply)
+            } else if let excerpt = legacy?.excerpt {
+                Text(verbatim: excerpt).pikachuFont(.callout).lineLimit(3)
+            }
+            if !files.isEmpty {
+                if hasRequest { PikachuDivider() }
+                HandoffSentFiles(files: files, hasChanges: draft != nil, width: width,
+                                 workspaceDirectory: workspaceDirectory, openFile: openFile,
+                                 contentChanged: contentChanged)
+            }
+        }
+        .pikachuFont(.caption)
+        .padding(.vertical, 6)
+        .padding(.leading, 12)
+        .background(alignment: .leading) { PikachuDivider(axis: .vertical) }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+    }
+}
+
+struct LegacyHandoffSummary {
+    private static let requestHeadings = ["最近的用户请求", "Latest user request"]
+    private static let replyHeadings = ["最近的智能体回复", "Latest agent response"]
+    private static let fileHeadings = ["相关文件", "Related files"]
+
+    let request: String?
+    let reply: String?
+    let excerpt: String?
+    let relatedPaths: [String]
+
+    init(context: String) {
+        let normalized = context.replacingOccurrences(of: "\r\n", with: "\n")
+            .trimmingCharacters(in: .newlines)
+        var paragraphs = normalized.components(separatedBy: "\n\n")
+        var paths: [String] = []
+        // The old generator wrote its newline-separated paths as the final section.
+        if let last = paragraphs.last, let fileText = Self.sectionBody(last, headings: Self.fileHeadings) {
+            let lines = fileText.components(separatedBy: "\n")
+            if lines.allSatisfy(Self.looksLikePath) {
+                var seen = Set<String>()
+                paths = lines.filter { seen.insert($0).inserted }
+                paragraphs.removeLast()
+            }
+        }
+        relatedPaths = paths
+        let text = paragraphs.joined(separator: "\n\n")
+        if let userRequest = Self.sectionBody(text, headings: Self.requestHeadings) {
+            let replyStart = Self.replyHeadings.compactMap { userRequest.range(of: "\n\n\($0)\n") }
+                .min { $0.lowerBound < $1.lowerBound }
+            request = replyStart.map { String(userRequest[..<$0.lowerBound]) } ?? userRequest
+            reply = replyStart.map { String(userRequest[$0.upperBound...]) }
+            excerpt = nil
+        } else if let agentReply = Self.sectionBody(text, headings: Self.replyHeadings) {
+            request = nil
+            reply = agentReply
+            excerpt = nil
+        } else {
+            request = nil
+            reply = nil
+            excerpt = text.isEmpty ? nil : text
+        }
+    }
+
+    private static func sectionBody(_ text: String, headings: [String]) -> String? {
+        for heading in headings {
+            let prefix = heading + "\n"
+            if text.hasPrefix(prefix) { return String(text.dropFirst(prefix.count)) }
+        }
+        return nil
+    }
+
+    private static func looksLikePath(_ line: String) -> Bool {
+        let value = line.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty, !value.hasPrefix("- "), !value.contains("://") else { return false }
+        return value.contains("/") || !(value as NSString).pathExtension.isEmpty ||
+            !value.contains(where: \.isWhitespace)
+    }
+}
+
+private struct HandoffSentFiles: View {
+    let files: [HandoffFileEntry]
+    let hasChanges: Bool
+    let width: CGFloat
+    let workspaceDirectory: URL?
+    let openFile: HandoffFileOpener?
+    let contentChanged: () -> Void
+    @State private var showsFiles = false
+    @State private var openTask: Task<Void, Never>?
+    @State private var status: OpenStatus?
+
+    private enum OpenStatus: Equatable {
+        case opening(String)
+        case unavailable(String, ProjectFileIssue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                if hasChanges {
+                    Text("文件改动").pikachuFont(.headline)
+                    Text("随交接发送了 \(files.count) 个").foregroundStyle(PikachuTheme.secondaryText)
+                } else {
+                    Text("相关文件").pikachuFont(.headline)
+                    Text("\(files.count) 个").foregroundStyle(PikachuTheme.secondaryText)
+                }
+            }
+            ForEach(files.prefix(3)) { file in
+                fileRow(file, fromList: false)
+            }
+            Button {
+                showsFiles.toggle()
+            } label: {
+                HStack(spacing: 5) {
+                    Text("查看全部 \(files.count) 个")
+                    FlatDisclosureChevron(.forward).accessibilityHidden(true)
+                }
+                .foregroundStyle(PikachuTheme.secondaryText)
+            }
+            .buttonStyle(FlatControlButtonStyle(inset: false))
+            .accessibilityIdentifier("handoff-show-related-files")
+            .popover(isPresented: $showsFiles, arrowEdge: .bottom) {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(files) { file in
+                            fileRow(file, fromList: true)
+                        }
+                    }
+                    .padding(12)
+                }
+                .frame(width: min(500, max(220, width)),
+                       height: min(300, CGFloat(files.count) * 40 + 24))
+                .accessibilityLabel(hasChanges ? Text("交接的文件改动") : Text("相关文件"))
+            }
+        }
+        .onChange(of: status) { _, _ in contentChanged() }
+        .onChange(of: workspaceDirectory) { _, _ in cancelOpen() }
+        .onDisappear { cancelOpen() }
+    }
+
+    private func fileRow(_ file: HandoffFileEntry, fromList: Bool) -> some View {
+        let action: (() -> Void)?
+        let issue: String?
+        if file.change?.kind == .deleted {
+            action = nil
+            issue = String(localized: "已删除")
+        } else if let directory = workspaceDirectory, let openFile {
+            do {
+                let path = try ProjectFilePath.handoffReference(file.path, recordedBase: file.change?.pathBase, in: directory)
+                action = { open(path, in: directory, name: file.path, fromList: fromList, using: openFile) }
+                if case .unavailable(let failedPath, let failure) = status, failedPath == file.path {
+                    issue = failure.message
+                }
+                else { issue = nil }
+            } catch {
+                action = nil
+                issue = (error as? ProjectFileIssue ?? .handoffPathUnknown).message
+            }
+        } else {
+            action = nil
+            issue = ProjectFileIssue.rootUnavailable.message
+        }
+        return HandoffFileLink(file: file, issue: issue, opening: status == .opening(file.path), action: action)
+    }
+
+    private func open(_ path: ProjectFilePath, in directory: URL, name: String, fromList: Bool,
+                      using openFile: @escaping HandoffFileOpener) {
+        openTask?.cancel()
+        status = .opening(name)
+        openTask = Task {
+            let outcome = await openFile(path, directory)
+            guard !Task.isCancelled else { return }
+            openTask = nil
+            switch outcome {
+            case .opened:
+                status = nil
+                if fromList { showsFiles = false }
+            case .unavailable(let issue):
+                status = .unavailable(name, issue)
+            case .fallback, .cancelled:
+                status = nil
+            }
+        }
+    }
+
+    private func cancelOpen() {
+        openTask?.cancel()
+        openTask = nil
+        status = nil
+    }
+}
+
+private struct HandoffFileLink: View {
+    let file: HandoffFileEntry
+    let issue: String?
+    let opening: Bool
+    let action: (() -> Void)?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        let filename = file.path.split(separator: "/").last.map(String.init) ?? file.path
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                if let action {
+                    Button(action: action) {
+                        Text(verbatim: filename)
+                            .underline()
+                            .foregroundStyle(issue == nil ? MarkdownColors.link : PikachuTheme.secondaryText)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    .buttonStyle(FlatControlButtonStyle(hasKeyboardFocus: focused, inset: false,
+                                                        cornerRadius: 3, height: 22, showsHoverBackground: false))
+                    .focused($focused)
+                    .disabled(opening)
+                    .accessibilityLabel(Text(verbatim: file.path))
+                    .accessibilityHint("在右侧预览")
+                    .accessibilityIdentifier("handoff-file-link:\(file.path)")
+                } else {
+                    Text(verbatim: filename)
+                        .foregroundStyle(PikachuTheme.secondaryText)
+                        .lineLimit(1).truncationMode(.middle)
+                        .accessibilityLabel(Text(verbatim: file.path))
+                }
+                if opening {
+                    FlatProgressView().controlSize(.small)
+                        .accessibilityLabel("正在打开文件")
+                }
+                Spacer(minLength: 8)
+                if let change = file.change {
+                    if let added = change.added, added > 0 { Text("+\(added)").fixedSize() }
+                    if let deleted = change.deleted, deleted > 0 { Text("−\(deleted)").fixedSize() }
+                    if change.added == nil || change.deleted == nil { Text("统计不全").fixedSize() }
+                }
+            }
+            .foregroundStyle(PikachuTheme.secondaryText)
+            if let issue {
+                Text(verbatim: issue).pikachuFont(.caption).foregroundStyle(PikachuTheme.secondaryText)
+            }
+        }
+        .pikachuFont(.callout)
+        .help(file.path)
+        .contextMenu {
+            Button("复制路径") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(file.path, forType: .string)
+            }
+        }
+    }
+}
+
+private struct HandoffDetailExcerpt: View {
+    let title: LocalizedStringKey
+    let text: String
+    var showsBubble = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).pikachuFont(.headline)
+            if showsBubble {
+                Text(verbatim: text)
+                    .pikachuFont(.body)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .modifier(UserMessageBubbleStyle())
+                    .accessibilityIdentifier("handoff-previous-request")
+            } else {
+                Text(verbatim: text).pikachuFont(.callout).lineLimit(3)
+            }
+        }
+    }
+}
+
+private struct UserMessageBubbleStyle: ViewModifier {
+    static let horizontalInset: CGFloat = 14
+    var hasAttachments = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, Self.horizontalInset)
+            .padding(.vertical, 9)
+            .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: hasAttachments ? 18 : 12))
     }
 }
 
@@ -549,21 +1150,31 @@ private struct ExpiredInteractionRow: View {
 
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
-            ExpiredInteractionDetails(request: request)
-                .padding(.top, 8)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Label {
-                    Text("请求已过期，未提交回复").pikachuFont(.callout, weight: .semibold)
-                } icon: {
-                    Image(systemName: "clock.badge.exclamationmark").pikachuFont(.caption)
-                }
-                Text(verbatim: request.title)
-                    .pikachuFont(.caption)
-                    .lineLimit(2)
+            VStack(alignment: .leading, spacing: 10) {
+                PikachuDivider()
                 InteractionDeadline(expiresAt: request.expiresAt)
+                ExpiredInteractionDetails(request: request, contentChanged: contentChanged)
+            }
+            .padding(.top, 10)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.badge.exclamationmark")
+                        .pikachuFont(.caption)
+                        .foregroundStyle(PikachuTheme.warningText)
+                        .accessibilityHidden(true)
+                    Text("请求已过期，未提交回复")
+                        .pikachuFont(.callout, weight: .semibold)
+                }
+                if !expanded, !request.title.isEmpty {
+                    Text(verbatim: request.title)
+                        .pikachuFont(.caption)
+                        .foregroundStyle(PikachuTheme.secondaryText)
+                        .lineLimit(1)
+                }
             }
         }
+        .disclosureGroupStyle(FlatDisclosureStyle(chevronEdge: .trailing))
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .flatSurface(PikachuTheme.mutedSurface, radius: 9)
@@ -575,9 +1186,8 @@ private struct UserMessageRow: View {
     let item: TranscriptItem
     let width: CGFloat
     let onEdit: ((TranscriptItem) -> Void)?
-    let onPreviewImage: ((URL) -> Void)?
+    let onPreviewImage: ((ImagePreviewSelection) -> Void)?
     let queueFooter: String?
-    private let bubbleInset: CGFloat = 14
     @State private var isHovering = false
     @State private var copiedFeedback = false
     @State private var copyFeedbackTask: Task<Void, Never>?
@@ -625,7 +1235,7 @@ private struct UserMessageRow: View {
                 Text(queueFooter)
                     .pikachuFont(.caption2)
                     .foregroundStyle(.secondary)
-                    .padding(.trailing, bubbleInset)
+                    .padding(.trailing, UserMessageBubbleStyle.horizontalInset)
                     .accessibilityIdentifier("message-queue-footer")
             }
 
@@ -653,7 +1263,7 @@ private struct UserMessageRow: View {
                     .focused($focusedAction, equals: .edit)
                     .help("编辑")
                     .accessibilityLabel("编辑")
-                    .accessibilityIdentifier("edit-\(item.id)")
+                    .accessibilityIdentifier("edit-\(item.timelineID)")
                 }
                 Button {
                     copyMessage()
@@ -664,9 +1274,10 @@ private struct UserMessageRow: View {
                 }
                 .buttonStyle(FlatControlButtonStyle(inset: false))
                 .focused($focusedAction, equals: .copy)
+                .disabled(item.editableText.isEmpty)
                 .help("复制")
                 .accessibilityLabel("复制")
-                .accessibilityIdentifier("copy-\(item.id)")
+                .accessibilityIdentifier("copy-\(item.timelineID)")
             }
             .frame(height: 20)
             .revealedAction(showsFooter)
@@ -693,7 +1304,7 @@ private struct UserMessageRow: View {
         VStack(alignment: hasAttachments ? .leading : .trailing, spacing: 5) {
             if needsAttentionDelivery { deliveryLabel }
             if showsText {
-                Text(item.attachedFiles.isEmpty ? item.text : item.editableText)
+                Text(item.editableText)
                     .textSelection(.enabled)
             }
             if !files.isEmpty {
@@ -714,9 +1325,7 @@ private struct UserMessageRow: View {
                 }
             }
         }
-        .padding(.horizontal, bubbleInset)
-        .padding(.vertical, 9)
-        .background(PikachuTheme.messageBubble, in: .rect(cornerRadius: hasAttachments ? 18 : 12))
+        .modifier(UserMessageBubbleStyle(hasAttachments: hasAttachments))
     }
 
     private func attachmentGrid(_ attachments: [URL]) -> some View {
@@ -739,23 +1348,24 @@ private struct UserMessageRow: View {
     @ViewBuilder private func attachmentThumbnail(_ file: URL, index: Int, size: CGFloat) -> some View {
         if VideoAttachmentThumbnail.isVideo(file) {
             VideoAttachmentThumbnail(file: file, size: size, onOpen: { NSWorkspace.shared.open(file) })
-                .accessibilityIdentifier("open-video-\(item.id)-\(index)")
+                .accessibilityIdentifier("open-video-\(item.timelineID)-\(index)")
         } else if let onPreviewImage {
-            Button { onPreviewImage(file) } label: {
+            Button { onPreviewImage(.file(file)) } label: {
                 ImageAttachmentThumbnail(file: file, size: size)
             }
             .buttonStyle(OverlayFeedbackButtonStyle(shape: RoundedRectangle(cornerRadius: ImageAttachmentThumbnail.cornerRadius)))
             .accessibilityLabel("预览 \(file.lastPathComponent)")
-            .accessibilityIdentifier("preview-image-\(item.id)-\(index)")
+            .accessibilityIdentifier("preview-image-\(item.timelineID)-\(index)")
         } else {
             ImageAttachmentThumbnail(file: file, size: size)
         }
     }
 
     private func copyMessage() {
+        guard !item.editableText.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(item.editableText.isEmpty && !item.text.isEmpty ? item.text : item.editableText, forType: .string)
+        pasteboard.setString(item.editableText, forType: .string)
         copiedFeedback = true
         NSAccessibility.post(
             element: NSApp.mainWindow as Any,
@@ -774,23 +1384,33 @@ private struct UserMessageRow: View {
 @MainActor @Observable final class ToolCallExpansion {
     private var groups: Set<String> = []
     private var details: Set<String> = []
+    private var thinking: Set<UUID> = []
 
     func groupBinding(for items: [TranscriptItem]) -> Binding<Bool> {
         Binding {
-            !self.groups.isDisjoint(with: items.lazy.map(\.id))
+            !self.groups.isDisjoint(with: items.lazy.map(\.timelineID))
         } set: { expanded in
-            if expanded { self.groups.insert(items[0].id) }
-            else { self.groups.subtract(items.lazy.map(\.id)) }
+            if expanded { self.groups.insert(items[0].timelineID) }
+            else { self.groups.subtract(items.lazy.map(\.timelineID)) }
         }
     }
 
     func detailBinding(for item: TranscriptItem, isSingle: Bool) -> Binding<Bool> {
         Binding {
-            self.details.contains(item.id) && (!isSingle || self.groups.contains(item.id))
+            self.details.contains(item.timelineID) && (!isSingle || self.groups.contains(item.timelineID))
         } set: { expanded in
-            if expanded { self.details.insert(item.id) }
-            else { self.details.remove(item.id) }
+            if expanded { self.details.insert(item.timelineID) }
+            else { self.details.remove(item.timelineID) }
             if isSingle { self.groupBinding(for: [item]).wrappedValue = expanded }
+        }
+    }
+
+    func thinkingBinding(for turn: TurnRecord) -> Binding<Bool> {
+        Binding {
+            self.thinking.contains(turn.id)
+        } set: { expanded in
+            if expanded { self.thinking.insert(turn.id) }
+            else { self.thinking.remove(turn.id) }
         }
     }
 }
@@ -901,13 +1521,15 @@ struct ToolCallsRow: View {
     let items: [TranscriptItem]
     let expansion: ToolCallExpansion
     var onShowOutput: ((ToolOutputSelection) -> Void)? = nil
+    var onPreviewImage: ((ImagePreviewSelection) -> Void)? = nil
     let contentChanged: () -> Void
 
     var body: some View {
         if items.count == 1, let item = items.first {
             // The sole tool is also the group header; keep the same disclosure at completion.
             ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: true),
-                    onShowOutput: onShowOutput, showsRunningEffect: true, contentChanged: contentChanged)
+                    onShowOutput: onShowOutput, onPreviewImage: onPreviewImage,
+                    showsRunningEffect: true, contentChanged: contentChanged)
         } else {
             let expanded = expansion.groupBinding(for: items)
             let summary = ToolCallsSummary(items: items)
@@ -915,7 +1537,7 @@ struct ToolCallsRow: View {
                 VStack(spacing: 2) {
                     ForEach(items) { item in
                         ToolRow(item: item, expanded: expansion.detailBinding(for: item, isSingle: false),
-                                onShowOutput: onShowOutput, contentChanged: contentChanged)
+                                onShowOutput: onShowOutput, onPreviewImage: onPreviewImage, contentChanged: contentChanged)
                     }
                 }
                 .padding(.leading, 19)
@@ -946,43 +1568,101 @@ struct ToolCallsRow: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(summary.description)
             }
-            .accessibilityIdentifier("tool-group-\(items[0].id)")
+            .accessibilityIdentifier("tool-group-\(items[0].timelineID)")
             .onChange(of: expanded.wrappedValue) { _, _ in contentChanged() }
         }
     }
 }
 
 struct TranscriptThinkingRow: View {
+    let turn: TurnRecord
+    @Binding var expanded: Bool
+    var contentChanged: () -> Void = {}
+
+    var body: some View {
+        let thought = turn.thoughtText
+        Group {
+            if thought.isEmpty {
+                Label { Text("思考中") } icon: {
+                    ThinkingDotsIcon()
+                }
+                .pikachuFont(.caption)
+                .foregroundStyle(PikachuTheme.tertiaryText)
+            } else {
+                ToolCallDisclosure(isExpanded: $expanded) {
+                    Text(verbatim: thought)
+                        .pikachuFont(.caption)
+                        .foregroundStyle(PikachuTheme.secondaryText)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .flatSurface(PikachuTheme.mutedSurface)
+                        .padding(.vertical, 4)
+                        .accessibilityIdentifier("transcript-thinking-details")
+                } label: { emphasized in
+                    HStack(spacing: 7) {
+                        ThinkingDotsIcon()
+                        Text("思考中")
+                            .pikachuFont(.callout)
+                            .fixedSize()
+                        if !expanded, let preview = Self.previewLine(thought) {
+                            Text(verbatim: preview)
+                                .pikachuFont(.caption)
+                                .foregroundStyle(emphasized ? PikachuTheme.secondaryText : PikachuTheme.tertiaryText)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        FlatDisclosureChevron(expanded: expanded)
+                            .opacity(emphasized || expanded ? 1 : 0)
+                    }
+                    .padding(.vertical, 2)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("思考中"))
+                    .accessibilityValue(thought)
+                }
+                .onChange(of: expanded) { _, _ in contentChanged() }
+                .onChange(of: thought) { _, _ in if expanded { contentChanged() } }
+            }
+        }
+        .accessibilityIdentifier("transcript-thinking")
+    }
+
+    private static func previewLine(_ text: String) -> String? {
+        let line = text
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
+        return line
+    }
+}
+
+private struct ThinkingDotsIcon: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Label { Text("思考中") } icon: {
-            // Jannchie Icons `loading-grid`: nine dots pulse along diagonals.
-            TimelineView(.animation(minimumInterval: 1.0 / 24, paused: reduceMotion)) { timeline in
-                let period = 1.4
-                let phase = reduceMotion ? 0.25 : timeline.date.timeIntervalSinceReferenceDate
-                    .truncatingRemainder(dividingBy: period) / period
-                Canvas { context, size in
-                    let scale = size.width / 24
-                    for row in 0..<3 {
-                        for column in 0..<3 {
-                            let progress = phase - Double(row + column) / 8
-                            let pulse = 0.5 - 0.5 * cos(2 * .pi * progress)
-                            let radius = (0.5 + 1.3 * pulse) * scale
-                            let x = (6.5 + 5.5 * CGFloat(column)) * scale
-                            let y = (6.5 + 5.5 * CGFloat(row)) * scale
-                            let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
-                            context.fill(Path(ellipseIn: dot), with: .foreground)
-                        }
+        // Jannchie Icons `loading-grid`: nine dots pulse along diagonals.
+        TimelineView(.animation(minimumInterval: 1.0 / 24, paused: reduceMotion)) { timeline in
+            let period = 1.4
+            let phase = reduceMotion ? 0.25 : timeline.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            Canvas { context, size in
+                let scale = size.width / 24
+                for row in 0..<3 {
+                    for column in 0..<3 {
+                        let progress = phase - Double(row + column) / 8
+                        let pulse = 0.5 - 0.5 * cos(2 * .pi * progress)
+                        let radius = (0.5 + 1.3 * pulse) * scale
+                        let x = (6.5 + 5.5 * CGFloat(column)) * scale
+                        let y = (6.5 + 5.5 * CGFloat(row)) * scale
+                        let dot = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+                        context.fill(Path(ellipseIn: dot), with: .foreground)
                     }
                 }
             }
-            .frame(width: 18, height: 18)
-            .accessibilityHidden(true)
         }
-        .pikachuFont(.caption)
-        .foregroundStyle(PikachuTheme.tertiaryText)
-        .accessibilityIdentifier("transcript-thinking")
+        .frame(width: 18, height: 18)
+        .accessibilityHidden(true)
     }
 }
 
@@ -1043,12 +1723,14 @@ struct ToolDetails: View {
                     ScrollView(.horizontal) {
                         Text(tool.arguments).pikachuFont(.caption, design: .monospaced).textSelection(.enabled)
                     }
+                    .scrollIndicators(.never)
                 }
                 if !tool.output.isEmpty {
                     PikachuDivider()
                     ScrollView(.horizontal) {
                         Text(tool.output).pikachuFont(.callout, design: .monospaced).textSelection(.enabled)
                     }
+                    .scrollIndicators(.never)
                 }
                 if tool.truncated { Text("输出过长，仅显示部分内容。").pikachuFont(.caption).foregroundStyle(.secondary) }
             }
