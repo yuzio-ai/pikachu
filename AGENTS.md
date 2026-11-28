@@ -1,13 +1,13 @@
-# Pikachu 项目 Agent 规范
+# Zivvi 项目 Agent 规范
 
 本文件适用于仓库内的开发、审查、整改和验收。使用与构建入口见 [README](README.md)，架构与阶段规划见 [DESIGN](DESIGN.md)。
 
 ## 工程入口与代码位置
 
-- 使用 [Pikachu.xcodeproj](Pikachu.xcodeproj) 的共享 scheme。主应用和两组单元测试均通过 `Pikachu` scheme 构建或运行。新增源码、资源或测试时，确认目标 target 已包含该文件。
-- [Pikachu/](Pikachu/) 包含应用入口（`App/`）、界面功能（`Features/`）、设计组件（[DesignSystem](Pikachu/DesignSystem/)）、本地服务（`Services/`）和诊断代码（`Diagnostics/`）。界面变更沿用 [DesignSystem](Pikachu/DesignSystem/) 和 [设计令牌](DESIGN_TOKEN.md)。`Features/` 只依赖 `AgentRuntimeCore` 和 `OrchestrationCore`，不直接引用 `ACPRuntimeAdapter`、解析后端会话文件或持有 SwiftData 模型。
-- Runtime 抽象、领域模型与 `FakeRuntime` 在 [AgentRuntimeCore](Modules/AgentRuntimeCore/)，会话与工作台编排在 [OrchestrationCore](Modules/OrchestrationCore/)，工作台索引和草稿持久化在 [WorkspacePersistence](Modules/WorkspacePersistence/)。ACP 协议和会话回放在 [ACPRuntimeAdapter](Modules/ACPRuntimeAdapter/)。进程监督由 [ProcessSupervision](Modules/ProcessSupervision/)、[CProcessInspection](Modules/CProcessInspection/) 和 [PikachuSupervisor](PikachuSupervisor/) 负责。
-- 本地化目录 `Localizable.xcstrings` 分布在 `Pikachu`、`OrchestrationCore`、`ACPRuntimeAdapter` 和 `AgentRuntimeCore`，新增或删改用户可见文案时同步维护所属 target 的词条并清理过期键。变更第三方图标或服务商标识时同步更新 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- 使用 [Zivvi.xcodeproj](Zivvi.xcodeproj) 的共享 scheme。主应用和两组单元测试均通过 `Zivvi` scheme 构建或运行。新增源码、资源或测试时，确认目标 target 已包含该文件。
+- [Zivvi/](Zivvi/) 包含应用入口（`App/`）、界面功能（`Features/`）、设计组件（[DesignSystem](Zivvi/DesignSystem/)）、本地服务（`Services/`）和诊断代码（`Diagnostics/`）。界面变更沿用 [DesignSystem](Zivvi/DesignSystem/) 和 [设计令牌](DESIGN_TOKEN.md)。`Features/` 只依赖 `AgentRuntimeCore` 和 `OrchestrationCore`，不直接引用 `ACPRuntimeAdapter`、解析后端会话文件或持有 SwiftData 模型。
+- Runtime 抽象、领域模型与 `FakeRuntime` 在 [AgentRuntimeCore](Modules/AgentRuntimeCore/)，会话与工作台编排在 [OrchestrationCore](Modules/OrchestrationCore/)，工作台索引和草稿持久化在 [WorkspacePersistence](Modules/WorkspacePersistence/)。ACP 协议和会话回放在 [ACPRuntimeAdapter](Modules/ACPRuntimeAdapter/)。进程监督由 [ProcessSupervision](Modules/ProcessSupervision/)、[CProcessInspection](Modules/CProcessInspection/) 和 [ZivviSupervisor](ZivviSupervisor/) 负责。
+- 本地化目录 `Localizable.xcstrings` 分布在 `Zivvi`、`OrchestrationCore`、`ACPRuntimeAdapter` 和 `AgentRuntimeCore`，新增或删改用户可见文案时同步维护所属 target 的词条并清理过期键。变更第三方图标或服务商标识时同步更新 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 - 设计、实现或审查桌面界面时，读取 [极简桌面界面审查 Skill](.agents/skills/minimal-desktop-ui-review/SKILL.md)。界面改动在交付前按 Skill 自查本次变更，说明需要运行证据才能确认的事项。
 
 ## 构建与验证
@@ -26,10 +26,10 @@
 
 隔离验证脚本默认使用当前工作区快照。用 `--archive` 或 `--source-dir` 指定其他源码，按需传入 `--patch` 和 `--overlay`。脚本将源码、DerivedData、结果包和夹具收拢在单一临时目录，退出时默认清理。收到 `SIGINT` 或 `SIGTERM` 时，先终止当前验证进程组，再清理。用 `--evidence-dir` 指定本次运行的新目录，证据复制成功后才发布到该目录。
 
-使用 `--scheme` / `--action` 运行内置构建或测试时，脚本遇到首个失败就停止并返回该次 `xcodebuild` 的退出码。通过 `-- <command...>` 可运行自定义命令并获知其退出码。自定义构建使用脚本提供的 `PIKACHU_DERIVED_DATA`。完整参数见脚本的 `--help`。
+使用 `--scheme` / `--action` 运行内置构建或测试时，脚本遇到首个失败就停止并返回该次 `xcodebuild` 的退出码。通过 `-- <command...>` 可运行自定义命令并获知其退出码。自定义构建使用脚本提供的 `ZIVVI_DERIVED_DATA`。完整参数见脚本的 `--help`。
 
 无法使用包装脚本时，按以下方式手动隔离。
 
-1. 用 `mktemp -d "${TMPDIR:-/tmp}/pikachu-<task>-XXXXXX"` 创建单一根目录。将临时源码、DerivedData、App、夹具、日志和测试结果放在该目录内。
+1. 用 `mktemp -d "${TMPDIR:-/tmp}/zivvi-<task>-XXXXXX"` 创建单一根目录。将临时源码、DerivedData、App、夹具、日志和测试结果放在该目录内。
 2. 绑定退出清理 `trap 'rm -rf "$SANDBOX_DIR"' EXIT`。退出前按上面的保留规则导出证据。任务交接证据放在对应的 `.yuzio/cohestra/handoffs/<task>/`，其他需保留的本地证据可放在 `.verification-runs/`。正式文档和交付物引用导出后的路径。
-3. 交付前确认临时目录及其中编译出的 `Pikachu.app` 已删除；若验证过程中启动过临时路径或非标准目录里的 `Pikachu.app`，删除前或清理后需同步从 LaunchServices 注销（`lsregister -u <app-path>`）或清理失效注册，避免系统「打开」/ Spotlight 残留大量重复图标。若因阻塞必须保留现场，交付时写明保留的路径和清理条件。脚本的 `--keep-on-failure` 也仅用于这种情况。
+3. 交付前确认临时目录及其中编译出的 `Zivvi.app` 已删除；若验证过程中启动过临时路径或非标准目录里的 `Zivvi.app`，删除前或清理后需同步从 LaunchServices 注销（`lsregister -u <app-path>`）或清理失效注册，避免系统「打开」/ Spotlight 残留大量重复图标。若因阻塞必须保留现场，交付时写明保留的路径和清理条件。脚本的 `--keep-on-failure` 也仅用于这种情况。

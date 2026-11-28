@@ -1,9 +1,8 @@
-# Pikachu 工程验证
+# Zivvi 工程验证
 
 在仓库根目录运行以下命令。默认使用临时目录，结束后自动清理。
 
 ```sh
-Scripts/run-isolated-verify.sh --scheme Pikachu --action test
 Scripts/run-isolated-verify.sh --tool runtime-verify
 Scripts/run-isolated-verify.sh --tool runtime-verify -- --baseline
 Scripts/run-isolated-verify.sh --tool acp-compat-probe -- --suite fake
@@ -11,9 +10,23 @@ Scripts/run-isolated-verify.sh --tool acp-compat-probe -- --suite fake
 
 `runtime-verify` 通过 FakeRuntime 验证连接和清理。`--baseline` 测量领域事件投影耗时。
 
+## 单元测试
+
+按测试方法选择纯逻辑用例，例如目录分页和额度投影。可重复传入 `--only-testing`。
+
+```sh
+Scripts/run-isolated-verify.sh --scheme Zivvi --action test \
+  --only-testing ZivviTests/ProjectFilesTests/testProjectNavigatorPaginatesWithinTheExpandedDirectory \
+  --only-testing ZivviTests/Workbench20Tests/testQuotaMetricDistinguishesUnknownZeroSmallAndExpiredWindows
+```
+
+全量命令为 `Scripts/run-isolated-verify.sh --scheme Zivvi --action test`，会执行打开原生窗口的用例。按[项目规范](../AGENTS.md#构建与验证)取得原生验收授权后再运行这些用例。只编译测试使用 `--action build-for-testing`。
+
+XCTest 进程通过 `QuotaCLIProcessPolicy` 跳过 Codex 和 Antigravity 额度探测。其他诊断可使用 `--fake` 或 `ZIVVI_DISABLE_QUOTA_PROBES=1`。
+
 ## ACP 兼容性探针
 
-独立验证 ACP v1（`protocolVersion: 1`）客户端传输、握手、模型/模式探测、权限交互、取消中断、会话恢复（`session/load`）及 `pikachu-supervisor` 进程树监督清理。支持无外部依赖的合成夹具 `Verification/Fixtures/fake-acp.py` 以及真实 ACP v1 Agent（默认自动探测 Antigravity CLI `agy acp`）。
+独立验证 ACP v1（`protocolVersion: 1`）客户端传输、握手、模型/模式探测、权限交互、取消中断、会话恢复（`session/load`）及 `zivvi-supervisor` 进程树监督清理。支持无外部依赖的合成夹具 `Verification/Fixtures/fake-acp.py` 以及真实 ACP v1 Agent（默认自动探测 Antigravity CLI `agy acp`）。
 
 ```sh
 Scripts/run-isolated-verify.sh --tool acp-compat-probe -- --suite fake

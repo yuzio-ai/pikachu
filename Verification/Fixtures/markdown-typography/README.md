@@ -1,6 +1,6 @@
 # Agent Runtime / 执行架构
 
-Pikachu renders content with native macOS text. 中文、English、组合字形 é 和 Emoji 👩🏽‍💻 共用一条基线。**粗体**、*斜体*、~~删除线~~与 `inlineCode` 可以混排。[可点击的链接](https://example.invalid/docs) 与 [延迟定义的链接][guide] 都位于原文中。
+Zivvi renders content with native macOS text. 中文、English、组合字形 é 和 Emoji 👩🏽‍💻 共用一条基线。**粗体**、*斜体*、~~删除线~~与 `inlineCode` 可以混排。[可点击的链接](https://example.invalid/docs) 与 [延迟定义的链接][guide] 都位于原文中。
 
 ## 会话与文档
 ### Execution lifecycle

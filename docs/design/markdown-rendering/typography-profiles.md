@@ -4,14 +4,18 @@
 
 聊天和文件预览共享原生 Markdown 元素、字体和主题。Conversation 用较紧凑的段落与章节节奏支持扫读。Editorial 用更明显的标题层级和留白支持连续阅读。两处的标题、正文和富元素沿同一逻辑起始边界排列。
 
-本设计根据 2026-11-25 的《Pikachu · Markdown Typography & Rendering System》制定。用户调用 Cohestra code 后实施，取代 [v1 共享排版参数](README.md)。工作台导航、输入区、用户消息、工具卡、文件工具栏和运行时协议沿用各自约定。
+本设计根据 2026-11-25 的《Zivvi · Markdown Typography & Rendering System》制定。用户调用 Cohestra code 后实施，取代 [v1 共享排版参数](README.md)。工作台导航、输入区、用户消息、工具卡、文件工具栏和运行时协议沿用各自约定。
+
+## 当前工作台入口
+
+[编辑区](../../../Zivvi/Features/Workbench/WorkbenchEditorArea.swift) 用扣除 Editorial 留白后的实际视口宽度渲染文件预览。[标签模型](../../../Zivvi/Features/Workbench/WorkbenchTabsModel.swift) 管理文件身份、正文模式与刷新。对话侧由 [TranscriptView](../../../Zivvi/Features/Transcript/TranscriptView.swift) 组装。
 
 ## Phase 0 · 修改前实现与基线
 
 | 范围 | 已核对的实现 |
 |---|---|
-| 聊天 | [TranscriptRow](../../../Pikachu/Features/Transcript/TranscriptView.swift) 将 Agent 回复交给共享组件。流式阶段显示可选择的纯文本，结束后才切换到块渲染。[NativeTranscript](../../../Pikachu/Features/Transcript/NativeTranscript.swift) 管理行复用、行高刷新、贴底跟随和阅读锚点。共享 [WorkbenchReadingColumn](../../../Pikachu/DesignSystem/PikachuTheme.swift) 将聊天、输入框及其他行对齐到 800 pt 阅读列，最小外侧留白 24 pt。 |
-| 文件预览 | [ProjectFilesPane](../../../Pikachu/Features/ProjectFiles/ProjectFilesPane.swift) 将实际可见滚动视口扣除留白后传给同一组件，Markdown 预览独立纵向滚动。[ProjectFilesModel](../../../Pikachu/Features/ProjectFiles/ProjectFilesModel.swift) 通过文件路径和读取请求 ID 管理切换及刷新。同文件成功刷新可保留已挂载视图，格式与源码切换会有独立生命周期。 |
+| 聊天 | [TranscriptRow](../../../Zivvi/Features/Transcript/TranscriptView.swift) 将 Agent 回复交给共享组件。流式阶段显示可选择的纯文本，结束后才切换到块渲染。[NativeTranscript](../../../Zivvi/Features/Transcript/NativeTranscript.swift) 管理行复用、行高刷新、贴底跟随和阅读锚点。共享 [WorkbenchReadingColumn](../../../Zivvi/DesignSystem/ZivviTheme.swift) 将聊天、输入框及其他行对齐到 800 pt 阅读列，最小外侧留白 24 pt。 |
+| 文件预览 | 当时的会话文件面板将扣除留白后的滚动视口宽度传给共享组件，预览独立纵向滚动。文件切换及刷新按文件路径和读取请求 ID 管理。 |
 | 解析与缓存 | [MarkdownBlocks](../../../Modules/OrchestrationCore/MarkdownBlocks.swift) 使用 Foundation AttributedString 生成语义块。支持 H1–H6、行内强调与删除线、引用、带起始编号的嵌套列表、围栏代码、表格、链接和分割线。当前聊天缓存还包含跨行复用的有界 Markdown store、字号相关表格测量和异步文件链接校验。文件预览已有单条布局缓存。 |
 | 已实测边界 | 命令行探针在 macOS 27.2.1 / Xcode 27.2 编译并运行现有解析器。未闭合的 fenced code 可解析并保留 Tab、空行，闭合后同一例的代码文本一致。后到的链接定义改变了前文语义。表格保留对齐和全空行。任务标记为文本。图片产生 alt 与 URL 属性，当前共享视图以文本呈现。样例 front matter 按普通 Markdown 解释，HTML 块作为文字，数学按文本，脚注定义可被 Foundation 消耗。 |
 | 交互与安全 | 共享视图已有分块选择、代码复制、表格及代码局部横滚。聊天文件链接继续经过工作区路径匹配、异步校验和现有打开入口。文件格式预览只处理用户显式点击的 Web／邮件链接。当前 Markdown 代码块没有语法高亮引擎。 |
@@ -49,7 +53,7 @@
 
 首块和末块由容器提供外缘。相邻块只计算一次间距，连续标题套用独立规则，其他相邻块按语义优先级取值。正文和标题用 SF 系统字及系统 CJK 回退，默认字距。等宽数字用于有序列表标记和适合的数值列。保留源文指定的表格对齐。
 
-[MarkdownStyle](../../../Pikachu/DesignSystem/MarkdownStyle.swift) 根据 Profile、宿主宽度、App 文字档解析字体、额外行距和块间距。四档文字设置以 14 pt 正文为基准缩放。宽度先限制标题字号，再按文字档缩放。段距和局部边距以字号缩放变化量的一半调整，保留紧凑列可用空间。测试配置另覆盖 100%、125%、150%。文本使用现有的主／次文本、链接和分隔色，Increase Contrast 强化引用边线和分隔线，选区及焦点沿用系统样式。
+[MarkdownStyle](../../../Zivvi/DesignSystem/MarkdownStyle.swift) 根据 Profile、宿主宽度、App 文字档解析字体、额外行距和块间距。四档文字设置以 14 pt 正文为基准缩放。宽度先限制标题字号，再按文字档缩放。段距和局部边距以字号缩放变化量的一半调整，保留紧凑列可用空间。测试配置另覆盖 100%、125%、150%。文本使用现有的主／次文本、链接和分隔色，Increase Contrast 强化引用边线和分隔线，选区及焦点沿用系统样式。
 
 | 宿主可用宽度 | 处理 |
 |---|---|
@@ -67,15 +71,15 @@
 - **代码和表格。** 代码块沿用现有语言标签、原始文本复制、局部横滚和纵向手势转发。保持复制反馈占位稳定。表格保留当前测宽算法，按真实字体和内距测量，使用开放式横向分隔、可换行单元格和局部溢出，保留空单元格、行列对齐和表头语义。
 - **图片及扩展。** 独立图片段落显示可访问的 alt 或占位。Editorial 的本地相对图片由用户主动显示，限当前已绑定项目、以 Markdown 所在目录为基准，复用描述符校验、512 KiB 上限与符号链接限制。PNG、JPEG、GIF 首帧和 WebP 经过尺寸校验与受限解码，按比例适配可用宽度。刷新同一文档时，只重读用户已请求的图片，并以新文档版本判定结果。读取失败后可重试。聊天图片引用、行内图片和远程图片保留替代文字。HTML、YAML 和脚注记号沿用 Foundation 解析。合法的引用式链接定义优先按链接解释，普通脚注说明保留为文字。
 
-共享 UI 入口仍为 [MarkdownContent](../../../Pikachu/Features/Transcript/MarkdownContent.swift)。Profile 由两个调用方显式传入，链接及资源权限继续由宿主提供。解析层仅提供块结构、必要的源位置和语义元数据。候选范围包括 Markdown 组件与两个装配点、必要的 parser 元数据和文件读取接线、相应用例与文档。
+共享 UI 入口仍为 [MarkdownContent](../../../Zivvi/Features/Transcript/MarkdownContent.swift)。Profile 由两个调用方显式传入，链接及资源权限继续由宿主提供。解析层仅提供块结构、必要的源位置和语义元数据。候选范围包括 Markdown 组件与两个装配点、必要的 parser 元数据和文件读取接线、相应用例与文档。
 
 ## Phase 3 · 流式与性能
 
-首次非空内容直接显示，后续由 [MarkdownStreamingState](../../../Pikachu/Features/Transcript/MarkdownStreamingState.swift) 发布解析快照。合并间隔目标为 33 ms。后台解析完整累计源，完成、取消或出错均按实际文本收敛。流式期间可以发布仍为最新源前缀的快照。收到终态或重写时等待对应的最新源，离开消息时取消相关任务。
+首次非空内容直接显示，后续由 [MarkdownStreamingState](../../../Zivvi/Features/Transcript/MarkdownStreamingState.swift) 发布解析快照。合并间隔目标为 33 ms。后台解析完整累计源，完成、取消或出错均按实际文本收敛。流式期间可以发布仍为最新源前缀的快照。收到终态或重写时等待对应的最新源，离开消息时取消相关任务。
 
 稳定块身份来自原始 UTF-8 源位置，并按父级消歧，覆盖列表、引用和表格。空表格行预处理后的位置会还原到原源坐标。Setext 标题、后到的引用式链接定义、表格分隔行和松散列表可重判前文。首个快照前用正文样式显示原文，快照之间保留上一可读布局，避免重复拼接未解析尾部。选区及视图状态仍需原生验证。
 
-流式仅保留当前、在途和最新待处理结果。最终快照交给完成态缓存后，释放流式快照和测宽缓存。保留已完成消息的有界缓存和异步链接验证，流式中先允许显式 Web／邮件链接。宽度、主题和字号变化复用解析结果，流式未变的表格复用测量结果。聊天沿用 AppKit 跟随与阅读锚点。文件预览用可见块的语义标识连接 SwiftUI 滚动位置，内容插入或位移时可匹配原有块。删除锚点或重排行时的实际偏移、选择范围和卡顿需在原生验收核对。
+流式仅保留当前、在途和最新待处理结果。最终快照交给完成态缓存后，释放流式快照和测宽缓存。保留已完成消息的有界缓存和异步链接验证，流式中先允许显式 Web／邮件链接。宽度、主题和字号变化复用解析结果，流式未变的表格复用测量结果。聊天默认使用 SwiftUI 惰性列表，同窗记忆各会话阅读位置；AppKit 表格作为对照路径。两者共用消息组间距和锚点标识。文件预览用可见块的语义标识连接 SwiftUI 滚动位置，内容插入或位移时可匹配原有块。删除锚点或重排行时的实际偏移、选择范围和卡顿需在原生验收核对。
 
 ## Phase 4 · 验收与证据
 
@@ -87,6 +91,6 @@
 | 流式稳定及终态一致 | 按 chunk 输入强调、链接、围栏、Setext、表格和多级列表。对照完整源一次性解析结果，覆盖取消、错误、重启、切换会话和主题、晚结果、贴底与暂停阅读。验证消息及稳定块身份。 |
 | 性能及回归 | 使用同一设备、构建配置、夹具和计量口径，比较首个可见内容、解析耗时、主线程卡顿、滚动与内存。检查 10 KB、100 KB 和长历史。独立核对 Markdown 相关回归与既有 [WBR-V03](../workbench-ui-refresh.md)。 |
 
-工程验证通过共享 `Pikachu` scheme，构建使用 `xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build build`。代码阶段检查 `TranscriptRenderingTests`、文件预览安全与缓存逻辑。含真实窗口、选区、辅助功能和滚动的 `NativeTranscriptTests` 及相关用例纳入原生验收。固定快照可用 [隔离验证脚本](../../../Scripts/run-isolated-verify.sh)，以无推理夹具和隔离 App 数据采证，退出前清理临时构建与 App。记录实际命令、结果、截图、性能及所有偏差。
+工程验证通过共享 `Zivvi` scheme，构建使用 `xcodebuild -project Zivvi.xcodeproj -scheme Zivvi -derivedDataPath build build`。代码阶段检查 `TranscriptRenderingTests`、文件预览安全与缓存逻辑。含真实窗口、选区、辅助功能和滚动的 `NativeTranscriptTests` 及相关用例纳入原生验收。固定快照可用 [隔离验证脚本](../../../Scripts/run-isolated-verify.sh)，以无推理夹具和隔离 App 数据采证，退出前清理临时构建与 App。记录实际命令、结果、截图、性能及所有偏差。
 
 字号、间距和断点需根据原生测量校准。若调整，记录原值、新值、受影响入口和对应证据。代码复制继续使用解析后的围栏内容，跨块选择及 VoiceOver 行列关系以实测结果为准。

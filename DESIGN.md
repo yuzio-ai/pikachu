@@ -1,14 +1,104 @@
-# Pikachu — Design Specification
+# Zivvi — Design Specification
 
 ## 当前运行时架构
 
-工作台通过 `OrchestrationCore` 编排会话，由 `ACPRuntimeAdapter` 将领域事件映射到本地 ACP 智能体，底层使用受监督的 JSON-RPC 进程。新会话需要一个已启用的智能体，已有会话保留原绑定。活动段按智能体能力恢复，冻结段由工作台独立保存。
+工作台通过 `OrchestrationCore` 编排会话，由 `ACPRuntimeAdapter` 将 ACP 消息与领域事件相互转换，底层使用受监督的 JSON-RPC 进程。新会话需要一个已启用的智能体，已有会话保留原绑定。活动段按智能体能力恢复，冻结段由工作台独立保存。支持会话关闭能力的 Agent 可共用常驻连接。 [连接与会话设计](docs/design/acp-shared-connection.md)
 
 启动时按当前段的后端标识清理旧内置 Pi 索引。一次持久化提交成功后才回收无引用段。磁盘上的历史文件和用户配置保留。运行说明见 [README](README.md)。
 
+## 当前设计语言
+
+**Modern Minimalist Flat Layout × Swiss Typography × Native macOS**。以下规则适用于 Zivvi 原生 macOS 界面。通用原则和验收要求在本节维护。共享数值、组件视觉状态及固定品牌词引用[设计令牌](DESIGN_TOKEN.md)，具体功能与交互引用已批准的页面规格。历史阶段规划保留在后文。
+
+### 核心原则与规则等级
+
+| 原则 | 在工作台中的含义 |
+| --- | --- |
+| **Native by nature.** | 优先使用 macOS 控件、行为和辅助功能语义。原生组件无法满足明确需求时，复用或扩展共享组件。 |
+| **Flat by default.** | 同层内容平铺。视觉容器用于表达有意义的内容或交互边界。 |
+| **Content first.** | 用对齐、基线、字重、间距和阅读宽度组织信息，让内容及当前任务醒目。 |
+| **Interaction by intent.** | 保持核心操作可发现，随焦点、选中、编辑和运行状态呈现相关操作。 |
+| **Delight in details.** | 在有意义的时刻使用品牌表达，保持操作、阅读和状态反馈清楚。 |
+
+设计取舍依次考虑可用性、安全与无障碍，原生平台行为，工作效率与理解，视觉一致性，装饰。已批准的具体场景规则优先于通用建议。出现冲突时先记录差异和影响，确认后再修改对应规则。
+
+**MUST** 表示必须遵守，**MUST NOT** 表示禁止，**SHOULD** 表示有理由时可以偏离的默认做法，**MAY** 表示按场景可选。合理例外须记录场景、适用边界、理由及验证方式。涉及既有规范或全局视觉的变更须先确认。
+
+### 视觉层级与信息密度
+
+- **MUST** 用共同对齐线、基线、稳定行距和组间留白组织同层内容。普通分组直接铺在共用底色上。**MUST NOT** 为装饰叠加底板、卡片、边框、分割线、渐变、发光或多层阴影。规则约束可见的视觉层级，弹性排版和代码结构可使用所需的布局容器。
+- **SHOULD** 先用留白区分分组，只有边界、交互或扫读需要时才增加分隔线。**MAY** 为输入、用户消息、代码、Diff、终端、风险确认和浮层保留有功能的表面或轮廓。浮层深度和窗口材质沿用原生行为，内部普通分组继续平铺。 [平铺与浮层规则](DESIGN_TOKEN.md#平铺布局) · [统一底色定稿](docs/design/workbench-unified-background.md)
+- **MUST** 去除复述控件含义的说明和无信息的重复标题，并保留决策必需的信息。权限范围、数据用途、不可逆影响、失败原因和可用恢复操作应在对应位置可读。**SHOULD** 使用明确的动作动词和一致术语。系统提示用于补充信息，关键状态与必要说明须有直接入口。 [审批面板](docs/design/tool-approval-dialog/README.md#布局与样式r08)
+- **MUST** 复用系统字体与语义字号。代码和终端使用系统等宽字。标题、正文、辅助信息和标签通过字号与字重区分，支持中英文与 CJK 回退。长路径须能读取完整值，长代码和宽表格在所属区域内换行或横向滚动。聊天和文件预览共享 Markdown 元素语义，各自的标题、行距、留白和窄栏规则按 Profile 解析。 [双 Profile 排版](docs/design/markdown-rendering/typography-profiles.md)
+- **SHOULD** 按任务选择密度。会话侧栏、工具调用、代码、Diff 与终端以紧凑扫读为主。对话和 Markdown 预览以连续阅读为主。设置保持标准密度，新会话使用较宽松的标题和输入区布局。随窗口宽度、字号和语言重排时，保留可读性、命中区和可见焦点。
+
+### 色彩、令牌与品牌
+
+- **MUST** 用共享语义颜色表达文本、表面、选中、焦点与业务状态。界面跟随 macOS 外观。中性色承载工作区域，应用自有功能图标统一采用主题黄（`ZivviTheme.iconYellow`：浅色 `#A87900`、深色 `#FFD22B`），概念品牌黄为 `ZivviTheme.brandYellow`（`#FFCC00`，主 Logo 原图不重新着色）。普通文字继续黑白灰；避免黄色实底上的黄色前景（如已启用发送按钮与用户消息 `Zip!` 徽标在 `#FFCC00` 底上使用深色 `#222222`）。原生 macOS 红黄绿窗口按钮、系统菜单与第三方服务商 Logo 保留平台及原品牌外观。
+- **MUST** 复用适用的共享颜色、文字角色、间距、圆角、图标、材质与动效约定。间距和圆角沿用已批准的场景值。应用自有图标统一由 `LightningIcons.xcassets`（83 项功能图标，一对一映射）与 `LightningBrandIcons.xcassets`（21 项品牌专属图标，独立前缀 `lightning_brand_`）以模板渲染 + `ZivviTheme.iconYellow` 着色提供，不再直接散落调用未审计的 SF Symbols。图标的显示尺寸与操作命中区分别核对。 [设计令牌](DESIGN_TOKEN.md) · [图标规范](docs/design/ICONOGRAPHY.md) · [共享组件](Zivvi/DesignSystem/)
+- **MUST** 响应适用的提高对比度、减少透明度及减少动态效果偏好。关键状态须有静态等效表达。**MAY** 在冷启动汇聚（800 ms）、新建空会话呼吸（5 s）、执行能量流动（1800 ms）与整体完成释放（450 ms）中使用原生 SwiftUI 2D 品牌动效，默认静音、由真实运行事件驱动、不阻塞启动与输入，并在窗口隐藏/失焦/任务结束后及时停止。主 Logo 唯一母版为四生命体 2D 闪电（**Many minds. One spark.**），静息定格必须显示批准原图派生透明素材。 [品牌图标](docs/design/app-icon/README.md) · [动效规范](docs/design/MOTION.md) · [运行时间线](docs/design/session-run-timeline.md)
+- **MUST** 让品牌词与真实状态一致，移除旧角色交互文案。使用 Z 开头拟声词体系（新会话 `Ready to Zip?`、用户消息 `Zip!`、Agent 开始 `Zap!`、执行中 `Zap…`、Subagent 完成 `Zing!`、整体任务完成 `Zzzap!`、执行异常 `Zzzzt…`）；等待审批、等待输入、已暂停、用户主动停止、排队、介入与历史结果未记录保持真实本地化语义，不制造运行中或成功假象。品牌词仅属于 UI 表示层，不进入 Prompt、草稿、复制文本或历史持久化数据；辅助功能使用清晰的功能语义而非仅朗读拟声词。固定词、触发条件和呈现方式集中见[品牌交互语言](DESIGN_TOKEN.md#品牌交互语言)。
+
+### 桌面交互与动态内容
+
+- **MUST** 在对应任务状态下显示主操作、必要的执行控制、待处理审批和关键异常。安全相关操作须有可见入口。危险操作可收纳在可见菜单中，并提供场景需要的确认步骤。次要的上下文动作 **MAY** 随悬停、焦点、选中或上下文菜单出现。进入编辑状态后再展开该状态专用的操作。
+- **MUST** 防止控件显隐引起意外的布局跳动、文字换行、行高变化或命中位置漂移。悬停和焦点触发的行内操作保留原有布局。已定义的状态转换可重排内容，例如发送方式胶囊消失时恢复编辑器全宽。重排时保持焦点在有效位置，遍历顺序与界面一致。隐藏操作须有键盘或辅助技术可达的等效路径。可操作控件须有可访问名称，纯装饰图标应从朗读中隐藏。滚动位置仅在有明确上下文价值时触发操作入口，例如到达离线历史边界。 [悬停规则](DESIGN_TOKEN.md#鼠标悬停) · [发送方式规格](docs/design/composer-send-mode-placement.md#布局与操作)
+- **SHOULD** 沿用 macOS 的键盘、选择和菜单行为。针对使用的菜单、浮层和上下文菜单，核对初始焦点、键盘导航、Escape 的关闭范围、关闭后焦点、锚点和屏幕边界。适用的拖放或面板调整需核对反馈、取消和辅助功能操作。 [锚定浮层](DESIGN_TOKEN.md#锚定浮层)
+- **SHOULD** 为确需自定义的指针级联菜单保护鼠标意图。短暂经过时延迟开启，跨过父子菜单间隙时延迟关闭。指针朝子菜单移动时，以离开父项的位置与子菜单近侧两角形成安全区，短暂保留当前子菜单。明确改向、离开或超时后恢复正常切换。核对左右展开、屏幕边缘、反向移动与点击。键盘方向键、Return 和 Escape 须独立响应。延时及几何按原生实测确定，系统菜单沿用系统行为。
+- **MUST** 让主动滚动、定位和返回最新优先于流式跟随与延迟恢复。流式更新应保持视口稳定，留出可发现的「回到最新」入口。窄窗及面板并排时，任务状态、停止和必要的恢复入口须可达。 [窗口内的阅读位置](docs/design/session-detail-ui-v5.md#窗口内的阅读位置)
+
+### 现行工作台决策
+
+| 决策 | 现行约定 |
+| --- | --- |
+| DS-01～07 | 共用颜色与排版角色。普通分隔线按显示倍率绘制。拖拽边界保有独立命中区，响应减少动态效果。详见[设计令牌](DESIGN_TOKEN.md)。 |
+| DS-08～12 | **工作台 2.0 极简三栏架构**：原生标题栏左侧为 Zivvi 品牌和侧栏切换；左侧为按项目分组的项目导航器（支持每个项目独立记忆 `S 会话 / F 文件 / G Git` 模式，底部汇总「已完成」会话并保留项目标识前缀）；中间对话区与右侧编辑区拥有独立双标签页组（支持跨项目共存、拖拽重排与溢出菜单）；右侧编辑区承接文件预览/安全编辑（含保存前 revision 校验与外部冲突保护）、Git Diff、Commit 详情与历史工具变更；底部常驻全宽全局状态栏（左侧设置/仪表盘/升级，右侧 Codex 与 Antigravity 多源真实额度监控）。窄窗按优先级先收起侧栏、再收起编辑区（保留已开标签）。 |
+| DS-13、19 | 用户消息采用按内容自适应宽度（Fit Content）并在阅读列内左对齐，气泡外框与助手正文共用阅读列左缘，气泡内正文左对齐；左上角悬浮 `Zip!` 品牌徽标始终相对于气泡左上角定位。助手正文沿用阅读列左缘全宽平铺。消息组的间距与工具行的紧凑节奏沿用现有令牌。 [品牌交互语言](DESIGN_TOKEN.md#品牌交互语言) · [运行控制](docs/design/session-run-timeline.md#运行控制) |
+| DS-14～18、20～21 | 对话与文件继续使用双 Markdown Profile，对话流式阶段采用**渐进式 Markdown 渲染**（稳定块按 140 ms 窗口即时渲染，尾部未闭合块延后 300 ms 显示低对比静态语义骨架，流结束/中断立即收敛为完整正文）。无思考内容的等待阶段显示「等待回复」，已提供的思考内容按需展开。工具调用实行「摘要优先」与预留稳定操作槽位（已完成自动聚合，执行中独立可见）。沿用能力驱动的发送、重试、审批、用量和快捷键。 |
+| DS-22～24 | 窗口按会话记忆跟随状态及阅读锚点。历史读取完成后优先恢复同一行和行内偏移，原行合并或消失时尝试所属组或邻行。主动滚动、消息定位和返回最新优先。关闭窗口释放阅读记录。 |
+| DS-25～26 | Feature 负责解释工具类型，DesignSystem 接收展示角色。页面规格引用共享令牌。 |
+| DS-27 | 执行命令与修改文件统一为操作审批弹窗（Approval）：六段平铺结构（类型与倒计时 Header → 唯一操作意图主标题 → 无胶囊目标路径 → 无常规边框 `mutedSurface` Shell/Unified Diff → 默认折叠「技术详情」→ 右对齐「拒绝」/「允许本次」），最大高度 `min(可用高度 × 80%, 可用高度 - 48 pt)`，Return 不默认触发授权。见[审批面板](docs/design/tool-approval-dialog/README.md)。 |
+| DS-28 | **自适应输入停靠区（Adaptive Composer Dock）与结构化报错**：输入区与统一垂直提示栈（Composer Notices）作为正常垂直流位于滚动对话区下方，不再以浮层覆盖历史内容；无提示时零高度折叠；提示区按状态语义（Information/Progress/Warning/Error）与交互形态（纯展示/整行可点击带常驻 Chevron/显式按钮行）两维建模并按优先级排序。模型额度耗尽、限流、认证、上下文超限与连接异常在对话流中以平铺结构化错误块呈现，默认折叠可复制的 `Provider Response`。 |
+
+#### 通用操作审批弹窗（Approval）
+
+执行命令与修改文件审批共享同一套极简平铺布局、间距（`ZivviSpacing`）和动态字号体系（`ZivviTypography`），仅根据审批类型切换核心内容区的 `Shell` 命令或 `Diff` 视图：
+
+1. **Header**：左侧线性 SF Symbol 与审批类型（「执行命令」/「修改文件」），右侧 `◷ MM:SS` 等宽倒计时（次级文字色，最后 30 秒切换为 `warningText`；弹窗内超时切换为「已超时」警示状态，禁用允许并保留只读详情与「关闭」按钮）。
+2. **Intent（唯一主标题）**：优先采用 `toolSummary` / `summary`（自然换行，不设单行截断）；两者皆空时在非重复前提下使用 `request.title`，否则回退到通用意图文案（「执行 Shell 命令」「修改文件」）。主视图移除「授权使用…操作？」等复述与解释文案。
+3. **Target（目标路径）**：移除文字标签前缀与灰色胶囊底色，改用图标 + 无底色文字，支持文本选择、悬停完整路径提示及复制完整绝对路径。命令审批展示实际工作目录（与会话目录不同时显式展示实际执行目录）及涉及文件；文件修改按文件分组两级展示（项目内目录次级色 + 文件名中等字重主色；项目外保留绝对路径），超长路径自然换行。
+4. **Content（核心内容）**：容器采用 `ZivviTheme.mutedSurface` + `8 pt` 圆角，常规对比度下无边框、无标题栏分割线；提高对比度模式下保留 `1 pt` `ZivviTheme.border` 描边。
+   - **Shell**：顶部保留轻量 `Shell` 标识、默认开启的自动换行开关与复制完整原始命令按钮；正文沿用与对话区一致的系统等宽纯文本，禁止省略号截断，超长内部滚动。
+   - **File Diff**：顶部保留 `Diff` 标题、`+N −M` 等宽统计与复制完整 Unified Diff 按钮；内容采用逐行 Unified Diff（低饱和度行级背景 + 正常 `primaryText` 代码文字 + 语义色 `−`/`+` 标识 + 成对增删行的字符级差异背景强调 + 行尾换行变化标注），无真实行号时不虚构行号，移除逐行分割线，超长内部垂直/横向滚动。
+5. **Disclosure（技术详情）**：默认折叠，整行可点击并支持折叠态悬停/焦点复制 JSON；展开后不套额外卡片，直接平铺 `Tool`、`Action`、`会话目录`、`执行超时`（如有）及语法高亮的 `JSON`（保留换行切换与复制），伴随 `180 ms` 平滑过渡（遵循系统「减少动态效果」）。
+6. **Footer 与自适应**：以 `subtleDivider` 分隔操作区，右对齐原生控件尺寸按钮；标准二元选项呈现「拒绝」（绑定 `.cancelAction` / Esc）与「允许本次」（沿用 `FlatControlButtonStyle(.prominent)` 中性强调，不绑定 `.defaultAction` 防止 Return 误触）。弹窗沿用 `640 / 700 pt` 宽度档（窄窗不超出 `available - 48 pt`），短内容紧致收缩，长内容限制弹窗高度为 `min(可用高度 × 80%, 可用高度 - 48 pt)` 并保持操作区始终可见。
+
+### 视觉与交互验收
+
+实施 UI 改动前，对照本节、受影响页面的现行规格、共享 Token 和组件。默认交付按项目规则记录工程结果，包括构建、功能和回归。
+
+原生视觉与交互验收须在当前任务获得授权。验收时使用固定候选在实际 macOS 窗口中采集画面并操作关键路径。对照规范记录证据及偏差，修正发现的问题并复验。每项结论标明通过、失败、未验证或阻塞。未验证及阻塞项记录具体原因和仍待验证的条件。截图用于确认画面，键盘、焦点、滚动和 VoiceOver 等行为需要实际操作证据。 [项目构建与验证](AGENTS.md#构建与验证)
+
+| 验收范围 | 适用证据 |
+| --- | --- |
+| 布局与排版 | 对照默认及最小支持窗口、相关面板组合、字号档及长本地化文案。检查层级、对齐、基线、换行、遮挡、溢出和共享样式。 |
+| 交互与状态 | 实际操作悬停、焦点、选中、菜单、浮层和键盘。覆盖受影响的空态、加载、流式、长内容、权限、失败、取消和恢复。 |
+| 外观与辅助功能 | 核对浅色、深色、系统外观变化及适用的提高对比度、减少透明度和减少动态效果。检查键盘遍历、辅助功能名称、VoiceOver 阅读顺序与状态播报。 |
+| 性能 | 按受影响场景记录流式输入、滚动和布局稳定性。比较实际呈现时保留样本、环境和采样口径。 |
+
+**Performance as Design**。在获授权的原生性能验收中，按受影响场景比较实际窗口。对照使用同一设备、构建配置、数据快照和合成事件。指标按影响范围选择键入到字形呈现、长历史帧间隔、主线程停顿或内存。相关用例覆盖流式输出中阅读历史、选择、会话切换和追加消息定位。测试范围与已知历史回归见[长历史对照](docs/design/workbench-ui-refresh.md#已知问题)。
+
+纯文档任务检查规则一致性、差异和引用。构建、原生视觉、交互与性能结论按各自的证据范围记录。
+
+**待原生复测。** 对话顶部渐隐按页面规格核对可读性及系统透明度偏好，再决定该条款的去留。侧栏和设置菜单核对 Escape、点外关闭及选中后的实际焦点去向。按交互意图定位到触发控件、原编辑位置或下一工作目标，只修正实测有问题的入口。 [对话滚动与消息定位](docs/design/session-window-toolbar-v2.md#对话滚动与消息定位)
+
+**2026-11-26 候选验收记录。** DS-01～21、25～26 的增量通过共享 scheme 构建。固定候选的 234 个对照用例中，226 个通过，8 个失败，其中 7 个在基线复现。原生视觉与交互仅部分实测，整体验收仍有缺口。DS-22～24 的独立滚动视图恢复、追加消息跳转与首次贴底用例通过。后续 DS-22 专项复验在真实工作台连续切换会话，三轮中短消息最大偏差为 1.66 pt，长消息段内标记最大偏差为 0 pt，均满足 3 pt 容差。四档历史取得客户端输入绘制、主线程回调间隔和内存对照。VoiceOver 朗读、流式选区和屏幕呈现帧仍待实机验收。
+
+以下为原候选的本地证据路径，未纳入仓库。逐项结果和截图原位于 `.verification-runs/design-system-20261126/验收报告.md`。DS-22 专项复验位于 `.verification-runs/ds22-reading-20261126/验收报告.md`，重复导航、重复 ID、连续邻行回退和多窗口诊断的复查位于 `.verification-runs/ds22-review-check/审查记录.md`。 [会话阅读位置](docs/design/session-detail-ui-v5.md#窗口内的阅读位置)
+
 ## 初版设计及历史阶段规划
 
-以下为初版设计基线。文中 Pi RPC、扩展和 JSONL 发现描述对应已退役的实现。
+第 1–7 节和第 9–11 节保留初版设计基线及阶段规划。其中 Pi RPC、扩展和 JSONL 发现描述对应已退役的实现。当前代码目录见第 8 节。
 
 - **文档版本**：v0.9 Draft
 - **日期**：2026-11-18
@@ -17,20 +107,20 @@
 - **当前技术栈**：Swift 6、SwiftUI、AppKit、Swift Concurrency
 - **首期引擎**：Pi Coding Agent（直接使用本地 RPC，过渡方案）
 - **当前形态**：开发者自用、单窗口多项目；在 Phase 1 MVP 基础上已交付手动会话并行与 Worktree 选择，Subagent 编排与 Phase 3 仍待实施
-- **长期方向**：ACP 优先的多 Runtime 接入、自研 Rust Mini Agent Loop、Pikachu 自主管理 Subagent
+- **长期方向**：ACP 优先的多 Runtime 接入、自研 Rust Mini Agent Loop、Zivvi 自主管理 Subagent
 - **当前状态**：Phase 1 的 M0–M3 已验收，并已完成工作台界面刷新、手动会话并行与 Worktree 选择；Subagent 与 Phase 3 尚未开始。 [M3 原生复验](docs/reports/interaction-performance/NATIVE-PIXELS.md)
 
 本文中的产品行为和架构约束是设计约定。M0 实测结果和适用边界见 [M0 监督收口报告](docs/reports/pi-rpc-compatibility/SUPERVISION.md)，首轮失败保留于 [历史报告](docs/reports/pi-rpc-compatibility/REPORT.md)。M1 范围见 [原生交互报告](docs/reports/runtime-integration/REPORT.md)，M2 范围与兼容限制见 [会话恢复报告](docs/reports/workspace-recovery/REPORT.md)。M3 实现与证据边界见 [工作台完善报告](docs/reports/interaction-performance/REPORT.md) 和 [性能验收](docs/reports/interaction-performance/PERFORMANCE.md)；后续阶段设计不代表当前已实现。文档核对和领域基线不等于完整原生性能或兼容性验收。
 
 ## 1. 产品定义
 
-**Pikachu 是一款为 AI Coding Agent 打造的轻量、快速、原生 macOS Workbench。**
+**Zivvi 是一款为 AI Coding Agent 打造的轻量、快速、原生 macOS Workbench。**
 
 核心价值是让用户看清任务过程、控制任务运行、检查任务结果。产品能力覆盖多 Agent Runtime 接入与切换、Session 管理与持久化、流式聊天与工具可视化、模型和 Token / Cost 信息，以及 Subagent 委派、并发和生命周期管理；按第 9 节分阶段交付。
 
-**核心原则：Pikachu owns orchestration. Runtime owns execution.**
+**核心原则：Zivvi owns orchestration. Runtime owns execution.**
 
-Pikachu 负责项目、会话、Agent 组织、任务编排、交互和结果汇总；Agent Runtime 负责独立 Session 内的模型推理循环和工具执行。
+Zivvi 负责项目、会话、Agent 组织、任务编排、交互和结果汇总；Agent Runtime 负责独立 Session 内的模型推理循环和工具执行。
 
 Phase 1 通过本地 `pi --mode rpc` 交付单任务工作台。Phase 2 沿用 Pi RPC，先交付手动会话并行和工作区选择，再让 Subagent 在同一调度器上完成委派、进度查看、取消和结果回传。Phase 3 引入独立的 Rust Mini Agent Loop 和 Swift ACP 客户端，用第二个真实 Runtime 复验工作台与编排边界。MVP 提供对话和工具结果检查，只读改动预览随后补齐代码检查体验。
 
@@ -87,15 +177,15 @@ Phase 2 允许用户在同一工作目录中并行运行多个手动会话，也
 
 ## 4. 信息架构与交互
 
-4.1–4.3 定义 Phase 1 的单任务交互。4.4–4.5 的恢复和视觉原则跨阶段适用。Phase 2 在 4.6 扩展多任务交互，执行额度由 Pikachu 调度策略决定。
+4.1–4.3 定义 Phase 1 的单任务交互。4.4–4.5 的恢复和视觉原则跨阶段适用。Phase 2 在 4.6 扩展多任务交互，执行额度由 Zivvi 调度策略决定。
 
 ### 4.1 主界面
 
-Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整与验收标准见 [工作台分区命名与界面优化](docs/design/workbench-ui-refresh.md)。
+以下为 Phase 2 前的工作台布局。分区历史见[工作台分区命名与界面优化](docs/design/workbench-ui-refresh.md)。现行装配、运行控制和上下文摘要见[工作台 2.0](DESIGN_TOKEN.md#工作台-20-布局与功能组件尺寸)、[运行控制](docs/design/session-run-timeline.md#运行控制)和[上下文与用量明细](docs/design/session-detail-ui-v5.md#上下文与用量明细)。
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ Pikachu       正在查看：Project / Session                 ⚙     │
+│ Zivvi       正在查看：Project / Session                 ⚙     │
 ├─────────────────┬───────────────────────────────────────────────┤
 │ + New Session   │ 当前查看会话的模型 / 思考级别                  │
 │                 │                                               │
@@ -125,7 +215,7 @@ Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整
 
 ### 4.2 查看会话与执行会话
 
-**查看会话**决定中央内容和输入草稿；Phase 1 的**执行会话**占用全局唯一执行槽位。两者可以不同；槽位数量由 Pikachu 编排策略控制，不固化在 `AgentRuntime` 接口中。
+**查看会话**决定中央内容和输入草稿；Phase 1 的**执行会话**占用全局唯一执行槽位。两者可以不同；槽位数量由 Zivvi 编排策略控制，不固化在 `AgentRuntime` 接口中。
 
 | 操作 | 首版行为 |
 |---|---|
@@ -174,7 +264,7 @@ Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整
 
 **工作区选择器**
 
-- 新会话与已有会话的输入框左侧顺序为「附件 → 模式 → 权限 → 工作区选择器」。按钮显示当前选择，例如「工作区 · pikachu」或「工作树 · feature/chat」。浮层提供「项目工作区」（默认）、「已有工作树」和「新建工作树…」，显示完整路径及可用的分支信息。Worktree 的选择或创建均由用户明确触发。新建时明确基准提交、目标分支和路径。项目工作区的未提交改动留在原目录。
+- 新会话与已有会话的输入框左侧顺序为「附件 → 模式 → 权限 → 工作区选择器」。按钮显示当前选择，例如「工作区 · zivvi」或「工作树 · feature/chat」。浮层提供「项目工作区」（默认）、「已有工作树」和「新建工作树…」，显示完整路径及可用的分支信息。Worktree 的选择或创建均由用户明确触发。新建时明确基准提交、目标分支和路径。项目工作区的未提交改动留在原目录。
 - 首次发送前可切换目标，草稿仍归该会话。首次运行后固定实际执行目录，顶栏 Git 摘要和后续恢复均使用该目录。需要换目录时，可从选择器在目标目录新建会话并带上草稿。工作树不可用时显示原因并等待用户处理，禁止静默回退到项目工作区。
 
 **Subagent**
@@ -192,21 +282,21 @@ Phase 2 前的工作台优化已完成设计确认。分区名称、布局调整
 |---|---|---|
 | 平台 | macOS | macOS 优先，按需扩展 Windows / Linux |
 | UI | SwiftUI + AppKit | 跨平台需求成立后评估 GPUI |
-| 编排层 | Pikachu / Swift，独立于视图 | 保持独立，未来可迁移 Rust |
+| 编排层 | Zivvi / Swift，独立于视图 | 保持独立，未来可迁移 Rust |
 | Agent 通信 | Phase 1–2 直接 Pi RPC，Phase 3 引入 ACP | ACP 优先，按能力接入 Agent |
 | Agent Runtime | Phase 1–2 使用 Pi，Phase 3 增加 Rust Mini Agent | 逐步验证并替换过渡后端 |
-| Subagent | Phase 2 由 Pikachu 编排 Pi 子会话 | Phase 3 验证跨 Runtime 编排 |
+| Subagent | Phase 2 由 Zivvi 编排 Pi 子会话 | Phase 3 验证跨 Runtime 编排 |
 
 下图展示目标边界，不代表所有模块都在 Phase 1 实现：
 
 ```text
-Pikachu macOS App (SwiftUI / AppKit)
+Zivvi macOS App (SwiftUI / AppKit)
   └─ Features (Projects / Sessions / Chat / Settings)
       └─ AppState + ViewModels (MainActor)
           ├─ 查看会话 / 草稿 / 交互呈现
-          └─ Pikachu Orchestration Core（Swift，独立于 UI）
+          └─ Zivvi Orchestration Core（Swift，独立于 UI）
               ├─ Session / Task / 父子关系 / 调度 / 取消 / 结果回传
-              ├─ AgentRuntime 接口（Pikachu 自有模型与事件）
+              ├─ AgentRuntime 接口（Zivvi 自有模型与事件）
               │   ├─ PiRuntimeAdapter → Pi RPC / stdio → 独立 Pi 进程
               │   ├─ ACPRuntimeAdapter → ACP → Rust Mini Agent 进程
               │   │                           或其他兼容 Agent
@@ -221,12 +311,12 @@ Pikachu macOS App (SwiftUI / AppKit)
 1. `Features/` 不得引用 Pi RPC、ACP 的原始类型或直接解析后端会话文件。
 2. `Modules/AgentRuntimeCore/` 定义与 UI 无关的 Session、Message、ToolCall、Event、Capability 和错误类型；Task 与父子关系由编排核心定义。
 3. 各 Runtime Adapter 负责进程、协议、历史格式及领域映射。后端专有 metadata 可选保留，但不能成为基础 UI 的前提。
-4. App 层持有查看会话与草稿呈现；Pikachu 编排核心持有任务关系、调度及执行实例生命周期，Runtime 提供执行事实。不能依靠多个 ViewModel 各自推测运行状态。
+4. App 层持有查看会话与草稿呈现；Zivvi 编排核心持有任务关系、调度及执行实例生命周期，Runtime 提供执行事实。不能依靠多个 ViewModel 各自推测运行状态。
 5. 连接状态、执行状态和队列分别建模；等待输入、重试、压缩和停止都有可见状态。连接断开时保留最后已知状态并标明过期。
 6. `RuntimeCapability` 允许不同 Runtime 有不同能力；模型切换后更新相关能力，不要求所有 Runtime 功能相同。
 7. 协议接收与解码不依赖界面刷新速度；UI 更新可合并，但不能丢失影响状态的事件。
-8. Pi RPC 和 ACP 是通信适配，不是编排层。Runtime 只执行独立 Session；父子任务、并发额度和结果汇总由 Pikachu 决定。
-9. 会话接力由 Pikachu 编排。用户在空闲时为同一条对话指定下一段运行时，Pikachu 保存此前段的可读历史，并随目标段的首条用户消息传递已经确认的上下文。 [会话接力](docs/design/session-agent-handoff.md)
+8. Pi RPC 和 ACP 是通信适配，不是编排层。Runtime 只执行独立 Session；父子任务、并发额度和结果汇总由 Zivvi 决定。
+9. 会话接力由 Zivvi 编排。用户在空闲时为同一条对话指定下一段运行时，Zivvi 保存此前段的可读历史，并随目标段的首条用户消息传递已经确认的上下文。 [会话接力](docs/design/session-agent-handoff.md)
 
 | 状态维度 | 必须表达的情况 |
 |---|---|
@@ -237,7 +327,7 @@ Pikachu macOS App (SwiftUI / AppKit)
 
 ### 5.2 接口草案
 
-通过统一的 `AgentRuntime` 接口创建、恢复和关闭 Session，发送 Prompt、接收执行事件并取消任务。以下是职责约定，不是最终可编译 API；使用 Pikachu 自有类型，不直接复刻 Pi 或 ACP 命令。
+通过统一的 `AgentRuntime` 接口创建、恢复和关闭 Session，发送 Prompt、接收执行事件并取消任务。以下是职责约定，不是最终可编译 API；使用 Zivvi 自有类型，不直接复刻 Pi 或 ACP 命令。
 
 | 接口职责 | 输入与输出约定 |
 |---|---|
@@ -253,7 +343,7 @@ Pikachu macOS App (SwiftUI / AppKit)
 | 关闭执行实例 | 结束事件流并完成或取消所有未决请求；不得留下永久等待的调用 |
 | 历史列表与读取 | 按后端能力读取会话索引和可展示历史；不占用任务执行额度、不触发模型调用；不支持的能力显式标明 |
 
-Pi 的运行中补充、队列和 settled 语义不直接当作所有后端的共同能力。Adapter 负责转换；不支持的交互禁用并解释，不能伪装为已经提交。`delegate_task` 属于 Pikachu 编排能力，通过适配入口暴露给 Agent，不是 `AgentRuntime` 内置的多 Agent 调度方法。
+Pi 的运行中补充、队列和 settled 语义不直接当作所有后端的共同能力。Adapter 负责转换；不支持的交互禁用并解释，不能伪装为已经提交。`delegate_task` 属于 Zivvi 编排能力，通过适配入口暴露给 Agent，不是 `AgentRuntime` 内置的多 Agent 调度方法。
 
 每次启动或重新绑定执行会话都生成新的执行实例标识。事件、请求响应和交互回复须与项目、Session、Task（有任务记录时）及执行实例绑定；旧实例的迟到内容不能污染新会话或其他 Child。后端事件缺少全局标识时，由 Adapter 在接收边界补充来源信息。
 
@@ -261,26 +351,26 @@ Fake Runtime 必须覆盖流式输出、工具事件、队列、等待输入、�
 
 ### 5.3 基于 Pi 的并行调度与 Subagent 编排（Phase 2）
 
-Pikachu 管理手动会话和 Subagent 的实例生命周期和事件路由；手动会话不受固定并发额度限制，自动委派采用独立的调度策略。每个并发会话使用独立受监督的 Pi RPC 进程，同一个 Session 同时只有一个受管实例可写入其会话历史。不同手动会话可共用 CWD，文件及 Git 状态按目录共享，消息队列、扩展请求和停止操作按会话及执行实例隔离。
+Zivvi 管理手动会话和 Subagent 的实例生命周期和事件路由；手动会话不受固定并发额度限制，自动委派采用独立的调度策略。每个并发会话使用独立受监督的 Pi RPC 进程，同一个 Session 同时只有一个受管实例可写入其会话历史。不同手动会话可共用 CWD，文件及 Git 状态按目录共享，消息队列、扩展请求和停止操作按会话及执行实例隔离。
 
 **Subagent = Independent Session + Delegated Task + Parent-Child Relationship。**
 
-| Pikachu 负责 | Agent Runtime 负责 |
+| Zivvi 负责 | Agent Runtime 负责 |
 |---|---|
 | 创建和管理 Child Session，维护父子任务关系 | 执行被分配到独立 Session 的任务 |
 | 并发调度、状态跟踪和生命周期管理 | 模型推理、工具调用与单次执行的终止 |
 | 取消传播、结果汇总及向 Parent Agent 回传 | 返回结构化执行事件、结果及错误 |
 
-Main Agent 通过 Pikachu 提供的 `delegate_task` 能力主动委派。最小流程为：接收委派请求 → 持久化父子关系与任务描述 → 分配 Child Session、Runtime 和模型 → 调度执行 → 汇总终态与结果 → 按原委派关联回传 Parent。Child 默认只接收明确委派内容及所需上下文，不自动复制整段父会话。
+Main Agent 通过 Zivvi 提供的 `delegate_task` 能力主动委派。最小流程为：接收委派请求 → 持久化父子关系与任务描述 → 分配 Child Session、Runtime 和模型 → 调度执行 → 汇总终态与结果 → 按原委派关联回传 Parent。Child 默认只接收明确委派内容及所需上下文，不自动复制整段父会话。
 
-Subagent 接入时先验证一个真实 Pi Main Agent 和一个 Pi Child 的委派闭环。Pi 适配入口使用自定义工具将委派请求交给 Pikachu，并把结果返回原工具调用。工具注册、等待期间的取消以及父会话收到结果后能否继续，均须在选定 Pi 版本的 RPC 模式下实测。闭环通过后再扩展任务树和多 Child 调度。 [Pi 自定义工具](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)
+Subagent 接入时先验证一个真实 Pi Main Agent 和一个 Pi Child 的委派闭环。Pi 适配入口使用自定义工具将委派请求交给 Zivvi，并把结果返回原工具调用。工具注册、等待期间的取消以及父会话收到结果后能否继续，均须在选定 Pi 版本的 RPC 模式下实测。闭环通过后再扩展任务树和多 Child 调度。 [Pi 自定义工具](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)
 
 - 每个 Child 有独立的 Session、Task 和执行实例标识，并按 Pi 能力选择模型。Phase 3 再引入多 Runtime 组合。
 - 自动委派的写任务沿用工作目录冲突检查，共用工作目录时采用保守串行调度。该规则仅约束自动委派，手动会话按 4.6 直接并行。
-- 取消单个 Child 不影响无关任务；取消整棵任务树由 Pikachu 向相关执行实例传播，并分别等待终态。父任务停止后的迟到结果可以记录，但不能自动重新启动父任务。
+- 取消单个 Child 不影响无关任务；取消整棵任务树由 Zivvi 向相关执行实例传播，并分别等待终态。父任务停止后的迟到结果可以记录，但不能自动重新启动父任务。
 - 成功、失败、取消与结果未知分别汇总。回传使用委派关联标识，避免重复结果触发重复继续；Parent 不可用时保留待回传状态，不丢弃结果或静默重发任务。
-- `delegate_task` 是 Pikachu 的产品级能力。工具注册和结果交付由各后端的适配入口完成。Phase 3 按 6.6 验证 ACP 后端的委派通路。缺少该通路的 Agent 仍可作为独立执行后端，主 Agent 委派入口按能力开放。
-- 不使用 Pi Subagent Extension，也不将 Pikachu 的任务树委托给 Runtime 内置 Subagent。若某后端自行执行内部子任务，其展示数据不能自动当作 Pikachu 可调度的 Child。
+- `delegate_task` 是 Zivvi 的产品级能力。工具注册和结果交付由各后端的适配入口完成。Phase 3 按 6.6 验证 ACP 后端的委派通路。缺少该通路的 Agent 仍可作为独立执行后端，主 Agent 委派入口按能力开放。
+- 不使用 Pi Subagent Extension，也不将 Zivvi 的任务树委托给 Runtime 内置 Subagent。若某后端自行执行内部子任务，其展示数据不能自动当作 Zivvi 可调度的 Child。
 
 ### 5.4 Rust Mini Agent Loop（Phase 3）
 
@@ -297,9 +387,9 @@ Subagent 接入时先验证一个真实 Pi Main Agent 和一个 Pi Child 的委�
 
 初期工具限定为 `read`、`write`、`edit`、`bash`、`grep`、`glob`。基础取消、超时、错误处理和工具执行审批是 Phase 3 必须交付的执行能力，不属于后续可选增强。
 
-审批由 Runtime 在工具执行路径上强制检查，通过 ACP 与 Pikachu 交互。拒绝、取消或失效后不得继续执行相关操作；仅显示弹窗不算完成审批实现。基础审批不等于已经提供操作系统沙箱。
+审批由 Runtime 在工具执行路径上强制检查，通过 ACP 与 Zivvi 交互。拒绝、取消或失效后不得继续执行相关操作；仅显示弹窗不算完成审批实现。基础审批不等于已经提供操作系统沙箱。
 
-Mini Agent Loop 负责独立会话的执行。它通过适配入口使用 Phase 2 定义的委派能力，任务创建、调度和结果汇总仍由 Pikachu 完成。Phase 3 复跑已验证的产品场景，检验 Mini Agent 能否在现有工作台和任务树中运行，并保留 Pi 会话的原始历史来源。
+Mini Agent Loop 负责独立会话的执行。它通过适配入口使用 Phase 2 定义的委派能力，任务创建、调度和结果汇总仍由 Zivvi 完成。Phase 3 复跑已验证的产品场景，检验 Mini Agent 能否在现有工作台和任务树中运行，并保留 Pi 会话的原始历史来源。
 
 ### 5.5 UI 与跨平台策略
 
@@ -315,7 +405,7 @@ Session、Task、Event 模型和协议数据格式独立于 SwiftUI；Agent 通�
 
 ### 6.1 启动与进程管理
 
-- 使用 Swift 的 `Foundation.Process` 启动受管的本地 `pi --mode rpc`。Phase 1 最多保留一个 Pi 执行实例。Phase 2 由 Pikachu 为并行会话分配独立实例，每个实例沿用独立监督、身份核对和有界清理。清理未确认时保留该实例及同会话的写入保护，不阻止使用其他会话历史的手动会话运行，即使它们使用相同目录。只读历史浏览不创建执行实例。
+- 使用 Swift 的 `Foundation.Process` 启动受管的本地 `pi --mode rpc`。Phase 1 最多保留一个 Pi 执行实例。Phase 2 由 Zivvi 为并行会话分配独立实例，每个实例沿用独立监督、身份核对和有界清理。清理未确认时保留该实例及同会话的写入保护，不阻止使用其他会话历史的手动会话运行，即使它们使用相同目录。只读历史浏览不创建执行实例。
 - 通过 `Process.currentDirectoryURL` 指定工作目录。Phase 1 更换唯一执行目标时，在旧实例安全关闭后重建进程。Phase 2 以会话绑定的项目工作区或用户所选 Worktree 作为手动会话的启动 CWD，并按调度规则同时持有实例。
 - 同项目空闲时可通过会话命令切换；必须先完成未决请求和事件来源的隔离。若无法可靠确定边界，重建进程。浏览历史不触发上述切换。
 - M2 采用每次变更执行目标都重建受管进程的保守策略；新进程使用 `switch_session` 恢复目标，并核对取消结果、Runtime 会话 ID 和文件位置。Pi 1.5.2 的恢复会重建历史 CWD 的运行时服务，不支持覆盖 CWD；历史 CWD 与项目当前位置不符时禁止续跑，只读浏览与新位置新建会话仍可用。
@@ -361,7 +451,7 @@ M0 固定验证版本，记录 Pi 版本、发行物指纹或对应源码 tag/co
 
 ### 6.4 事件与状态同步
 
-| Pi Event | Pikachu 领域行为 |
+| Pi Event | Zivvi 领域行为 |
 |---|---|
 | `agent_start` | 标记运行开始 |
 | `message_start` | 建立当前消息及内容块归属 |
@@ -387,11 +477,11 @@ Pi RPC 的部分 Extension UI 可通过 `extension_ui_request` / `extension_ui_r
 - `set_editor_text` 进入保留草稿；状态、组件文字和标题使用有界文字展示。只加载用户明确选择的可信扩展，自动发现保持关闭。
 - 无需回复的通知可降级为状态或提示。遇到无法识别且可能阻塞的协议请求时，明确显示兼容失败并提供停止入口，不伪造成功响应。
 
-Pikachu 提供三种 Pi 执行模式。制定计划只提供读取、查找、搜索和列目录，支持每次审批和无需审批，默认无需审批。交互执行支持每次审批、工具审批和无需审批，默认在写入、编辑和运行命令前逐次确认。两种模式均关闭第三方扩展和 MCP。自主执行固定无需审批，保留 Pi 工具和明确选择的扩展，扩展可发起自身的交互。制定计划和交互执行分别保存会话的审批选择，工具审批或执行模式变化后，下次执行使用新连接。Phase 3 Mini Agent 的强制工具审批按 5.4 实现。
+Zivvi 提供三种 Pi 执行模式。制定计划只提供读取、查找、搜索和列目录，支持每次审批和无需审批，默认无需审批。交互执行支持每次审批、工具审批和无需审批，默认在写入、编辑和运行命令前逐次确认。两种模式均关闭第三方扩展和 MCP。自主执行固定无需审批，保留 Pi 工具和明确选择的扩展，扩展可发起自身的交互。制定计划和交互执行分别保存会话的审批选择，工具审批或执行模式变化后，下次执行使用新连接。Phase 3 Mini Agent 的强制工具审批按 5.4 实现。
 
 ### 6.6 ACP 接入（Phase 3 起）
 
-ACP（Agent Client Protocol）是未来 Agent 接入的首选通信协议。Pikachu 实现 Swift ACP 客户端，将会话、流式输出、工具状态、取消和权限交互映射到自有领域模型。自研 Mini Agent 原生提供 ACP，不通过 Pi 或 TypeScript 包装。
+ACP（Agent Client Protocol）是未来 Agent 接入的首选通信协议。Zivvi 实现 Swift ACP 客户端，将会话、流式输出、工具状态、取消和权限交互映射到自有领域模型。自研 Mini Agent 原生提供 ACP，不通过 Pi 或 TypeScript 包装。
 
 ACP 使用 JSON-RPC 通信；连接初始化时协商协议版本及双方能力。Session 恢复、模型配置、用量等按实际后端与协议能力启用，不能假定所有兼容 Agent 功能一致。以选定版本的稳定规范为准，不将 RFD 提案直接当成既有兼容能力。[协议概览](https://agentclientprotocol.com/protocol/v1/overview)、[初始化与能力协商](https://agentclientprotocol.com/protocol/v1/initialization)。
 
@@ -403,6 +493,8 @@ ACP 使用 JSON-RPC 通信；连接初始化时协商协议版本及双方能力
 | 模型、Token 与 Cost | 仅展示后端可提供的数据；缺失不伪造，估算值明确标注 |
 | `delegate_task` 通路 | 复用 Phase 2 的委派契约，验证 Mini Agent 暴露工具并将结果回传原调用的方式。兼容 ACP 只说明可按协议通信，是否开放委派取决于该后端的实际能力 |
 
+应用在配置加载后预连接启用的 ACP v1 Agent。具备 `session/close` 能力时，同一启动配置的会话执行和历史操作共享常驻 stdio 连接。每个会话按自己的 `cwd` 和 `sessionId` 路由，空闲时保持打开。缺少该能力时沿用受监督的独立进程。详见[常驻连接与多会话](docs/design/acp-shared-connection.md)。
+
 允许接入 Codex、Gemini CLI 等提供兼容 ACP 接口的 Agent；具体发行版、启动方式和能力须逐一验证，不将候选接入对象写成已完成支持。
 
 Pi RPC 与 ACP Adapter 可并存。替换 Runtime 时保留原会话与历史来源，不承诺不同后端间可直接恢复同一个执行 Session。ACP 协议版本、后端版本和兼容场景分别记录。
@@ -411,14 +503,14 @@ Pi RPC 与 ACP Adapter 可并存。替换 Runtime 时保留原会话与历史来
 
 ### 7.1 数据所有权与标识
 
-- **会话真实来源**：由对应 Runtime 保存可恢复的执行会话。Pi 保留自身 session JSONL，Mini Agent 由 Session 模块持久化；Pikachu 不直接改写后端历史或维护冲突的第二份执行会话真相。第三方历史能力不足时明确标注。
+- **会话真实来源**：由对应 Runtime 保存可恢复的执行会话。Pi 保留自身 session JSONL，Mini Agent 由 Session 模块持久化；Zivvi 不直接改写后端历史或维护冲突的第二份执行会话真相。第三方历史能力不足时明确标注。
 - **本地存储**：M2 使用 SwiftData 保存项目注册、会话引用、当前查看对象、连接偏好、草稿和最小提交状态。存储层独立于 UI，通过 actor 读写版本化的中立数据快照；当前为一个原子元数据文档，关闭 CloudKit 与自动保存，关键操作显式保存。SwiftData 对象不传入领域或视图层。
-- **编排持久化**：从 Phase 2 起，Task、Parent / Child 关系、委派内容、调度状态和结果回传状态由 Pikachu 持有。恢复任务树时读取这些记录。
-- **重建边界**：历史索引和展示缓存可从 Runtime 数据重建；稳定项目标识、用户偏好、草稿和发送结果不明记录属于 Pikachu 自有数据，不能声称全部可从 Pi 恢复。
+- **编排持久化**：从 Phase 2 起，Task、Parent / Child 关系、委派内容、调度状态和结果回传状态由 Zivvi 持有。恢复任务树时读取这些记录。
+- **重建边界**：历史索引和展示缓存可从 Runtime 数据重建；稳定项目标识、用户偏好、草稿和发送结果不明记录属于 Zivvi 自有数据，不能声称全部可从 Pi 恢复。
 - **项目身份**：创建后使用稳定 `projectID`；路径是可更新位置。目录移动后通过用户重新定位更新原项目记录，不凭同名文件夹自动合并项目。
 - **会话工作目录（Phase 2）**：选择按会话保存，旧记录默认使用项目工作区。首次发送前持久化该次启动目标。恢复时将历史 CWD 与会话绑定的实际目录核对。选择 Worktree 的会话仍归原项目，历史发现和顶栏 Git 摘要使用实际目录。
 - **移动后的执行限制**：M2 重新定位保留项目、会话和草稿身份，并按已登记旧位置发现历史。原 Pi 文件不改写。Pi 1.5.2 RPC 无 CWD override，旧会话只读并明确提示，不能静默在旧目录执行；需要在新位置执行时创建新会话。
-- **会话身份**：Pikachu 对话使用稳定的本地标识。每个运行时会话段按 `projectID + runtimeID + runtimeSessionID` 关联来源。切换 Agent 时冻结原段并新增目标段。Pi 文件路径用于定位，待初始化的段在启动后取得自己的 Runtime 会话标识。
+- **会话身份**：Zivvi 对话使用稳定的本地标识。每个运行时会话段按 `projectID + runtimeID + runtimeSessionID` 关联来源。切换 Agent 时冻结原段并新增目标段。Pi 文件路径用于定位，待初始化的段在启动后取得自己的 Runtime 会话标识。
 - **任务身份**：Task 使用独立稳定标识，关联 Session、父任务及委派请求；不将一次任务、长期会话和一次进程运行混成同一个标识。
 - **草稿与提交状态**：与本地会话绑定，用于恢复用户意图及提交状态，不作为第二份对话历史。保留最小必要信息，确认后的重复内容及时清理。
 - **M2 保存边界**：普通编辑采用约 250 ms 合并保存；发送前先持久化本地关联标识和意图，保存失败不发送。清出的草稿尽快保存，停止、切换和退出再显式核对。重启将未决提交标为待核实，不凭相同文本与历史合并。存储不可用时保留内存草稿并阻止新任务，不自动重建数据库；未持久化的数据仍不承诺无损恢复。
@@ -426,7 +518,7 @@ Pi RPC 与 ACP Adapter 可并存。替换 Runtime 时保留原会话与历史来
 
 ### 7.2 历史读取
 
-统一历史读取接口按后端提供历史或恢复入口；ACP 通信本身不保证可直接访问本地历史文件。Mini Agent 与第三方 Agent 在各自适配层实现或声明缺失能力，查看历史不能触发推理。Pikachu 编排记录的恢复与 Runtime 会话恢复分别进行；恢复父子任务树不自动重启任何任务。
+统一历史读取接口按后端提供历史或恢复入口；ACP 通信本身不保证可直接访问本地历史文件。Mini Agent 与第三方 Agent 在各自适配层实现或声明缺失能力，查看历史不能触发推理。Zivvi 编排记录的恢复与 Runtime 会话恢复分别进行；恢复父子任务树不自动重启任何任务。
 
 会话接力的冻结段在应用数据目录按段保存。工作区索引保存段的来源、顺序和快照引用。活动段继续使用对应 Runtime 的历史来源。ACP 仅余本地缓存时，交接预览和时间线说明保留范围。 [会话接力的历史与恢复](docs/design/session-agent-handoff.md)
 
@@ -447,50 +539,46 @@ M2 支持 Pi v3 的当前分支历史，保留压缩前的可见消息并显示�
 - 无模型、无价格或压缩后暂缺有效上下文数据时，显示未知或待更新，不显示误导性的零值。
 - 未来替换 Runtime 时保留 Pi 历史只读浏览，不默认强行转换旧会话；可读范围受已支持格式版本约束。
 
-## 8. 产品代码组织（当前与规划）
+## 8. 产品代码组织
 
-工程采用纯 `Pikachu.xcodeproj` 管理，所有核心模块作为独立动态 framework target 构建，App、独立监督进程 `pikachu-supervisor`、单元测试和集成验证工具均由统一工程与共享 scheme 管理（详见 [Verification/README.md](Verification/README.md)）。历史阶段证据归档于 `docs/reports/`。
+工程采用纯 `Zivvi.xcodeproj` 管理，所有核心模块作为独立动态 framework target 构建，App、独立监督进程 `zivvi-supervisor`、单元测试和集成验证工具均由统一工程与共享 scheme 管理（详见 [Verification/README.md](Verification/README.md)）。历史阶段证据归档于 `docs/reports/`。
 
-当前结构（含后续阶段规划标注；ACP、Mini Agent 与 Subagent 尚未实现）：
+当前结构：
 
 ```text
-pikachu/
-├── Pikachu.xcodeproj/                  # 唯一工程入口与共享 scheme
-├── Pikachu/                            # macOS App target（模块 Pikachu）
+zivvi/
+├── Zivvi.xcodeproj/                  # 唯一工程入口与共享 scheme
+├── Zivvi/                            # macOS App target（模块 Zivvi）
 │   ├── App/                            # 入口、AppDelegate、环境与诊断设置
 │   ├── Features/
 │   │   ├── Attachments/                # 图片与视频附件缩略图预览
-│   │   ├── Workbench/                  # 工作台主容器与会话顶栏
-│   │   ├── Sessions/                   # 侧边栏分组与账户额度入口
-│   │   ├── Transcript/                 # AppKit 复用的长历史消息与 Markdown
-│   │   ├── Composer/                   # 输入栏、模型/模式选择与扩展交互
+│   │   ├── Workbench/                  # 工作台容器、双标签、编辑区与全局状态栏
+│   │   ├── Sessions/                   # 侧栏项目导航、会话、文件与 Git 视图
+│   │   ├── Transcript/                 # SwiftUI 对话、Markdown 与 AppKit 对照实现
+│   │   ├── Composer/                   # 输入栏、模型/模式选择与 ACP 交互
+│   │   ├── ProjectFiles/               # 文件目录模型、类型图标与文本编辑控件
 │   │   ├── Usage/                      # Token 与上下文占用视图
-│   │   └── Settings/                   # 连接配置与扩展状态
-│   ├── Services/                       # Git 仓库状态、文件打开、Codex 额度与版本检查
+│   │   └── Settings/                   # 通用、项目、智能体及归档管理
+│   ├── Services/                       # Git 仓库状态、文件打开、Codex 与 Antigravity 额度、版本检查
 │   ├── DesignSystem/                   # 主题色、图标与控件样式
 │   ├── Diagnostics/                    # 诊断采样与窗口像素捕获
-│   └── Resources/                      # Assets.xcassets (AppIcon)、ProviderLogos/
-├── PikachuSupervisor/                  # 独立监督进程 pikachu-supervisor（内嵌于 Contents/MacOS）
+│   └── Resources/                      # 本地化、应用图标、Agent 与供应商标识
+├── ZivviSupervisor/                  # 独立监督进程 zivvi-supervisor（内嵌于 Contents/MacOS）
 ├── Modules/                            # 动态 framework targets
 │   ├── AgentRuntimeCore/               # 与 UI 无关的领域模型、事件与协议
-│   ├── OrchestrationCore/              # 会话与工作台状态机；Phase 2 增加任务树与调度
-│   ├── PiRuntimeAdapter/               # Pi RPC 适配、历史读取、execution-policy.ts 与 turn-file-changes.ts
+│   ├── OrchestrationCore/              # 会话与工作台状态、接力与历史投影
+│   ├── ACPRuntimeAdapter/              # ACP 会话、历史回放与领域映射
 │   ├── WorkspacePersistence/           # SwiftData 本地工作台索引与草稿存储
-│   ├── ProcessSupervision/             # RPC 传输、进程身份与历史格式探针
-│   ├── CProcessInspection/             # Darwin libproc/sysctl 进程标记检查（C framework）
-│   └── ACPRuntimeAdapter/              # Phase 3（规划）：Swift ACP 客户端与领域映射
-├── Runtimes/
-│   └── MiniAgent/                      # Phase 3（规划）：独立 Rust 工程与 ACP 进程入口
+│   ├── ProcessSupervision/             # JSON-RPC 传输、进程监督与身份校验
+│   └── CProcessInspection/             # Darwin libproc/sysctl 进程标记检查（C framework）
 ├── Tests/
-│   ├── PikachuTests/                   # 核心与 UI 单元测试（宿主 Pikachu.app）
+│   ├── ZivviTests/                   # 核心与 UI 单元测试（宿主 Zivvi.app）
 │   └── ProcessSupervisionTests/        # 传输与进程身份单元测试
 ├── Verification/                       # 集成验证 CLI 工具与共享夹具
-│   ├── Fixtures/                       # 扩展与模拟运行时夹具
-│   ├── PiCompatProbe/                  # pi-compat-probe
-│   ├── RuntimeVerify/                  # runtime-verify（含领域投影基线）
-│   ├── WorkspaceVerify/                # workspace-verify
-│   └── InteractionVerify/              # interaction-verify
-├── Scripts/                            # 隔离验证、执行策略检查与窗口像素分析脚本
+│   ├── Fixtures/                       # 合成 ACP、进程树与 Markdown 夹具
+│   ├── ACPCompatProbe/                 # acp-compat-probe
+│   └── RuntimeVerify/                  # runtime-verify（含领域投影基线）
+├── Scripts/                            # 隔离验证、终端检查与窗口像素分析脚本
 ├── docs/                               # 设计稿与阶段验收报告（docs/reports/）
 ├── AGENTS.md
 ├── README.md
@@ -498,8 +586,6 @@ pikachu/
 ├── DESIGN_TOKEN.md
 └── THIRD-PARTY-NOTICES.md
 ```
-
-上图中标注为规划的目录按后续阶段创建。Phase 1 实现单任务协调。Phase 2 增加编排与 Pi 委派适配。Phase 3 增加 ACP 客户端与独立 Rust Runtime。
 
 ## 9. 里程碑与验收
 
@@ -552,7 +638,7 @@ M1 的最低可靠性不能延期到 M3；M3 负责覆盖完善和体验优化�
 |---|---|
 | Phase 2 / 同目录手动并行 | A 在项目工作区等待扩展回复，B 在同一目录直接启动并完成，无需停止 A。在另一轮停止正在运行的 B 后，A 的原请求仍可回复并续跑。A、B 各使用独立受监督的 Pi 进程，消息、工具事件和停止操作归属正确 |
 | Phase 2 / 工作区选择 | 输入框权限之后可选项目工作区、已有 Worktree 或显式新建 Worktree。分别核对启动 CWD、顶栏路径和 Git 摘要。首次发送前切换保留草稿。已有会话换目录时带草稿新建，原会话继续绑定原目录。重启后恢复选择，目标缺失时提示且不回退 |
-| Phase 2 / 真实委派 | Pi Main Agent 在实际 RPC 模式调用 `delegate_task`。Pikachu 创建独立 Pi Child Session 并记录父子关系。Child 完成后，Main Agent 收到结果并用它继续原任务 |
+| Phase 2 / 真实委派 | Pi Main Agent 在实际 RPC 模式调用 `delegate_task`。Zivvi 创建独立 Pi Child Session 并记录父子关系。Child 完成后，Main Agent 收到结果并用它继续原任务 |
 | Phase 2 / 多任务交互 | 任务树展示每个 Session 的进度、状态和结果。运行中切换查看对象不会改变执行对象；等待输入时明确显示请求归属 |
 | Phase 2 / 调度额度与实例隔离 | 达到全局额度时保留草稿，额度释放后由用户发送。同一会话无并行写入实例，迟到回复只匹配原请求。共用工作目录的自动委派写任务仍按委派规则串行 |
 | Phase 2 / 取消与恢复 | 单 Child 取消不影响无关任务，整树取消覆盖后代。受管进程清理确认后释放其额度。崩溃后恢复任务树和可确认状态，未决执行保留为待核实，不自动重跑 |
@@ -590,13 +676,13 @@ M1 已建立可重跑的领域状态投影基线，固定 100 / 5,000 条规模�
 
 | 决策 | 定义位置 |
 |---|---|
-| Pikachu 编排、Runtime 执行。Phase 1 单任务，Phase 2 支持手动会话与 Pi Subagent 并行调度，Phase 3 验证跨 Runtime 编排 | 第 1 节、5.1、5.3、9.1 |
+| Zivvi 编排、Runtime 执行。Phase 1 单任务，Phase 2 支持手动会话与 Pi Subagent 并行调度，Phase 3 验证跨 Runtime 编排 | 第 1 节、5.1、5.3、9.1 |
 | 手动会话可在同一工作目录并行。Worktree 由用户在输入框权限后的选择器中显式选择 | 4.6、5.3、9.2 |
 | 当前 SwiftUI + AppKit；不提前迁移 GPUI，Swift 编排保持独立 | 第 5 节技术路线、5.5 |
 | Phase 1–2 直接 Pi RPC。Phase 3 引入独立 Rust Mini Agent 与 ACP。长期按 ACP 能力适配，不使用 FFI | 5.4、第 6 节 |
 | 查看与执行分离、停止保留草稿、异常不自动重发 | 第 4 节 |
 | Phase 3 Mini Agent 必须具备执行侧强制审批。Phase 1–2 的 Pi 权限按其既有能力标明 | 5.4、6.5 |
-| 历史按 Runtime 保留，不默认跨后端转换；任务编排记录由 Pikachu 持久化 | 第 7 节 |
+| 历史按 Runtime 保留，不默认跨后端转换；任务编排记录由 Zivvi 持久化 | 第 7 节 |
 
 ### 待决事项及决策时点
 
@@ -607,7 +693,7 @@ M1 已建立可重跑的领域状态投影基线，固定 100 / 5,000 条规模�
 | 原生性能基线补齐与验收 | M3 收尾 | M3 已按冻结阈值验证最终构建，保留原生时序与追踪 |
 | 只读改动预览的归属方案 | MVP 后增强实施前 | 必须处理已有改动和外部并发修改，无法确认时明确标注 |
 | 公开分发、签名公证及名称 | 公开测试或发布前 | 首版自用；不宣称已具备公开发布条件 |
-| `delegate_task` 工具暴露与结果回传契约 | Phase 2 真实 Pi 委派验证前 | 先确定委派标识、取消和终态回传语义。Pi 工具适配由 Pikachu 控制。Phase 3 用同一领域契约验证 Mini Agent 的接入方式 |
+| `delegate_task` 工具暴露与结果回传契约 | Phase 2 真实 Pi 委派验证前 | 先确定委派标识、取消和终态回传语义。Pi 工具适配由 Zivvi 控制。Phase 3 用同一领域契约验证 Mini Agent 的接入方式 |
 | 自动委派并发策略与 Subagent 委派深度 | Phase 2 委派实现前 | 确定自动委派并发策略及深度，不限制用户手动会话并行 |
 | ACP 规范版本与兼容 Agent 清单 | Phase 3 接入实现前 | 选定稳定版本，逐一验证后端能力和具体接入方式 |
 | Mini Agent 首批 Provider、认证配置与审批策略细则 | Phase 3 执行工具接入前 | Rust 与基础工具集已确定，审批须在执行侧生效。认证配置独立验证 |
@@ -627,4 +713,4 @@ M1 已建立可重跑的领域状态投影基线，固定 100 / 5,000 条规模�
 
 ---
 
-**最终目标**：Pikachu 是独立的 Agent 工作台。UI 和 Runtime 可以更换，Subagent 编排与产品能力由 Pikachu 自主掌控。三个阶段依次验证单任务交互、Subagent 产品闭环和执行后端替换。
+**最终目标**：Zivvi 是独立的 Agent 工作台。UI 和 Runtime 可以更换，Subagent 编排与产品能力由 Zivvi 自主掌控。三个阶段依次验证单任务交互、Subagent 产品闭环和执行后端替换。

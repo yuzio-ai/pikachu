@@ -2,7 +2,7 @@
 
 ## Jannchie Icons
 
-Icons: `loading-infinity`, `loading-grid`, `loading-dots`, `file`, `file-search-badge`, `file-code-badge`, `file-check-badge`, `git-pull-request`, `terminal`, `tools`, `file-arrow-right-badge`, `folder-plus-badge-top`, `folder-open`, `list-filter`, `chat-sparkle-badge-top`, `send`.
+Icons: `loading-infinity`, `loading-grid`, `loading-dots`, `file`, `file-search-badge`, `file-code-badge`, `file-check-badge`, `git-pull-request`, `terminal`, `tools`, `file-arrow-right-badge`, `folder-plus-badge-top`, `folder-open`, `list-filter`, `chat-sparkle-badge-top`.
 
 Source: https://github.com/Jannchie/jannchie-icons
 
@@ -53,7 +53,7 @@ the corresponding agent/provider and do not imply endorsement.
 ## ACP Registry
 
 Agent identification icons from the [ACP Registry release v2026.11.24-b41b417](https://github.com/agentclientprotocol/registry/releases/tag/v2026.11.24-b41b417).
-The registry is distributed under the [Apache License 2.0](Pikachu/Resources/ACPAgentLogos/LICENSE).
+The registry is distributed under the [Apache License 2.0](Zivvi/Resources/ACPAgentLogos/LICENSE).
 Product marks belong to their respective owners.
 
 ## SwiftTerm

@@ -1,16 +1,16 @@
 # 聊天与文件预览 Markdown 排版
 
-**v1 已定稿** · 2026-11-23
+**历史基线 · 单 Profile v1** · 2026-11-23
 
 当前工作区的实现规格见 [双 Profile 排版系统](typography-profiles.md)。本页保留 v1 设计和概念图作为原始基线。
 
-Pikachu 在聊天回复与文件格式预览中共用一套 Markdown 排版。同一段内容在两个入口使用相同的字号、字重、行距、间距和颜色。聊天阅读列与文件面板各自提供可用宽度，内容随宽度自然换行。
+Zivvi 在聊天回复与文件格式预览中共用一套 Markdown 排版。同一段内容在两个入口使用相同的字号、字重、行距、间距和颜色。聊天阅读列与文件面板各自提供可用宽度，内容随宽度自然换行。
 
-用户确认采用 [浅色并排稿 v1](pikachu-markdown-light-v1.png) 和本文的排版规则。采用范围为聊天回复和文件格式预览的 Markdown 正文。工作台导航、输入区、文件标签和工具栏以各自的项目规范为准。实现以本文中的 pt 参数和组件映射为准。
+用户确认采用 [浅色并排稿 v1](zivvi-markdown-light-v1.png) 和本文的排版规则。采用范围为聊天回复和文件格式预览的 Markdown 正文。工作台导航、输入区、文件标签和工具栏以各自的项目规范为准。实现以本文中的 pt 参数和组件映射为准。
 
 ## 排版规则
 
-下表使用默认字号档，单位为 pt。文字跟随 Pikachu 的四档界面字号。正文使用系统字体和现有文字颜色，等宽字使用系统等宽字体。
+下表使用默认字号档，单位为 pt。文字跟随 Zivvi 的四档界面字号。正文使用系统字体和现有文字颜色，等宽字使用系统等宽字体。
 
 | 内容 | 视觉规格 |
 |---|---|
@@ -26,7 +26,7 @@ Pikachu 在聊天回复与文件格式预览中共用一套 Markdown 排版。�
 | 围栏代码块 | `callout` 等宽字，`mutedSurface` 底、圆角 8，内边距 12。沿用语言标签与复制入口。保留空格和换行，过长时仅块内横向滚动。 |
 | 表格 | 无外框，表头半粗体，行间使用细分隔线。横向列间距沿用 18，纵向单元格留白 8。保留列对齐，单元格优先换行。列宽不足时仅表格块横向滚动。 |
 
-相邻块的竖向间距按规则取较大值，避免段距与标题前距相加。首块去掉前距，最后一块之后只保留容器留白。引用、代码块及表格与相邻普通内容的基准间距为 16。使用 [PikachuTypography](../../../Pikachu/DesignSystem/PikachuTypography.swift) 和 [PikachuTheme](../../../Pikachu/DesignSystem/PikachuTheme.swift) 的现有字号档、颜色和外观切换。
+相邻块的竖向间距按规则取较大值，避免段距与标题前距相加。首块去掉前距，最后一块之后只保留容器留白。引用、代码块及表格与相邻普通内容的基准间距为 16。使用 [ZivviTypography](../../../Zivvi/DesignSystem/ZivviTypography.swift) 和 [ZivviTheme](../../../Zivvi/DesignSystem/ZivviTheme.swift) 的现有字号档、颜色和外观切换。
 
 ## 容器与状态
 
@@ -42,8 +42,8 @@ Pikachu 在聊天回复与文件格式预览中共用一套 Markdown 排版。�
 
 ## 实施与验收
 
-1. 在共享的 [MarkdownContent](../../../Pikachu/Features/Transcript/MarkdownContent.swift) 内集中维护排版参数。复用现有解析结果、行内代码绘制和表格宽度计算。按字号计算字体和间距，在同一块层级应用相邻间距。解析缓存继续按内容与解析上下文复用。
-2. 检查 [聊天回复](../../../Pikachu/Features/Transcript/TranscriptView.swift) 和 [文件预览](../../../Pikachu/Features/ProjectFiles/ProjectFilesPane.swift) 的正常入口。聊天维持既有阅读列、流式状态和锚点，文件预览把扣除留白后的真实宽度传给同一个渲染器。相关约束见 [工作台](../workbench-ui-refresh.md) 和 [文件面板](../project-file-preview-toolbar.md)。
+1. 在共享的 [MarkdownContent](../../../Zivvi/Features/Transcript/MarkdownContent.swift) 内集中维护排版参数。复用现有解析结果、行内代码绘制和表格宽度计算。按字号计算字体和间距，在同一块层级应用相邻间距。解析缓存继续按内容与解析上下文复用。
+2. v1 从聊天回复和当时的文件面板进入。同一渲染器使用各入口的真实正文宽度。现行入口及验收见[双 Profile 排版系统](typography-profiles.md)。
 3. 授权后，用同一份合成 Markdown 在两个入口并排检查。覆盖正常宽度、320 pt 文件浮层、目录并排、深色及超大字号。检查标题间距、混排换行、代码底色、表格局部滚动，以及选取、复制、链接与键盘和 VoiceOver 阅读顺序。
 4. 分别检查聊天出流到完成、向上阅读与贴底跟随，以及文件在源码／预览间切换和同文件刷新。长历史用同一份夹具对照现有候选，记录首个可见行、偏移和滚动表现。既有长历史性能问题沿用工作台文档中的状态。
 
@@ -58,13 +58,13 @@ Pikachu 在聊天回复与文件格式预览中共用一套 Markdown 排版。�
 
 ## 构建与验证
 
-- **构建** 使用 `Pikachu.xcodeproj`。
+- **构建** 使用 `Zivvi.xcodeproj`。
 - **验证** 查看 [验证说明](https://example.com/verification)。
 
 > 提交前先核对所选项目。
 ```
 
-![浅色设计稿。左侧聊天回复和右侧 README.md 共享标题、列表、行内代码和引用的排版。](pikachu-markdown-light-v1.png)
+![浅色设计稿。左侧聊天回复和右侧 README.md 共享标题、列表、行内代码和引用的排版。](zivvi-markdown-light-v1.png)
 
 设计稿为 1585 × 992 px 的浅色静态概念图，由本任务使用 Vistra 0.1.5（产物契约 1）和内置图像生成工具制作并核对。第二轮补齐文件标签和预览状态，并移除表格外框。图中同一段 Markdown 可对照阅读，两处章节间距的细微差异以排版规则表为准。深色、窄栏、大字号与交互待原生验收。
 
@@ -74,25 +74,25 @@ Pikachu 在聊天回复与文件格式预览中共用一套 Markdown 排版。�
 初稿
 
 ```text
-Create a single high-fidelity native macOS UI design mockup, wide landscape approximately 16:10, crisp 2x screenshot presentation. Use the attached Pikachu design as the chrome and brand reference only. It is the user's own app. Use current Pikachu light neutral surfaces, system SF/PingFang typography, quiet 1px separators, and macOS traffic lights. Fill the canvas with the app window. No outer board, floating callouts, annotation numbers, marketing headers, or extra decoration.
+Create a single high-fidelity native macOS UI design mockup, wide landscape approximately 16:10, crisp 2x screenshot presentation. Use the attached Zivvi design as the chrome and brand reference only. It is the user's own app. Use current Zivvi light neutral surfaces, system SF/PingFang typography, quiet 1px separators, and macOS traffic lights. Fill the canvas with the app window. No outer board, floating callouts, annotation numbers, marketing headers, or extra decoration.
 
-The point is to compare ONE shared Markdown typographic style in two live-looking surfaces. Three total columns: quiet narrow session sidebar (15%), active chat (41%), right file format preview (44%), file tree hidden. Preserve Pikachu's native structure with one top bar showing Pikachu and “Pikachu / 更新项目指南”, a sparse sidebar showing “搜索会话” and the selected “更新项目指南”, and the fixed chat composer at bottom with “继续任务…”. Right pane shows a selected “README.md” file tab and a slim “Pikachu › README.md” toolbar with just a few small existing file controls, including a selected source toggle icon. Keep menus closed. A small muted chat bubble reads “把 README.md 的关键内容贴一下。” The completed assistant response below and the file preview both show the exact same formatted sample:
+The point is to compare ONE shared Markdown typographic style in two live-looking surfaces. Three total columns: quiet narrow session sidebar (15%), active chat (41%), right file format preview (44%), file tree hidden. Preserve Zivvi's native structure with one top bar showing Zivvi and “Zivvi / 更新项目指南”, a sparse sidebar showing “搜索会话” and the selected “更新项目指南”, and the fixed chat composer at bottom with “继续任务…”. Right pane shows a selected “README.md” file tab and a slim “Zivvi › README.md” toolbar with just a few small existing file controls, including a selected source toggle icon. Keep menus closed. A small muted chat bubble reads “把 README.md 的关键内容贴一下。” The completed assistant response below and the file preview both show the exact same formatted sample:
 
 项目指南
 使用 README.md 记录构建和验证方式。
 构建与验证
-• 构建 使用 Pikachu.xcodeproj。
+• 构建 使用 Zivvi.xcodeproj。
 • 验证 查看 验证说明。
 提交前先核对所选项目。
 
-Render “项目指南” as H1 (~22pt bold) and “构建与验证” as H2 (~18pt semibold), each identically styled in both panes, with a distinctly larger gap ahead of the H2 than the gap below it. Body ~14pt with generous line spacing, clear left alignment and readable Simplified Chinese. Text “README.md” and “Pikachu.xcodeproj” in the body are inline monospaced code with snug light gray rounded backgrounds. “构建” and “验证” only are bold at the start of the bullets. “验证说明” is an understated blue underlined link. “提交前先核对所选项目。” is a single-line native-style block quote with a thin left rule and subtle gray surface, never wrapped in quotation marks. Keep this sample visually identical across columns. Add only in the right preview, below the quote, an understated two-column markdown table with headers “场景” and “检查项”, rows “聊天 | 回复排版” and “预览 | 文件换行”, followed by a subtle rounded fenced code block with small “shell” header, quiet copy icon and monospace “git status --short”. All UI copy is synthetic. Give both reading areas comfortable edges and preserve realistic app-level information density. Prioritize exact typography, visually accurate table, readable text and no stray characters. Do not show raw heading markers or Markdown source.
+Render “项目指南” as H1 (~22pt bold) and “构建与验证” as H2 (~18pt semibold), each identically styled in both panes, with a distinctly larger gap ahead of the H2 than the gap below it. Body ~14pt with generous line spacing, clear left alignment and readable Simplified Chinese. Text “README.md” and “Zivvi.xcodeproj” in the body are inline monospaced code with snug light gray rounded backgrounds. “构建” and “验证” only are bold at the start of the bullets. “验证说明” is an understated blue underlined link. “提交前先核对所选项目。” is a single-line native-style block quote with a thin left rule and subtle gray surface, never wrapped in quotation marks. Keep this sample visually identical across columns. Add only in the right preview, below the quote, an understated two-column markdown table with headers “场景” and “检查项”, rows “聊天 | 回复排版” and “预览 | 文件换行”, followed by a subtle rounded fenced code block with small “shell” header, quiet copy icon and monospace “git status --short”. All UI copy is synthetic. Give both reading areas comfortable edges and preserve realistic app-level information density. Prioritize exact typography, visually accurate table, readable text and no stray characters. Do not show raw heading markers or Markdown source.
 ```
 
 修订
 
 ```text
-Make a localized correction to this existing Pikachu UI mockup. Preserve the whole landscape framing, macOS window, column widths, sidebar, chat, composer, titlebars, all documents and exact Simplified Chinese text, as well as the spacing and existing typography in both Markdown columns. The visual style of Markdown is already the right concept. Change only two regions on the RIGHT:
-1. File chrome at the top of the right pane: add, in the existing app top row, only a small selected tab with a document icon and the exact label “README.md”, positioned above the existing “Pikachu › README.md” breadcrumb. In the breadcrumb row show these tools from left to right as small monochrome UI symbols: selected source-document icon (document outline with code glyph, neutral rounded active background), Finder split open button, muted line wrap icon, refresh icon, file tree button. Preserve the top right window panel toggle.
+Make a localized correction to this existing Zivvi UI mockup. Preserve the whole landscape framing, macOS window, column widths, sidebar, chat, composer, titlebars, all documents and exact Simplified Chinese text, as well as the spacing and existing typography in both Markdown columns. The visual style of Markdown is already the right concept. Change only two regions on the RIGHT:
+1. File chrome at the top of the right pane: add, in the existing app top row, only a small selected tab with a document icon and the exact label “README.md”, positioned above the existing “Zivvi › README.md” breadcrumb. In the breadcrumb row show these tools from left to right as small monochrome UI symbols: selected source-document icon (document outline with code glyph, neutral rounded active background), Finder split open button, muted line wrap icon, refresh icon, file tree button. Preserve the top right window panel toggle.
 2. Markdown table beginning just below the gray quote: use the exact existing labels, keep two columns and three rows, and keep the alignment and spacing. Remove the enclosing border, rounded outline, shaded header fill, and vertical grid. Keep only thin pale horizontal lines between rows and retain semibold header labels. The table should feel like part of the document text. Keep the fenced code block just beneath it and preserve “shell” and “git status --short”.
 Do not add other content, decorations, labels, or annotations. Keep the readable code chips, blue underlined link, section gap and quote in both columns. High fidelity native app screenshot, one image.
 ```

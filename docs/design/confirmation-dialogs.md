@@ -1,6 +1,6 @@
 # 确认弹窗排版
 
-**2026-11-20** · 适用于 [`FlatConfirmation`](../../Pikachu/DesignSystem/FlatConfirmation.swift) 的三个入口：退出 / 重启确认面板（[`AppDelegate`](../../Pikachu/App/AppDelegate.swift)）、设置里的语言重启提示、工作台内的会话确认（模型重试、替换草稿等）。
+**2026-11-20** · 适用于 [`FlatConfirmation`](../../Zivvi/DesignSystem/FlatConfirmation.swift) 的三个入口：退出 / 重启确认面板（[`AppDelegate`](../../Zivvi/App/AppDelegate.swift)）、设置里的语言重启提示、工作台内的会话确认（模型重试、替换草稿等）。
 
 ![退出确认（浅色）](confirmation-dialog-quit-light.png)
 ![退出确认（深色）](confirmation-dialog-quit-dark.png)
@@ -16,26 +16,28 @@
 
 ## 方案
 
-1. **内容占满窗口。** [`ConfirmationPanel.make`](../../Pikachu/DesignSystem/ConfirmationPanel.swift) 统一创建面板，并设置 `NSHostingView.safeAreaRegions = []`，窗口大小直接等于内容 `fittingSize`。弹窗不再有标题栏空白带。
-2. **建立竖向节奏。** 标题 → 说明 8 pt，说明 → 分隔线 16 pt，分隔线 → 操作行 14 pt，四周 `padding(20)`。说明改用 `body` 字号、`lineSpacing(3)`，与 `title3` 标题的比例更自然。
+1. **内容占满窗口。** [`ConfirmationPanel.make`](../../Zivvi/DesignSystem/ConfirmationPanel.swift) 统一创建面板，并设置 `NSHostingView.safeAreaRegions = []`，窗口大小直接等于内容 `fittingSize`。弹窗不再有标题栏空白带。
+2. **建立竖向节奏。** 标题到说明、分隔线到操作行均用 `dialogItemGap`（8 pt）。说明到分隔线用 `dialogSectionGap`，四周保留 20 pt。说明使用 `body` 和 `lineSpacing(3)`，标题使用 `title3`。 [对话框间距](../../DESIGN_TOKEN.md#对话框间距)
 3. **明确图标语义。** 破坏性确认用琥珀色 `exclamationmark.triangle`（`warningText`），非破坏性确认（如语言设置重启）用蓝色 `info.circle`（`infoText`），图标与标题按首行基线对齐。
-4. **统一操作行。** 按钮间距 10 pt，`FlatControlButtonStyle` 新增 `minimumWidth`，确认与取消至少 88 pt 宽且等高；高度与最小宽度按界面字号缩放（`max(26, body 字号 × 2)`）。安全操作使用 `prominent` 底、破坏性操作保持描边 + 错误色文字，取消与确认始终靠右、顺序为「取消 → 确认」。
-5. **键盘行为不变。** `defaultsToCancel` 时取消按钮是默认键（Return 继续工作），另一个按钮为 `cancelAction`（Esc）；弹窗仍然通过 `runModal` 返回 `.OK` / `.cancel`。
+4. **统一操作行。** 按钮相隔 10 pt。取消与确认等高，最小宽度为 88 pt。高度与最小宽度分别按字号缩放，由 `FlatConfirmation` 统一计算。默认取消时突出取消按钮。非破坏性确认在默认确认时使用突出样式。破坏性确认使用描边和错误色文字。取消与确认靠右，取消在前。 [共享确认组件](../../Zivvi/DesignSystem/FlatConfirmation.swift)
+5. **键盘行为。** 提供取消按钮且启用 `defaultsToCancel` 时，Return 和 Esc 都执行取消。其他可取消的弹窗用 Esc 执行取消。只有非破坏性确认且 `defaultsToCancel` 关闭时，确认按钮才绑定默认 Return。独立确认面板通过 `runModal` 返回 `.OK` 或 `.cancel`。
 
 | 场景 | 宽度 | 图标 | 强调 |
 | --- | --- | --- | --- |
 | 停止任务并退出 | 360 | 警告 | 「继续工作」为默认操作 |
 | 停止任务并重新启动 | 448 | 警告 | 两个操作都是描边，确认使用错误色 |
-| 语言设置重启 | 448 | 信息 | 「稍后」是默认操作，确认是普通主操作 |
+| 语言设置重启 | 448 | 信息 | 重启会打断当前工作时默认「稍后」，其余情况默认「重新启动」。 [语言设置规则](settings-organization.md#通用) |
 
 ![重新启动确认](confirmation-dialog-restart-light.png)
 ![语言设置重启提示](confirmation-dialog-info-light.png)
 
 ## 验证
 
-`Tests/PikachuTests/FlatConfirmationTests.swift` 用与入口相同的 `ConfirmationPanel.make` 创建面板，断言窗口与内容视图的高度都等于 `fittingSize`（旧实现会多出 32 pt），并检查操作行随界面字号增高而不裁切文字。本文截图为同一面板路径按 2× 渲染的结果。
+尺寸用例检查独立面板与内容的尺寸一致，以及操作行随字号增高。首个用例会实际打开面板。获得当前任务的原生验收授权后，通过隔离脚本运行。 [尺寸用例](../../Tests/ZivviTests/FlatConfirmationTests.swift) · [项目验证规则](../../AGENTS.md#构建与验证)
 
 ```sh
-xcodebuild -project Pikachu.xcodeproj -scheme Pikachu -derivedDataPath build \
-  -only-testing:PikachuTests/FlatConfirmationTests test
+Scripts/run-isolated-verify.sh --scheme Zivvi --action test \
+  --only-testing ZivviTests/FlatConfirmationTests
 ```
+
+获授权后，用实际弹窗核对分隔线到操作行的 8 pt 留白、大字号按钮和键盘结果。分别检查停止并退出、停止并重启及空闲或运行中的语言重启。按上文各场景的默认操作验证 Return，并确认 Esc 执行取消。本文截图来自早期 2× 面板渲染。
