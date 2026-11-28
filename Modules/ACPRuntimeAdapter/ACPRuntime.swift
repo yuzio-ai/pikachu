@@ -10,19 +10,23 @@ public actor ACPRuntime: AgentRuntime {
 
     private let channel: RuntimeEventChannel
     private let configuration: ACPConfiguration
+    private let pool: ACPConnectionPool?
     private var connection: ACPConnection?
     private var epoch = UUID()
     private let authenticationTransaction: AuthenticationTransaction?
     private let terminalAuthenticator: RuntimeTerminalAuthenticator?
     private var terminalLogin: Task<Void, Error>?
     private var startingConnection: Task<ACPConnection, Error>?
+    private var openingSession: Task<RuntimeSession, Error>?
     private var terminalCleanup: RuntimeTerminalCleanupPending?
     private var startupCleanup: ACPStartupCleanupPending?
+    private var connectingShared = false
 
-    public init(configuration: ACPConfiguration,
+    public init(configuration: ACPConfiguration, pool: ACPConnectionPool? = nil,
                 authenticationTransaction: AuthenticationTransaction? = nil,
                 terminalAuthenticator: RuntimeTerminalAuthenticator? = nil) {
         self.configuration = configuration
+        self.pool = pool
         self.authenticationTransaction = authenticationTransaction
         self.terminalAuthenticator = terminalAuthenticator
         let channel = RuntimeEventChannel()
@@ -67,7 +71,7 @@ public actor ACPRuntime: AgentRuntime {
                 return result
             }
 
-            let directory = fm.temporaryDirectory.appendingPathComponent("pikachu-acp-check-\(UUID().uuidString)")
+            let directory = fm.temporaryDirectory.appendingPathComponent("zivvi-acp-check-\(UUID().uuidString)")
             do {
                 try fm.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             } catch {
@@ -125,8 +129,8 @@ public actor ACPRuntime: AgentRuntime {
             let initParams: Record = [
                 "protocolVersion": ACPProtocol.supportedVersion,
                 "clientInfo": [
-                    "name": "pikachu",
-                    "title": "Pikachu",
+                    "name": "zivvi",
+                    "title": "Zivvi",
                     "version": appVersion
                 ],
                 "clientCapabilities": [
@@ -228,7 +232,7 @@ public actor ACPRuntime: AgentRuntime {
     public static func inspectModels(_ config: ACPConfiguration, model: RuntimeModel? = nil) async throws -> RuntimeConfigurationOptions {
         try await Task.detached {
             let fm = FileManager.default
-            let directory = fm.temporaryDirectory.appendingPathComponent("pikachu-acp-models-\(UUID().uuidString)")
+            let directory = fm.temporaryDirectory.appendingPathComponent("zivvi-acp-models-\(UUID().uuidString)")
             try fm.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             defer { try? fm.removeItem(at: directory) }
 
@@ -296,7 +300,7 @@ public actor ACPRuntime: AgentRuntime {
     private func connect(authenticateInteractively: Bool) async throws -> RuntimeSession {
         try await confirmTerminalCleanup()
         try confirmStartupCleanup()
-        guard connection == nil, startingConnection == nil else {
+        guard connection == nil, startingConnection == nil, !connectingShared else {
             throw RuntimeFailure(.setup, String(localized: "当前连接尚未关闭。", bundle: #bundle))
         }
         let ticket = UUID()
@@ -308,9 +312,20 @@ public actor ACPRuntime: AgentRuntime {
         let sink = channel
 
         let authenticator = authenticateInteractively ? terminalAuthenticator : nil
-        let bridge = try await startConnection {
-            try ACPConnection(configuration: launchConfig, instanceID: id, sink: sink,
-                              terminalAuthentication: authenticator != nil, deferDisconnectEvents: true)
+        connectingShared = true
+        defer { connectingShared = false }
+        let host = try await pool?.connection(for: launchConfig)
+        try Task.checkCancellation()
+        guard epoch == ticket else { throw CancellationError() }
+        let bridge: ACPConnection
+        if let host {
+            bridge = try ACPConnection(configuration: launchConfig, instanceID: id, sink: sink, host: host,
+                                       deferDisconnectEvents: true)
+        } else {
+            bridge = try await startConnection {
+                try ACPConnection(configuration: launchConfig, instanceID: id, sink: sink,
+                                  terminalAuthentication: authenticator != nil, deferDisconnectEvents: true)
+            }
         }
 
         guard epoch == ticket else {
@@ -322,8 +337,10 @@ public actor ACPRuntime: AgentRuntime {
         do {
             let opened: RuntimeSession
             do {
-                opened = try await Task.detached { try bridge.openSession() }.value
+                opened = try await openSession(over: bridge)
             } catch let failure as RuntimeFailure where authenticateInteractively && failure.kind == .authentication {
+                guard epoch == ticket, !Task.isCancelled else { throw CancellationError() }
+                await pool?.authenticationRequired(on: bridge.sharedHost)
                 let method = try await bridge.chooseAuthenticationMethod(after: failure)
                 let authenticate: @Sendable () async throws -> Void = {
                     try await self.authenticate(method, over: bridge, terminalAuthenticator: authenticator, epoch: ticket)
@@ -331,7 +348,8 @@ public actor ACPRuntime: AgentRuntime {
                 if let authenticationTransaction { try await authenticationTransaction(authenticate) }
                 else { try await authenticate() }
                 guard let connection, epoch == ticket else { throw CancellationError() }
-                opened = try await Task.detached { try connection.openSession() }.value
+                opened = try await openSession(over: connection)
+                await pool?.authenticated(on: connection.sharedHost)
             }
             try Task.checkCancellation()
             guard let connection, epoch == ticket else { throw CancellationError() }
@@ -341,7 +359,7 @@ public actor ACPRuntime: AgentRuntime {
             let pending = error as? RuntimeTerminalCleanupPending
             if let pending { terminalCleanup = pending }
             if epoch == ticket, let connection {
-                try await Task.detached { try connection.close(force: true, notify: false) }.value
+                try await Task.detached { try connection.close(force: connection.sharedHost == nil, notify: false) }.value
                 self.connection = nil
             }
             if let pending { throw pending.failure }
@@ -365,6 +383,31 @@ public actor ACPRuntime: AgentRuntime {
             defer { terminalLogin = nil }
             try await withTaskCancellationHandler { try await login.value } onCancel: { login.cancel() }
             guard epoch == ticket, !Task.isCancelled else { throw CancellationError() }
+            if let previousHost = bridge.sharedHost, let pool {
+                let config = bridge.configuration
+                if let receipt = config.handoffCleanup, receipt.isConfirmed {
+                    try FileManager.default.removeItem(at: receipt.directory)
+                }
+                let host = try await pool.reconnectAfterLogin(config, replacing: previousHost)
+                try Task.checkCancellation()
+                guard epoch == ticket else { throw CancellationError() }
+                if let host {
+                    connection = try ACPConnection(configuration: config, instanceID: instanceID, sink: channel,
+                                                   host: host, deferDisconnectEvents: true)
+                } else {
+                    let reconnected = try await startConnection {
+                        try ACPConnection(configuration: config, instanceID: self.instanceID, sink: self.channel,
+                                          terminalAuthentication: true, deferDisconnectEvents: true)
+                    }
+                    guard epoch == ticket else {
+                        try await Task.detached { try reconnected.close(force: true, notify: false) }.value
+                        throw CancellationError()
+                    }
+                    connection = reconnected
+                    try Task.checkCancellation()
+                }
+                return
+            }
             let reconnected = try await startConnection {
                 try bridge.reopenAfterTerminalAuthentication(deferDisconnectEvents: true)
             }
@@ -376,6 +419,13 @@ public actor ACPRuntime: AgentRuntime {
             connection = reconnected
             try Task.checkCancellation()
         }
+    }
+
+    private func openSession(over bridge: ACPConnection) async throws -> RuntimeSession {
+        let opening = Task.detached { try bridge.openSession() }
+        openingSession = opening
+        defer { openingSession = nil }
+        return try await opening.value
     }
 
     private func startConnection(_ create: @escaping @Sendable () throws -> ACPConnection) async throws -> ACPConnection {
@@ -412,6 +462,18 @@ public actor ACPRuntime: AgentRuntime {
         try await Task.detached { try connection.stop() }.value
     }
 
+    public func sharedConnectionImpact() async -> RuntimeConnectionImpact? {
+        guard let host = connection?.sharedHost else { return nil }
+        return .init(connectionID: host.id, runtimeIDs: host.endpointIDs)
+    }
+
+    public func forceEndSharedConnection(matching impact: RuntimeConnectionImpact) async throws -> Bool {
+        guard let host = connection?.sharedHost, host.id == impact.connectionID,
+              host.authorizeForce(matching: impact.runtimeIDs) else { return false }
+        try await Task.detached { try host.shutdown(force: true) }.value
+        return true
+    }
+
     public func close(force: Bool) async throws {
         epoch = UUID()
         terminalLogin?.cancel()
@@ -428,6 +490,10 @@ public actor ACPRuntime: AgentRuntime {
             case .failure:
                 break
             }
+        }
+        if !force, connection?.sharedHost != nil, let openingSession {
+            // A submitted session/new may still return a remote ID that needs closing.
+            _ = await openingSession.result
         }
         if let bridge = connection {
             let notify = terminalCleanup == nil

@@ -6,12 +6,25 @@ public enum ConnectionState: String, Sendable { case disconnected, connecting, c
 public enum TranscriptKind: Sendable { case user, assistant, tool, notice }
 public enum DeliveryState: String, Sendable, Codable { case pending, accepted, queued, recovered, handled, rejected, unknown }
 
+public struct ApprovalTimeoutRecovery: Equatable, Sendable {
+    public let turnID: UUID
+    public let recordID: String
+}
+
+public enum TurnLiveStage: Sendable, Equatable {
+    case running, thinking, streaming, waitingApproval
+}
+
 @MainActor @Observable public final class TurnRecord: Identifiable {
     public let id: UUID
     let displayID: String
     var timelineSegmentID: UUID?
     var timelineID: String { timelineSegmentID.map { "\($0):\(displayID)" } ?? displayID }
     public var status: TurnStatus
+    public var liveStage: TurnLiveStage = .running
+    public var failure: RuntimeFailure?
+    public internal(set) var interruptedByApprovalTimeout = false
+    public internal(set) var isHistoricalOutcomeMissing = false
     public var startedAt: Date?
     public var endedAt: Date?
     public var durationSeconds: TimeInterval?
@@ -54,15 +67,83 @@ public enum DeliveryState: String, Sendable, Codable { case pending, accepted, q
     }
 }
 
+public struct TranscriptImage: Identifiable {
+    public let id = UUID()
+    public let data: Data
+}
+
+public enum TranscriptImageFiles {
+    public nonisolated static func duplicates(in files: [URL], images: [Data]) -> Set<URL> {
+        var remainingImages = Dictionary(grouping: images, by: \.count)
+        var duplicates: Set<URL> = []
+        for file in files where !duplicates.contains(file) {
+            guard !Task.isCancelled else { return [] }
+            guard let size = regularFileSize(file),
+                  let candidates = remainingImages[size], !candidates.isEmpty,
+                  let data = read(file, size: size),
+                  let match = candidates.firstIndex(of: data) else { continue }
+            remainingImages[size]?.remove(at: match)
+            duplicates.insert(file)
+        }
+        return duplicates
+    }
+
+    public nonisolated static func containsInOrder(_ images: [Data], in files: [URL]) -> Bool {
+        matchingFilesInOrder(images, in: files) != nil
+    }
+
+    fileprivate nonisolated static func matchingFilesInOrder(_ images: [Data], in files: [URL],
+                                                            requiresUniqueMatch: Bool = false) -> [URL]? {
+        guard let first = orderedMatch(images, in: files, at: files.indices) else { return nil }
+        if requiresUniqueMatch, files.count > images.count {
+            // A unique subsequence has the same indices when matched from either end.
+            guard let last = orderedMatch(images.reversed(), in: files, at: files.indices.reversed()),
+                  first.elementsEqual(last.reversed()) else { return nil }
+        }
+        return first.map { files[$0] }
+    }
+
+    private nonisolated static func orderedMatch(_ images: some Sequence<Data>, in files: [URL],
+                                                 at indices: some Sequence<Int>) -> [Int]? {
+        var remaining = images.makeIterator()
+        var nextImage = remaining.next()
+        var matched: [Int] = []
+        for index in indices {
+            guard !Task.isCancelled else { return nil }
+            guard let image = nextImage else { break }
+            let file = files[index]
+            guard regularFileSize(file) == image.count, read(file, size: image.count) == image else { continue }
+            matched.append(index)
+            nextImage = remaining.next()
+        }
+        return nextImage == nil ? matched : nil
+    }
+
+    private nonisolated static func regularFileSize(_ file: URL) -> Int? {
+        guard file.isFileURL, let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+              values.isRegularFile == true else { return nil }
+        return values.fileSize
+    }
+
+    private nonisolated static func read(_ file: URL, size: Int) -> Data? {
+        guard size < Int.max, let handle = try? FileHandle(forReadingFrom: file) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: size + 1), data.count == size else { return nil }
+        return data
+    }
+}
+
 public struct TranscriptToolSummary: Equatable {
     public let name: String
+    public let summary: String?
     public let arguments: String
     public let editArguments: RuntimeTool.EditArguments?
     public let writePath: String?
     public let state: ToolState
 
-    fileprivate init(tool: RuntimeTool) {
+    init(tool: RuntimeTool) {
         name = tool.name
+        summary = tool.summary
         arguments = tool.arguments
         editArguments = tool.editArguments
         writePath = tool.writePath
@@ -74,7 +155,9 @@ public struct TranscriptToolSummary: Equatable {
     public let id: String
     public let kind: TranscriptKind
     var timelineSegmentID: UUID?
+    @ObservationIgnored var frozenTimelineSegmentID: UUID?
     public var timelineID: String { timelineSegmentID.map { "\($0):\(id)" } ?? id }
+    public var sourceSegmentID: UUID? { frozenTimelineSegmentID ?? timelineSegmentID }
     public internal(set) var handoff: SessionHandoff?
     public internal(set) var modelChange: SessionModelChange?
     var recordedSubmissionID: UUID?
@@ -86,6 +169,7 @@ public struct TranscriptToolSummary: Equatable {
     }
     // Let row projection observe the first visible text, not every streamed delta.
     public private(set) var hasVisibleText: Bool
+    public var hasVisibleContent: Bool { hasVisibleText || !images.isEmpty }
     public var delivery: DeliveryState
     public var streaming: Bool
     public var sentAt: Date?
@@ -93,6 +177,8 @@ public struct TranscriptToolSummary: Equatable {
     public var turn: TurnRecord?
     public internal(set) var originalText: String?
     public internal(set) var attachedFiles: [URL]
+    public fileprivate(set) var images: [TranscriptImage]
+    fileprivate var replayAttachmentProof: (files: [URL], imageFiles: [URL])?
     public let expiredInteraction: RuntimeInteraction?
     let submission: UserPrompt?
     public var submissionID: UUID? { submission?.id ?? recordedSubmissionID }
@@ -100,6 +186,11 @@ public struct TranscriptToolSummary: Equatable {
     public var submittedMode: SendMode? { submission?.mode }
     public var editableText: String { originalText ?? submission?.text ?? text }
     public var editableFiles: [URL] { attachedFiles.isEmpty ? (submission?.files ?? []) : attachedFiles }
+    public var confirmedReplayImageFiles: [URL]? {
+        guard let replayAttachmentProof, replayAttachmentProof.files == editableFiles else { return nil }
+        return replayAttachmentProof.imageFiles
+    }
+    public var canRestoreToDraft: Bool { images.isEmpty || confirmedReplayImageFiles != nil }
     public var tool: RuntimeTool? {
         didSet {
             let summary = tool.map(TranscriptToolSummary.init)
@@ -109,11 +200,12 @@ public struct TranscriptToolSummary: Equatable {
     // Collapsed rows observe status and arguments without observing streamed output.
     public private(set) var toolSummary: TranscriptToolSummary?
     @ObservationIgnored private var blocks: [Int: String] = [:]
-    public init(id: String, kind: TranscriptKind, text: String = "", delivery: DeliveryState = .accepted, streaming: Bool = false, tool: RuntimeTool? = nil, sentAt: Date? = nil, messageTimestampMs: Int64? = nil, turn: TurnRecord? = nil, submission: UserPrompt? = nil, originalText: String? = nil, attachedFiles: [URL] = [], expiredInteraction: RuntimeInteraction? = nil) {
+    public init(id: String, kind: TranscriptKind, text: String = "", delivery: DeliveryState = .accepted, streaming: Bool = false, tool: RuntimeTool? = nil, sentAt: Date? = nil, messageTimestampMs: Int64? = nil, turn: TurnRecord? = nil, submission: UserPrompt? = nil, originalText: String? = nil, attachedFiles: [URL] = [], expiredInteraction: RuntimeInteraction? = nil, images: [Data] = []) {
         self.id = id; self.kind = kind; self.text = text; self.delivery = delivery; self.streaming = streaming; self.tool = tool
         self.sentAt = sentAt; self.messageTimestampMs = messageTimestampMs; self.turn = turn
         hasVisibleText = text.contains { !$0.isWhitespace }
         self.originalText = originalText; self.attachedFiles = attachedFiles; self.expiredInteraction = expiredInteraction
+        self.images = images.map(TranscriptImage.init(data:))
         toolSummary = tool.map(TranscriptToolSummary.init)
         self.submission = submission
     }
@@ -130,6 +222,7 @@ public struct TranscriptToolSummary: Equatable {
     public private(set) var session: RuntimeSession?
     public private(set) var transcript: [TranscriptItem] = []
     public private(set) var transcriptTurnStarts: [TranscriptTurnStart] = []
+    public var latestTurnHasFailure: Bool { transcriptTurnStarts.last?.turn.failure != nil }
     var timelineSegmentID: UUID?
     private(set) var receivedHistoryReplay = false
     @ObservationIgnored private var lastTurnModel: SessionTurnModel?
@@ -163,6 +256,18 @@ public struct TranscriptToolSummary: Equatable {
     public private(set) var showingCachedHistory = false
     private var toolFailureTurnID: UUID?
     private var dismissedToolFailureIDs: Set<String> = []
+    private var latestExpiredApproval: TranscriptItem?
+
+    public var approvalTimeoutRecovery: ApprovalTimeoutRecovery? {
+        guard !commandPending else { return nil }
+        return settledApprovalTimeout
+    }
+
+    private var settledApprovalTimeout: ApprovalTimeoutRecovery? {
+        guard connection == .connected, phase == .idle, queueIsKnown, queue.isEmpty, interactions.isEmpty,
+              let item = latestExpiredApproval, let turn = item.turn, turn.interruptedByApprovalTimeout else { return nil }
+        return .init(turnID: turn.id, recordID: item.timelineID)
+    }
 
     public var recentToolFailures: [TranscriptItem] {
         guard let turnID = toolFailureTurnID else { return [] }
@@ -214,7 +319,7 @@ public struct TranscriptToolSummary: Equatable {
         connection == .connected && phase == .idle && activeTurn == nil && queueIsKnown && queue.isEmpty &&
             interactions.isEmpty && !commandPending && !replying && runtimeReads == 0
     }
-    @ObservationIgnored public var prepareSubmission: (@MainActor (UserPrompt) async throws -> Void)?
+    @ObservationIgnored public var prepareSubmission: (@MainActor (UserPrompt, _ preservesDraft: Bool) async throws -> Void)?
     @ObservationIgnored public var resolveSubmission: (@MainActor (UUID, DeliveryState) async -> Void)?
     @ObservationIgnored public var onTurnFinished: (@MainActor (TurnRecord) -> Void)?
     @ObservationIgnored var onPromptConfirmed: (@MainActor (UserPrompt) -> Void)?
@@ -229,6 +334,7 @@ public struct TranscriptToolSummary: Equatable {
     @ObservationIgnored private var pendingReplayMetadata: [ReplaySegmentMetadata]?
     @ObservationIgnored private var pendingReplayRecordedTurns: [RecordedTurnRecord] = []
     @ObservationIgnored private var pendingReplayRecordedMessages: [RecordedMessageRecord] = []
+    @ObservationIgnored private var replayAttachmentRecovery: Task<Void, Never>?
 
     private struct ReplaySegmentMetadata {
         let userText: String?
@@ -239,6 +345,7 @@ public struct TranscriptToolSummary: Equatable {
         let startedAt: Date?
         let endedAt: Date?
         let durationSeconds: TimeInterval?
+        let recordedOutcome: TurnStatus?
     }
     public var supportsQueuedPrompts: Bool {
         session?.capabilities.contains(.queuedPrompts) == true
@@ -264,6 +371,7 @@ public struct TranscriptToolSummary: Equatable {
     public init(clock: any RuntimeClock = SystemRuntimeClock()) { self.clock = clock }
     public func connect(_ newRuntime: any AgentRuntime, history: [HistoryItem] = [], turns: [HistoryTurnInfo] = [], recordedTurns: [RecordedTurnRecord] = [], recordedMessages: [RecordedMessageRecord] = [], historyOnly: Bool = false) async {
         guard canConnect else { return }
+        replayAttachmentRecovery?.cancel()
         receivedHistoryReplay = false
         let wasShowingCached = showingCachedHistory
         let cachedSegments = history.isEmpty ? Self.replaySegments(from: transcript) : []
@@ -271,7 +379,7 @@ public struct TranscriptToolSummary: Equatable {
         regularPending = true; connection = .connecting; failure = nil; notice = nil; showingCachedHistory = false; cachedHistoryNotice = nil
         instance = nil
         if let runtime {
-            do { try await runtime.close(force: true) }
+            do { try await runtime.close(force: await runtime.sharedConnectionImpact() == nil) }
             catch {
                 if keepCachedWhileConnecting { showingCachedHistory = !transcript.isEmpty }
                 failure = .init(.supervision, String(localized: "上一执行实例的清理未确认，不能建立新连接。", bundle: #bundle)); connection = .blocked; regularPending = false; return
@@ -288,6 +396,7 @@ public struct TranscriptToolSummary: Equatable {
         transcriptTurnStarts = []; queue = .init(); queueIsKnown = true; phase = .idle; session = nil
         lastTurnModel = recordedTurns.last(where: { $0.model != nil })?.model
         activeTurn = nil; activeTurnUser = nil; startingSubmission = nil
+        latestExpiredApproval = nil
         sendingSubmission = nil; awaitingUserStarts = []
         activeTurnHadFailure = false; activeTurnHasVisibleOutput = false
         toolFailureTurnID = nil; dismissedToolFailureIDs.removeAll()
@@ -316,7 +425,7 @@ public struct TranscriptToolSummary: Equatable {
                 pendingReplayRecordedTurns = []
                 pendingReplayRecordedMessages = []
             }
-            session = opened; connection = .connected
+            acceptSessionSnapshot(opened); connection = .connected
         } catch {
             if keepCachedWhileConnecting && !receivedHistoryReplay {
                 showingCachedHistory = !transcript.isEmpty
@@ -325,7 +434,7 @@ public struct TranscriptToolSummary: Equatable {
             pendingReplayRecordedTurns = []
             pendingReplayRecordedMessages = []
             failure = (error as? RuntimeFailure) ?? .init(.setup, String(localized: "连接失败，请检查项目与运行时配置。", bundle: #bundle))
-            do { try await newRuntime.close(force: true); connection = .disconnected }
+            do { try await newRuntime.close(force: await newRuntime.sharedConnectionImpact() == nil); connection = .disconnected }
             catch { connection = .blocked; phase = .uncertain }
         }
         regularPending = false
@@ -334,14 +443,29 @@ public struct TranscriptToolSummary: Equatable {
     }
     public func sendDraft(_ submitted: UserPrompt? = nil) async {
         let prompt = submitted ?? draftPrompt
-        guard acceptsInput, prompt.hasContent, let runtime else { return }
+        await send(prompt, continuingAfter: nil)
+    }
+
+    func send(_ prompt: UserPrompt, continuingAfter recovery: ApprovalTimeoutRecovery?,
+              canSendRecovery: (@MainActor () async -> Bool)? = nil) async {
+        guard acceptsInput, prompt.hasContent, let runtime,
+              recovery == nil || approvalTimeoutRecovery == recovery else { return }
         let text = prompt.runtimeText
         let origin = runtime.instanceID
         regularPending = true
-        do { try await prepareSubmission?(prompt) }
+        do { try await prepareSubmission?(prompt, recovery != nil) }
         catch {
             failure = .init(.setup, String(localized: "发送状态未能持久化，没有发送任务。请先修复本地存储。", bundle: #bundle))
             regularPending = false; onControlChanged?(); return
+        }
+        if let recovery {
+            let canSend = await canSendRecovery?() ?? true
+            guard canSend, settledApprovalTimeout == recovery, instance == origin else {
+                if instance == origin { regularPending = false }
+                await resolveSubmission?(prompt.id, .rejected)
+                onControlChanged?()
+                return
+            }
         }
         let item = TranscriptItem(id: "user:\(prompt.id)", kind: .user, text: text, delivery: .pending, sentAt: clock.now(), submission: prompt, originalText: prompt.text, attachedFiles: prompt.files)
         append(item)
@@ -351,7 +475,7 @@ public struct TranscriptToolSummary: Equatable {
             toolFailureTurnID = nil
             dismissedToolFailureIDs.removeAll()
         }
-        if matchesDraft(prompt) { draft = ""; draftFiles = [] }
+        if recovery == nil, matchesDraft(prompt) { draft = ""; draftFiles = [] }
         failure = nil
         let before = settledCounter
         var waitsForAcceptance = false
@@ -423,20 +547,31 @@ public struct TranscriptToolSummary: Equatable {
         do {
             if phase.isActive && !force { try await runtime.stop() }
             try await runtime.close(force: force)
-            markPendingHandoffUnknown()
-            connection = .disconnected; phase = .idle; queue = .init(); queueIsKnown = true
-            consumer?.cancel(); self.runtime = nil; instance = nil
-            interactions = []; usageTask?.cancel(); usageGeneration = UUID(); usageStale = true
-            finishRound(status: .uncertain, confirmedEndTime: false)
-            interruptUnfinished()
-            regularPending = false; onControlChanged?(); return true
-        } catch {
+        } catch where connection != .disconnected {
             markPendingHandoffUnknown()
             failure = (error as? RuntimeFailure) ?? .init(.supervision, String(localized: "进程清理尚未确认，不能继续执行。", bundle: #bundle))
             connection = .blocked; phase = .uncertain
             finishRound(status: .uncertain, confirmedEndTime: false)
             regularPending = false; onControlChanged?(); return false
-        }
+        } catch { /* A confirmed disconnect arrived while the close request was outstanding. */ }
+        markPendingHandoffUnknown()
+        connection = .disconnected; phase = .idle; queue = .init(); queueIsKnown = true
+        consumer?.cancel(); self.runtime = nil; instance = nil
+        latestExpiredApproval = nil
+        interactions = []; usageTask?.cancel(); usageGeneration = UUID(); usageStale = true
+        finishRound(status: .uncertain, confirmedEndTime: false)
+        interruptUnfinished()
+        regularPending = false; onControlChanged?(); return true
+    }
+
+    public var runtimeInstanceID: UUID? { runtime?.instanceID }
+
+    public func sharedConnectionImpact() async -> RuntimeConnectionImpact? {
+        await runtime?.sharedConnectionImpact()
+    }
+
+    public func forceEndSharedConnection(matching impact: RuntimeConnectionImpact) async throws -> Bool {
+        try await runtime?.forceEndSharedConnection(matching: impact) ?? false
     }
     public func restoreDraft(_ id: UUID) {
         guard !isDraftEditingLocked, let index = recoveredDrafts.firstIndex(where: { $0.id == id }) else { return }
@@ -457,8 +592,8 @@ public struct TranscriptToolSummary: Equatable {
                             recordedTurns: [RecordedTurnRecord] = [], recordedMessages: [RecordedMessageRecord] = []) {
         guard connection == .disconnected else { return }
         let rows = historyRows(items, turns: turns, recordedTurns: recordedTurns, recordedMessages: recordedMessages)
-        Self.applyRecordedMetadata(recordedTurns: [], recordedMessages: recordedMessages,
-                                   modelTurns: recordedTurns, handoffAndModelMessagesOnly: true, onto: rows)
+        Self.applyRecordedMetadata(recordedTurns: recordedTurns, recordedMessages: recordedMessages,
+                                   handoffAndModelMessagesOnly: true, onto: rows)
         rowsByID = [:]
         for row in rows { rowsByID[row.id] = row }
         transcript = rows
@@ -493,12 +628,17 @@ public struct TranscriptToolSummary: Equatable {
     public func showCachedHistory(_ items: [CachedTranscriptItem],
                                   recordedTurns: [RecordedTurnRecord] = [],
                                   recordedMessages: [RecordedMessageRecord] = [],
+                                  submissions: [SubmissionRecord] = [],
                                   notice: String? = nil) {
         guard connection == .disconnected else { return }
-        let rows = historyRows(items.map(\.asHistoryItem), defaultFallbackStatus: .completed)
+        let rows = historyRows(items.map(\.asHistoryItem))
+        let currentDeliveries = Dictionary(submissions.map { ($0.id, $0.delivery) }, uniquingKeysWith: { _, latest in latest })
+        var cachedEndTimes: [UUID: Set<Date>] = [:]
         for (row, cached) in zip(rows, items) {
             if row.kind == .user {
-                row.recordedSubmissionID = cached.submissionID
+                let submissionID = cached.submissionID ?? (cached.id.hasPrefix("user:") ? UUID(uuidString: String(cached.id.dropFirst(5))) : nil)
+                row.recordedSubmissionID = submissionID
+                row.delivery = submissionID.flatMap { currentDeliveries[$0] } ?? cached.delivery ?? .accepted
                 if let files = cached.files, !files.isEmpty {
                     row.attachedFiles = files
                     row.originalText = cached.text
@@ -506,9 +646,15 @@ public struct TranscriptToolSummary: Equatable {
             }
             if let endedAt = cached.endedAt, let turn = row.turn {
                 turn.endedAt = endedAt
+                // Replayed rows can already contain times inferred from the
+                // cache tail. Only original live assistant rows can anchor a result.
+                if cached.id.hasPrefix("assistant:"), UUID(uuidString: String(cached.id.dropFirst("assistant:".count))) != nil {
+                    cachedEndTimes[turn.id, default: []].insert(endedAt)
+                }
             }
         }
-        Self.applyRecordedMetadata(recordedTurns: recordedTurns, recordedMessages: recordedMessages, onto: rows)
+        Self.applyRecordedMetadata(recordedTurns: recordedTurns, recordedMessages: recordedMessages,
+                                   cachedEndTimes: cachedEndTimes, onto: rows)
         rowsByID = [:]
         for row in rows { rowsByID[row.id] = row }
         transcript = rows
@@ -524,14 +670,13 @@ public struct TranscriptToolSummary: Equatable {
     private func seedHistory(_ items: [HistoryItem], turns: [HistoryTurnInfo] = [],
                              recordedTurns: [RecordedTurnRecord] = [], recordedMessages: [RecordedMessageRecord] = []) {
         let rows = historyRows(items, turns: turns, recordedTurns: recordedTurns, recordedMessages: recordedMessages)
-        Self.applyRecordedMetadata(recordedTurns: [], recordedMessages: recordedMessages,
-                                   modelTurns: recordedTurns, handoffAndModelMessagesOnly: true, onto: rows)
+        Self.applyRecordedMetadata(recordedTurns: recordedTurns, recordedMessages: recordedMessages,
+                                   handoffAndModelMessagesOnly: true, onto: rows)
         for row in rows { rowsByID[row.id] = row }
         transcript.append(contentsOf: rows)
     }
     private func historyRows(_ items: [HistoryItem], turns: [HistoryTurnInfo] = [],
-                             recordedTurns: [RecordedTurnRecord] = [], recordedMessages: [RecordedMessageRecord] = [],
-                             defaultFallbackStatus: TurnStatus = .uncertain) -> [TranscriptItem] {
+                             recordedTurns: [RecordedTurnRecord] = [], recordedMessages: [RecordedMessageRecord] = []) -> [TranscriptItem] {
         var turnByItemID: [String: TurnRecord] = [:]
         var turnByUserID: [String: TurnRecord] = [:]
         var usedRecords = Set<UUID>()
@@ -576,9 +721,10 @@ public struct TranscriptToolSummary: Equatable {
             // override that badge when history confirms the exact same reply ended normally.
             let recovered = record?.status == .failed && info.status == .completed && info.hadAssistantFailure
                 && info.lastAssistantTimestampMs != nil && record?.endAssistantTimestampMs == info.lastAssistantTimestampMs
+            let status = recovered ? .completed : (record.flatMap { $0.status == .running ? nil : $0.status } ?? info.status)
             let turn = TurnRecord(
                 id: record?.id ?? UUID(),
-                status: recovered ? .completed : (record?.status ?? info.status),
+                status: status == .running ? .uncertain : status,
                 startedAt: record?.startedAt,
                 endedAt: record?.endedAt ?? info.endedAt,
                 durationSeconds: record?.durationSeconds ?? info.durationSeconds,
@@ -589,6 +735,7 @@ public struct TranscriptToolSummary: Equatable {
                 displayID: info.id,
                 fileChanges: record?.fileChanges
             )
+            turn.isHistoricalOutcomeMissing = status == .running
             turn.timelineSegmentID = timelineSegmentID
             turn.model = record?.model
             turn.modelChange = record?.modelChange
@@ -621,7 +768,8 @@ public struct TranscriptToolSummary: Equatable {
                     messageTimestampMs: item.messageTimestampMs,
                     turn: turnByUserID[item.id],
                     originalText: matchedMessage?.text ?? item.text,
-                    attachedFiles: matchedMessage?.files ?? []
+                    attachedFiles: matchedMessage?.files ?? [],
+                    images: item.images ?? []
                 )
                 row.timelineSegmentID = timelineSegmentID
                 row.recordedSubmissionID = matchedMessage?.id
@@ -635,7 +783,8 @@ public struct TranscriptToolSummary: Equatable {
                     fallbackTurn = nil
                 } else {
                     if fallbackTurn == nil {
-                        fallbackTurn = TurnRecord(status: defaultFallbackStatus, displayID: item.id)
+                        fallbackTurn = TurnRecord(status: .uncertain, displayID: item.id)
+                        fallbackTurn?.isHistoricalOutcomeMissing = true
                         fallbackTurn?.timelineSegmentID = timelineSegmentID
                     }
                     assignedTurn = fallbackTurn
@@ -643,7 +792,8 @@ public struct TranscriptToolSummary: Equatable {
             } else {
                 assignedTurn = nil
             }
-            let row = TranscriptItem(id: item.id, kind: kind, text: item.text, tool: item.tool, turn: assignedTurn)
+            let row = TranscriptItem(id: item.id, kind: kind, text: item.text, tool: item.tool,
+                                     turn: assignedTurn, images: item.images ?? [])
             row.timelineSegmentID = timelineSegmentID
             return row
         }
@@ -675,10 +825,10 @@ public struct TranscriptToolSummary: Equatable {
         usageGeneration = UUID()
         usageStale = true
         defer { regularPending = false; onControlChanged?(); scheduleUsage() }
-        do { session = try await runtime.applyConfiguration(selection); failure = nil; return true }
+        do { acceptSessionSnapshot(try await runtime.applyConfiguration(selection)); failure = nil; return true }
         catch {
             failure = error as? RuntimeFailure ?? .init(.outcomeUnknown, String(localized: "模型配置结果不明，请重新连接核对。", bundle: #bundle))
-            if let confirmed = try? await runtime.currentSession() { session = confirmed }
+            if let confirmed = try? await runtime.currentSession() { acceptSessionSnapshot(confirmed) }
             if failure?.kind == .outcomeUnknown { phase = .uncertain }
             return false
         }
@@ -688,15 +838,20 @@ public struct TranscriptToolSummary: Equatable {
         regularPending = true
         defer { regularPending = false; onControlChanged?() }
         do {
-            session = try await runtime.setMode(modeID)
+            acceptSessionSnapshot(try await runtime.setMode(modeID))
             failure = nil
             return true
         } catch {
             failure = error as? RuntimeFailure ?? .init(.outcomeUnknown, String(localized: "模式切换结果不明，请重新连接核对。", bundle: #bundle))
-            if let confirmed = try? await runtime.currentSession() { session = confirmed }
+            if let confirmed = try? await runtime.currentSession() { acceptSessionSnapshot(confirmed) }
             if failure?.kind == .outcomeUnknown { phase = .uncertain }
             return false
         }
+    }
+
+    private func acceptSessionSnapshot(_ snapshot: RuntimeSession) {
+        if let session, session.id == snapshot.id, session.configurationRevision > snapshot.configurationRevision { return }
+        session = snapshot
     }
     public var noticeExcludingExpiredInteraction: String? {
         notice == Self.expiredInteractionNotice ? nil : notice
@@ -822,9 +977,11 @@ public struct TranscriptToolSummary: Equatable {
             return
         }
         failedModelInput = nil
+        latestExpiredApproval = nil
         let turn = TurnRecord(id: UUID(), status: .running, startedAt: clock.now(), monotonicStart: clock.monotonicNow())
         turn.timelineSegmentID = timelineSegmentID
         turn.anchorUserTimestampMs = user?.messageTimestampMs
+        turn.modelSubmissionID = user?.submissionID
         activeTurn = turn
         activeTurnUser = user
         activeTurnHadFailure = false
@@ -836,9 +993,9 @@ public struct TranscriptToolSummary: Equatable {
     }
 
     private func attachModelChange(_ turn: TurnRecord, to user: TranscriptItem) {
+        turn.modelSubmissionID = user.submissionID
         guard let change = turn.modelChange else { return }
         user.modelChange = change
-        turn.modelSubmissionID = user.submission?.id
     }
 
     private func confirmTurnModel() {
@@ -1036,7 +1193,11 @@ public struct TranscriptToolSummary: Equatable {
     private func finishRound(status: TurnStatus, confirmedEndTime: Bool) {
         guard let turn = activeTurn else { return }
         turn.status = status
+        turn.liveStage = .running
         turn.thoughtText = ""
+        if status == .failed || status == .uncertain {
+            turn.failure = self.failure
+        }
         if confirmedEndTime {
             let endedAt = clock.now()
             turn.endedAt = endedAt
@@ -1092,11 +1253,20 @@ public struct TranscriptToolSummary: Equatable {
                 if turn.anchorAssistantTimestampMs == nil { turn.anchorAssistantTimestampMs = ms }
                 turn.endAssistantTimestampMs = ms
             }
-        case .textDelta(let id, let index, let delta): rowsByID["assistant:\(id)"]?.append(index: index, delta: delta)
+        case .textDelta(let id, let index, let delta):
+            rowsByID["assistant:\(id)"]?.append(index: index, delta: delta)
+            if delta.contains(where: { !$0.isWhitespace }) { activeTurn?.liveStage = .streaming }
+        case .assistantImage(let id, let data):
+            if let row = rowsByID["assistant:\(id)"] {
+                row.images.append(TranscriptImage(data: data))
+                activeTurn?.liveStage = .streaming
+            }
         case .assistantCompleted(let id, let text):
             awaitingUserStarts.removeAll()
             let key = "assistant:\(id)"
-            if text.isEmpty { transcript.removeAll { $0.id == key }; rowsByID.removeValue(forKey: key) }
+            if text.isEmpty && rowsByID[key]?.images.isEmpty != false {
+                transcript.removeAll { $0.id == key }; rowsByID.removeValue(forKey: key)
+            }
             else if let item = rowsByID[key] {
                 confirmTurnModel()
                 item.text = text; item.streaming = false; activeTurnHasVisibleOutput = true
@@ -1118,6 +1288,7 @@ public struct TranscriptToolSummary: Equatable {
             startRound()
             confirmTurnModel()
             if let activeTurn, activeTurn.anchorToolCallID == nil { activeTurn.anchorToolCallID = tool.id }
+            activeTurn?.liveStage = .running
             activeTurnHasVisibleOutput = true
             let key = "tool:\(tool.id)"
             if let row = rowsByID[key] { if row.tool != tool { row.tool = tool } }
@@ -1127,6 +1298,7 @@ public struct TranscriptToolSummary: Equatable {
                 startRound()
                 confirmTurnModel()
                 activeTurn?.thoughtText = text
+                activeTurn?.liveStage = .thinking
             } else {
                 activeTurn?.thoughtText = ""
             }
@@ -1138,6 +1310,10 @@ public struct TranscriptToolSummary: Equatable {
             activeTurn?.fileChanges = changes
         case .settled(let aborted):
             awaitingUserStarts.removeAll()
+            if let activeTurn, latestExpiredApproval?.turn === activeTurn {
+                activeTurn.interruptedByApprovalTimeout = aborted && !isStopping
+                if !activeTurn.interruptedByApprovalTimeout { latestExpiredApproval = nil }
+            }
             settledCounter += 1; phaseBeforeWaiting = .idle; phase = interactions.isEmpty ? .idle : .waitingInput
             let status: TurnStatus = aborted ? .stopped : (activeTurnHadFailure ? .failed : .completed)
             finishRound(status: status, confirmedEndTime: true)
@@ -1159,6 +1335,7 @@ public struct TranscriptToolSummary: Equatable {
         case .disconnected(let confirmed):
             markPendingHandoffUnknown()
             awaitingUserStarts.removeAll()
+            latestExpiredApproval = nil
             connection = confirmed ? .disconnected : .blocked
             phase = .uncertain; queueIsKnown = false; interactions = []; usageStale = true; usageGeneration = UUID(); usageLoading = false
             finishRound(status: .uncertain, confirmedEndTime: false)
@@ -1169,7 +1346,10 @@ public struct TranscriptToolSummary: Equatable {
             interactions.append(request)
             if phase != .stopping {
                 phase = .waitingInput
-                if request.isPermissionApproval { onApprovalRequested?(request) }
+                if request.isPermissionApproval {
+                    activeTurn?.liveStage = .waitingApproval
+                    onApprovalRequested?(request)
+                }
             }
         case .interactionUpdated(let request):
             guard request.instanceID == instance, request.isPermissionApproval,
@@ -1187,8 +1367,13 @@ public struct TranscriptToolSummary: Equatable {
                                                  permissionOptions: request.permissionOptions,
                                                  permissionContext: request.permissionContext)
                 let summary = Self.expiredInteractionNotice
-                append(.init(id: Self.expiryRowID(id), kind: .notice, text: "\(summary) \(request.title)",
-                             turn: activeTurn, expiredInteraction: expired))
+                let row = TranscriptItem(id: Self.expiryRowID(id), kind: .notice, text: "\(summary) \(request.title)",
+                                         turn: activeTurn, expiredInteraction: expired)
+                append(row)
+                if request.isPermissionApproval, activeTurn != nil, !isStopping,
+                   let runtimeID = session?.runtimeID, RuntimeAgentProfile.isACPRuntimeID(runtimeID) {
+                    latestExpiredApproval = row
+                }
                 notice = summary
             }
             interactions.removeAll { $0.id == id }
@@ -1199,18 +1384,20 @@ public struct TranscriptToolSummary: Equatable {
             if value == nil { extensionStatus.removeValue(forKey: key) }
             else if extensionStatus.count < 32 || extensionStatus[key] != nil { extensionStatus[key] = value }
         case .sessionUpdated(let updated):
-            session = updated
+            acceptSessionSnapshot(updated)
         case .historyReplayed(let items):
             // Replay from session/load replaces any offline display cache without triggering live turn notifications.
             guard !receivedHistoryReplay, activeTurn == nil, !items.isEmpty else { return }
             receivedHistoryReplay = true
-            let rows = historyRows(items, defaultFallbackStatus: .completed)
-            if let cached = pendingReplayMetadata {
-                Self.restoreReplayMetadata(from: cached, recordedMessages: pendingReplayRecordedMessages, onto: rows)
-                pendingReplayMetadata = nil
-            }
-            Self.applyRecordedMetadata(recordedTurns: pendingReplayRecordedTurns,
-                                       recordedMessages: pendingReplayRecordedMessages,
+            let rows = historyRows(items)
+            let cachedSegments = pendingReplayMetadata ?? []
+            let recordedMessages = pendingReplayRecordedMessages
+            let recordedTurns = pendingReplayRecordedTurns
+            Self.restoreReplayMetadata(from: cachedSegments, recordedMessages: recordedMessages, onto: rows)
+            pendingReplayMetadata = nil
+            Self.applyRecordedMetadata(recordedTurns: recordedTurns,
+                                       recordedMessages: recordedMessages,
+                                       replayedSegments: cachedSegments,
                                        onto: rows)
             pendingReplayRecordedTurns = []
             pendingReplayRecordedMessages = []
@@ -1222,6 +1409,7 @@ public struct TranscriptToolSummary: Equatable {
             dismissedToolFailureIDs.removeAll()
             showingCachedHistory = false
             cachedHistoryNotice = nil
+            recoverReplayAttachments(rows, cached: cachedSegments, recorded: recordedMessages, turns: recordedTurns)
         case .usageUpdated(let updated):
             if session == nil || updated.sessionID == session?.id {
                 usage = updated
@@ -1243,10 +1431,19 @@ public struct TranscriptToolSummary: Equatable {
         var currentFiles: [URL] = []
         var currentOriginalText: String?
         var currentTurn: TurnRecord?
+        var hasMultipleTurns = false
         var hasContent = false
+        var recordedTurnIDs = Set<UUID>()
 
         func flush() {
             guard hasContent else { return }
+            var outcome: TurnStatus?
+            if let turn = currentTurn, !hasMultipleTurns, !turn.isHistoricalOutcomeMissing, turn.status != .running,
+               let submissionID = currentSubmissionID,
+               turn.modelSubmissionID.map({ $0 == submissionID }) ?? true,
+               recordedTurnIDs.insert(turn.id).inserted {
+                outcome = turn.status
+            }
             segments.append(.init(
                 userText: currentUserText,
                 submissionID: currentSubmissionID,
@@ -1255,7 +1452,8 @@ public struct TranscriptToolSummary: Equatable {
                 originalText: currentOriginalText,
                 startedAt: currentTurn?.startedAt,
                 endedAt: currentTurn?.endedAt,
-                durationSeconds: currentTurn?.durationSeconds
+                durationSeconds: currentTurn?.durationSeconds,
+                recordedOutcome: outcome
             ))
             currentUserText = nil
             currentSubmissionID = nil
@@ -1263,6 +1461,7 @@ public struct TranscriptToolSummary: Equatable {
             currentFiles = []
             currentOriginalText = nil
             currentTurn = nil
+            hasMultipleTurns = false
             hasContent = false
         }
 
@@ -1278,12 +1477,177 @@ public struct TranscriptToolSummary: Equatable {
             } else {
                 hasContent = true
                 if let turn = row.turn {
+                    if let currentTurn, currentTurn !== turn { hasMultipleTurns = true }
                     currentTurn = turn
                 }
             }
         }
         flush()
         return segments
+    }
+
+    private struct ReplayAttachmentSource: Hashable, Sendable {
+        let text: String
+        let files: [URL]
+    }
+
+    private struct ReplayAttachmentCandidate: Hashable, Sendable {
+        let source: ReplayAttachmentSource
+        let fallbackPaths: Data?
+        let hasKnownSubmission: Bool
+
+        func matchingImageFiles(_ images: [Data]) -> [URL]? {
+            let files: [URL]
+            let allowsUnreportedFiles: Bool
+            if let fallbackPaths {
+                // Some known records replay the full legacy file list even when
+                // the agent also includes bytes for an image.
+                if hasKnownSubmission && Self.quotedPaths(source.files) == fallbackPaths {
+                    files = source.files
+                    allowsUnreportedFiles = true
+                } else {
+                    guard let inlineFiles = excludingFallbackFiles(fallbackPaths) else { return nil }
+                    files = inlineFiles
+                    allowsUnreportedFiles = false
+                }
+            } else {
+                files = source.files
+                allowsUnreportedFiles = hasKnownSubmission
+            }
+            let eligibleFiles = files.filter { RuntimeACPInlineImage.mimeType(for: $0) != nil }
+            guard allowsUnreportedFiles || files.count == images.count else { return nil }
+            return TranscriptImageFiles.matchingFilesInOrder(images, in: eligibleFiles, requiresUniqueMatch: allowsUnreportedFiles)
+        }
+
+        private func excludingFallbackFiles(_ paths: Data) -> [URL]? {
+            // String.debugDescription escapes embedded newlines, so each line is one path.
+            var remainingPaths = paths.split(separator: 0x0A, omittingEmptySubsequences: false)[...]
+            var inlineFiles: [URL] = []
+            for file in source.files {
+                if let path = remainingPaths.first, file.path.debugDescription.utf8.elementsEqual(path) {
+                    remainingPaths.removeFirst()
+                } else {
+                    inlineFiles.append(file)
+                }
+            }
+            return remainingPaths.isEmpty ? inlineFiles : nil
+        }
+
+        private static func quotedPaths(_ files: [URL]) -> Data {
+            Data(files.map { $0.path.debugDescription }.joined(separator: "\n").utf8)
+        }
+
+        static func fallbackPaths(in replayedText: String, originalText: String) -> Data? {
+            let fallbackText = originalText.isEmpty ? "请查看以下文件。" : originalText
+            let prefix = fallbackText + "\n\n本地文件引用（按需读取）\n"
+            guard replayedText.utf8.starts(with: prefix.utf8) else { return nil }
+            return Data(replayedText.utf8.dropFirst(prefix.utf8.count))
+        }
+    }
+
+    private struct ReplayAttachmentRequest: Sendable {
+        let id: String
+        let images: [Data]
+        let candidates: [ReplayAttachmentCandidate: Set<UUID>]
+    }
+
+    private func recoverReplayAttachments(_ rows: [TranscriptItem], cached: [ReplaySegmentMetadata],
+                                          recorded: [RecordedMessageRecord], turns: [RecordedTurnRecord]) {
+        let imageRows = rows.filter { $0.kind == .user && !$0.images.isEmpty }
+        guard !imageRows.isEmpty else { return }
+        let sources = recorded.map {
+            (ReplayAttachmentSource(text: $0.text, files: $0.files ?? []), Optional($0.id), $0.handoffContext)
+        }
+            + cached.compactMap { source in
+                source.userText.map {
+                    (ReplayAttachmentSource(text: $0, files: source.attachedFiles), source.submissionID, nil)
+                }
+            }
+        let recordedByID = Dictionary(grouping: recorded, by: \.id)
+        let requests = imageRows.compactMap { row -> ReplayAttachmentRequest? in
+            let replayedText = row.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let hasKnownSubmission = row.submissionID != nil
+            var candidates: [ReplayAttachmentCandidate: Set<UUID>] = [:]
+            if !row.editableFiles.isEmpty {
+                let context = row.submissionID.flatMap { recordedByID[$0]?.first?.handoffContext }
+                let prompt = UserPrompt(text: row.editableText, files: row.editableFiles, handoffContext: context)
+                let originalText = prompt.messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let candidate = ReplayAttachmentCandidate(
+                    source: .init(text: row.editableText, files: row.editableFiles),
+                    fallbackPaths: ReplayAttachmentCandidate.fallbackPaths(in: replayedText, originalText: originalText),
+                    hasKnownSubmission: hasKnownSubmission
+                )
+                candidates[candidate] = Set(row.submissionID.map { [$0] } ?? [])
+            } else {
+                for (source, submissionID, context) in sources {
+                    guard !source.files.isEmpty, row.submissionID == nil || row.submissionID == submissionID else { continue }
+                    let prompt = UserPrompt(text: source.text, files: source.files, handoffContext: context)
+                    let originalText = prompt.messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let paths = ReplayAttachmentCandidate.fallbackPaths(in: replayedText, originalText: originalText)
+                    guard paths != nil || replayedText == originalText
+                            || (originalText.isEmpty && replayedText == "请查看以下图片。") else { continue }
+                    let candidate = ReplayAttachmentCandidate(source: source, fallbackPaths: paths,
+                                                              hasKnownSubmission: hasKnownSubmission)
+                    candidates[candidate, default: []].formUnion(submissionID.map { [$0] } ?? [])
+                }
+            }
+            guard !candidates.isEmpty else { return nil }
+            return ReplayAttachmentRequest(id: row.id, images: row.images.map(\.data), candidates: candidates)
+        }
+        guard !requests.isEmpty else { return }
+        replayAttachmentRecovery?.cancel()
+        let expectedRows = Dictionary(requests.compactMap { request in
+            rowsByID[request.id].map { (request.id, ObjectIdentifier($0)) }
+        }, uniquingKeysWith: { _, last in last })
+        replayAttachmentRecovery = Task { [weak self] in
+            let worker = Task.detached(priority: .utility) {
+                var confirmed: [(String, ReplayAttachmentSource, [URL], Set<UUID>)] = []
+                var rowsBySubmission: [UUID: Set<String>] = [:]
+                for request in requests {
+                    guard !Task.isCancelled else { break }
+                    let matches = request.candidates.compactMap { candidate, submissions
+                        -> (ReplayAttachmentSource, [URL], Set<UUID>)? in
+                        guard let imageFiles = candidate.matchingImageFiles(request.images) else { return nil }
+                        return (candidate.source, imageFiles, submissions)
+                    }
+                    for (_, _, submissions) in matches {
+                        for id in submissions { rowsBySubmission[id, default: []].insert(request.id) }
+                    }
+                    if matches.count == 1, let (source, imageFiles, submissions) = matches.first {
+                        confirmed.append((request.id, source, imageFiles, submissions))
+                    }
+                }
+                return (confirmed, rowsBySubmission)
+            }
+            let (matches, potentialRows) = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+            guard let self, !Task.isCancelled else { return }
+            let knownRows = Dictionary(grouping: rows.filter { $0.kind == .user }, by: \.submissionID)
+            let cachedByID = Dictionary(grouping: cached, by: \.submissionID)
+            var changed = false
+            var confirmedSubmission = false
+            for (id, source, imageFiles, submissions) in matches {
+                guard let row = self.rowsByID[id], ObjectIdentifier(row) == expectedRows[id],
+                      row.editableFiles.isEmpty || row.editableFiles == source.files else { continue }
+                row.attachedFiles = source.files
+                row.originalText = source.text
+                row.replayAttachmentProof = (source.files, imageFiles)
+                changed = true
+                if submissions.count == 1, let submissionID = submissions.first,
+                   potentialRows[submissionID]?.count == 1,
+                   (knownRows[submissionID] ?? []).allSatisfy({ $0 === row }) {
+                    row.recordedSubmissionID = submissionID
+                    if row.sentAt == nil {
+                        row.sentAt = recordedByID[submissionID]?.first?.sentAt ?? cachedByID[submissionID]?.first?.sentAt
+                    }
+                    confirmedSubmission = true
+                }
+            }
+            if confirmedSubmission {
+                Self.applyRecordedMetadata(recordedTurns: turns, recordedMessages: recorded,
+                                           replayedSegments: cached, onto: rows)
+            }
+            if changed { self.onControlChanged?() }
+        }
     }
 
     private static func restoreReplayMetadata(from cached: [ReplaySegmentMetadata],
@@ -1324,7 +1688,8 @@ public struct TranscriptToolSummary: Equatable {
 
         func matchesUser(_ source: ReplaySegmentMetadata, _ target: TargetSegment) -> Bool {
             guard let sourceText = source.userText else { return true }
-            if let id = target.userRow?.submissionID, let cachedID = source.submissionID, id != cachedID { return false }
+            if let id = target.userRow?.submissionID, let cachedID = source.submissionID { return id == cachedID }
+            if target.userRow?.images.isEmpty == false { return false }
             if sourceText == target.userText { return true }
             if let id = source.submissionID, let prompt = handoffMessages[id],
                target.userText == prompt.messageText || target.userText == prompt.runtimeText { return true }
@@ -1406,11 +1771,12 @@ public struct TranscriptToolSummary: Equatable {
 
     private static func applyRecordedMetadata(recordedTurns: [RecordedTurnRecord],
                                               recordedMessages: [RecordedMessageRecord],
-                                              modelTurns: [RecordedTurnRecord]? = nil,
                                               handoffAndModelMessagesOnly: Bool = false,
+                                              cachedEndTimes: [UUID: Set<Date>] = [:],
+                                              replayedSegments: [ReplaySegmentMetadata] = [],
                                               onto rows: [TranscriptItem]) {
         guard !rows.isEmpty else { return }
-        let modelChanges = Dictionary((modelTurns ?? recordedTurns).compactMap { record in
+        let modelChanges = Dictionary(recordedTurns.compactMap { record in
             record.modelSubmissionID.flatMap { id in record.modelChange.map { (id, $0) } }
         }, uniquingKeysWith: { _, latest in latest })
         let messages = handoffAndModelMessagesOnly
@@ -1428,6 +1794,7 @@ public struct TranscriptToolSummary: Equatable {
                 if let recordedTime = record.messageTimestampMs, let replayTime = row.messageTimestampMs,
                    recordedTime != replayTime { return false }
                 let rowText = row.text
+                if !row.images.isEmpty { return false }
                 let files = record.files ?? []
                 if let context = record.handoffContext {
                     let prompt = UserPrompt(text: record.text, files: files, handoffContext: context)
@@ -1495,13 +1862,15 @@ public struct TranscriptToolSummary: Equatable {
             }
         }
 
-        guard !recordedTurns.isEmpty else { return }
+        guard !recordedTurns.isEmpty || !replayedSegments.isEmpty else { return }
         struct TurnSegment {
+            let submissionID: UUID?
             var toolIDs: Set<String> = []
             var turns: [TurnRecord] = []
         }
         var segments: [TurnSegment] = []
         var current: TurnSegment?
+        var submissionID: UUID?
         func flushSegment() {
             if let current, !current.turns.isEmpty { segments.append(current) }
             current = nil
@@ -1509,8 +1878,9 @@ public struct TranscriptToolSummary: Equatable {
         for row in rows {
             if row.kind == .user {
                 flushSegment()
+                submissionID = row.delivery == .accepted ? row.submissionID : nil
             } else if row.kind == .assistant || row.kind == .tool {
-                if current == nil { current = TurnSegment() }
+                if current == nil { current = TurnSegment(submissionID: submissionID) }
                 if let toolID = row.tool?.id { current?.toolIDs.insert(toolID) }
                 if let turn = row.turn, current?.turns.contains(where: { $0 === turn }) != true {
                     current?.turns.append(turn)
@@ -1520,34 +1890,82 @@ public struct TranscriptToolSummary: Equatable {
         flushSegment()
         guard !segments.isEmpty else { return }
 
-        func applyTurn(_ record: RecordedTurnRecord, to segment: TurnSegment) {
-            for turn in segment.turns {
+        // Tail alignment below can recover presentation metadata. An outcome
+        // requires a unique association with an existing turn or submission.
+        let toolAnchors = Dictionary(grouping: segments.indices.flatMap { index in
+            segments[index].toolIDs.map { ($0, index) }
+        }, by: { $0.0 })
+        let submissions = Dictionary(grouping: segments.indices, by: { segments[$0].submissionID })
+        let endTimes = Dictionary(grouping: segments.indices.flatMap { index in
+            segments[index].turns.flatMap { turn in
+                (cachedEndTimes[turn.id] ?? []).map { ($0, index) }
+            }
+        }, by: { $0.0 })
+        let cachedSubmissions = Dictionary(grouping: replayedSegments, by: \.submissionID)
+        var recordsBySegment: [Int: [Int]] = [:]
+        var matchedRecords = Set<Int>()
+        var ambiguousSegments = Set<Int>()
+        for (recordIndex, record) in recordedTurns.enumerated() {
+            var matches = Set<Int>()
+            if let tool = record.anchorToolCallID { matches.formUnion(toolAnchors[tool, default: []].map(\.1)) }
+            if let endedAt = record.endedAt { matches.formUnion(endTimes[endedAt, default: []].map(\.1)) }
+            if let id = record.modelSubmissionID { matches.formUnion(submissions[id, default: []]) }
+            if !matches.isEmpty { matchedRecords.insert(recordIndex) }
+            if matches.count == 1, let index = matches.first, record.status != .running {
+                recordsBySegment[index, default: []].append(recordIndex)
+            } else {
+                ambiguousSegments.formUnion(matches)
+            }
+        }
+        var resolvedSegments = Set(recordsBySegment.keys).union(ambiguousSegments)
+        for (index, segment) in segments.enumerated() {
+            guard segment.turns.count == 1, let turn = segment.turns.first, turn.isHistoricalOutcomeMissing,
+                  !ambiguousSegments.contains(index), (cachedEndTimes[turn.id]?.count ?? 0) < 2 else { continue }
+            let recorded = recordsBySegment[index, default: []]
+            guard recorded.count < 2 else { continue }
+            if let recordIndex = recorded.first {
+                let record = recordedTurns[recordIndex]
+                turn.status = record.status
+                turn.startedAt = record.startedAt
+                turn.endedAt = record.endedAt
+                turn.durationSeconds = record.durationSeconds
+                turn.fileChanges = record.fileChanges
+                turn.modelSubmissionID = record.modelSubmissionID
+                turn.isHistoricalOutcomeMissing = false
+            } else if let id = segment.submissionID, submissions[id]?.count == 1,
+                      let cached = cachedSubmissions[id], cached.count == 1, let outcome = cached[0].recordedOutcome {
+                turn.status = outcome
+                turn.startedAt = cached[0].startedAt
+                turn.endedAt = cached[0].endedAt
+                turn.durationSeconds = cached[0].durationSeconds
+                turn.modelSubmissionID = id
+                turn.isHistoricalOutcomeMissing = false
+                resolvedSegments.insert(index)
+            }
+        }
+
+        guard !handoffAndModelMessagesOnly else { return }
+
+        // Older records without anchors can still provide display times.
+        let remainingSegments = segments.indices.filter { !resolvedSegments.contains($0) }
+        let remainingRecords = recordedTurns.indices.filter { index in
+            let record = recordedTurns[index]
+            return !matchedRecords.contains(index) && record.anchorToolCallID == nil && record.modelSubmissionID == nil
+                && record.anchorUserTimestampMs == nil && record.anchorAssistantTimestampMs == nil
+        }
+        let count = min(remainingSegments.count, remainingRecords.count)
+        for (sIndex, rIndex) in zip(remainingSegments.suffix(count), remainingRecords.suffix(count)) {
+            let record = recordedTurns[rIndex]
+            for turn in segments[sIndex].turns {
                 if turn.startedAt == nil { turn.startedAt = record.startedAt }
                 if turn.endedAt == nil { turn.endedAt = record.endedAt }
                 if turn.durationSeconds == nil { turn.durationSeconds = record.durationSeconds }
-                if turn.fileChanges == nil { turn.fileChanges = record.fileChanges }
             }
         }
+    }
 
-        var usedSegments = Set<Int>()
-        var usedRecords = Set<Int>()
-        for (rIndex, record) in recordedTurns.enumerated() {
-            guard let anchorTool = record.anchorToolCallID else { continue }
-            let matches = segments.indices.filter { !usedSegments.contains($0) && segments[$0].toolIDs.contains(anchorTool) }
-            if matches.count == 1, let sIndex = matches.first {
-                applyTurn(record, to: segments[sIndex])
-                usedSegments.insert(sIndex)
-                usedRecords.insert(rIndex)
-            }
-        }
-
-        let remainingSegments = segments.indices.filter { !usedSegments.contains($0) }
-        let remainingRecords = recordedTurns.indices.filter { !usedRecords.contains($0) }
-        let count = min(remainingSegments.count, remainingRecords.count)
-        if count > 0 {
-            for (sIndex, rIndex) in zip(remainingSegments.suffix(count), remainingRecords.suffix(count)) {
-                applyTurn(recordedTurns[rIndex], to: segments[sIndex])
-            }
-        }
+    static func restoreFrozenOutcomes(from records: [RecordedTurnRecord], onto rows: [TranscriptItem]) {
+        applyRecordedMetadata(recordedTurns: records, recordedMessages: [],
+                              handoffAndModelMessagesOnly: true, onto: rows)
     }
 }

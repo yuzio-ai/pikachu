@@ -9,8 +9,8 @@ public struct ProcessIdentity: Hashable, Sendable {
     public let microseconds: UInt64
     public let status: UInt32
     public static func read(_ pid: Int32) -> ProcessIdentity? {
-        var value = pk_process_identity()
-        guard pk_process_identity_for(pid, &value) == 0, value.uid == getuid() || value.status == 5 else { return nil }
+        var value = zv_process_identity()
+        guard zv_process_identity_for(pid, &value) == 0, value.uid == getuid() || value.status == 5 else { return nil }
         return .init(pid: pid, parent: value.ppid, seconds: value.seconds,
                      microseconds: value.microseconds, status: value.status)
     }
@@ -24,15 +24,15 @@ public struct ProcessIdentity: Hashable, Sendable {
     }
     public static func snapshot() throws -> [ProcessIdentity] {
         var pids = [Int32](repeating: 0, count: 32768)
-        let count = pk_list_pids(&pids, Int32(pids.count))
+        let count = zv_list_pids(&pids, Int32(pids.count))
         guard count > 0, count < pids.count else { throw ProbeError.failure("Process enumeration unavailable or overflowed") }
         return pids.prefix(Int(count)).filter { $0 > 0 }.compactMap(Self.read)
     }
     public static func marked(_ identities: [ProcessIdentity], token: String) throws -> [ProcessIdentity] {
-        guard let scan = token.withCString({ pk_marker_scan_create($0) }) else {
+        guard let scan = token.withCString({ zv_marker_scan_create($0) }) else {
             throw ProbeError.failure("Cannot initialize process marker scan")
         }
-        defer { pk_marker_scan_destroy(scan) }
-        return identities.filter { pk_marker_scan_matches(scan, $0.pid) == 1 }
+        defer { zv_marker_scan_destroy(scan) }
+        return identities.filter { zv_marker_scan_matches(scan, $0.pid) == 1 }
     }
 }

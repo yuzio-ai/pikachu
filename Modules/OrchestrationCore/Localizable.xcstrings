@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "ACP 智能体配置已经更改，请等待会话释放后重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent configuration changed. Wait for the session to close, then try again."
+          }
+        }
+      }
+    },
     "请先在「设置 → 智能体」中添加或启用智能体。" : {
       "localizations" : {
         "en" : {
@@ -61,16 +71,6 @@
         }
       }
     },
-    " 下方保留上次可读内容，可能已过期。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " The last readable content is shown below and may be out of date."
-          }
-        }
-      }
-    },
     "上一执行实例的清理未确认，不能建立新连接。" : {
       "localizations" : {
         "en" : {
@@ -111,26 +111,6 @@
         }
       }
     },
-    "会话列表已刷新。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The session list was refreshed."
-          }
-        }
-      }
-    },
-    "会话发现失败，现有索引和源历史保持不变。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not discover sessions. The index and source history were kept."
-          }
-        }
-      }
-    },
     "会话尚未连接。" : {
       "localizations" : {
         "en" : {
@@ -147,16 +127,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The session is no longer available."
-          }
-        }
-      }
-    },
-    "会话标识不匹配。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The session ID does not match."
           }
         }
       }
@@ -201,26 +171,6 @@
         }
       }
     },
-    "历史文件缺失，已阻止继续发送。请恢复原文件或在新会话中执行。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The history file is missing and sending is blocked. Restore the file or start a new session."
-          }
-        }
-      }
-    },
-    "历史读取失败，未修改源文件。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not read session history. The source file was kept."
-          }
-        }
-      }
-    },
     "发送状态未能持久化，没有发送任务。请先修复本地存储。" : {
       "localizations" : {
         "en" : {
@@ -236,17 +186,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delivery is unconfirmed. Pikachu will not resend automatically."
-          }
-        }
-      }
-    },
-    "同一会话 ID 对应多个文件，请保留唯一来源后刷新。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Multiple files share a session ID. Keep one source file and refresh."
+            "value" : "Delivery is unconfirmed. Zivvi will not resend automatically."
           }
         }
       }
@@ -281,16 +221,6 @@
         }
       }
     },
-    "工作目录不可用或不属于当前项目。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The working directory is unavailable or does not belong to the selected project."
-          }
-        }
-      }
-    },
     "工作目录已更新。" : {
       "localizations" : {
         "en" : {
@@ -307,16 +237,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The pending model can be used once the task and queue finish. Your draft was kept."
-          }
-        }
-      }
-    },
-    "当前无法修改该目录的项目配置设置。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The project configuration setting for this directory cannot be changed right now."
           }
         }
       }
@@ -418,16 +338,6 @@
         }
       }
     },
-    "未配置该运行时的模型目录。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No model catalog is configured for this runtime."
-          }
-        }
-      }
-    },
     "本地会话绑定重复。" : {
       "localizations" : {
         "en" : {
@@ -518,26 +428,6 @@
         }
       }
     },
-    "正在保存该目录的项目配置设置，请稍后再试。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saving the project configuration setting for this directory. Please try again shortly."
-          }
-        }
-      }
-    },
-    "正在保存该目录的项目配置设置，请稍后再试。草稿已保留。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saving the project configuration setting for this directory. Your draft was kept; please try again shortly."
-          }
-        }
-      }
-    },
     "目录不可用或已属于其他项目。" : {
       "localizations" : {
         "en" : {
@@ -548,15 +438,22 @@
         }
       }
     },
-    "该 ACP 会话无法恢复。请新建会话继续，原有历史可只读查看。" : {
-
-    },
     "该会话有未核实的发送记录。请先核对执行结果，避免重复操作。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "This session has unconfirmed deliveries. Check the run results before sending again to avoid duplicate actions."
+          }
+        }
+      }
+    },
+    "请从审批超时中断处继续任务。先核对已完成的工作与当前状态，再处理剩余事项。需要审批时，请重新发起审批。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue the task that was interrupted by an approval timeout. First check the work already completed and the current state, then handle the remaining work. If approval is needed, request it again."
           }
         }
       }
@@ -641,32 +538,22 @@
         }
       }
     },
-    "请先等待项目配置设置保存完成，再重新定位。" : {
+    "请先结束任务并处理待核对的提交。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wait for the project configuration setting to finish saving before relocating."
+            "value" : "Finish the task and review pending submissions first."
           }
         }
       }
     },
-    "请先结束该项目的任务并断开会话，再删除项目。" : {
+    "请先结束该项目的任务并处理待核对的提交，再删除项目。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finish the project's tasks and disconnect its sessions before deleting it."
-          }
-        }
-      }
-    },
-    "请先结束运行并断开会话，再归档。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finish the current work and disconnect the session before archiving."
+            "value" : "Finish the project’s tasks and review pending submissions before deleting the project."
           }
         }
       }
@@ -767,16 +654,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not connect."
-          }
-        }
-      }
-    },
-    "部分会话的工作目录对应多个项目，已保留现有绑定。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Some working directories match several projects. The existing session bindings were kept."
           }
         }
       }

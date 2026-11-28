@@ -307,9 +307,10 @@ public struct ACPConfigOption: Sendable, Equatable, Identifiable {
         self.options = options
     }
 
-    static func parseList(_ raw: Any?) -> [ACPConfigOption] {
-        guard let records = raw as? [Record] else { return [] }
-        return records.compactMap(parse)
+    static func parseList(_ raw: Any?) -> [ACPConfigOption]? {
+        guard let records = raw as? [Record] else { return nil }
+        let options = records.compactMap(parse)
+        return records.isEmpty || !options.isEmpty ? options : nil
     }
 
     static func parse(_ record: Record) -> ACPConfigOption? {
@@ -357,12 +358,14 @@ public struct ACPConfigOption: Sendable, Equatable, Identifiable {
 public struct ACPSessionMetadata: Sendable, Equatable {
     public var modes: ACPModesState?
     public var models: ACPModelsState?
-    public var configOptions: [ACPConfigOption]
+    public private(set) var configOptions: [ACPConfigOption]
+    public private(set) var hasConfigOptions: Bool
 
-    public init(modes: ACPModesState? = nil, models: ACPModelsState? = nil, configOptions: [ACPConfigOption] = []) {
+    public init(modes: ACPModesState? = nil, models: ACPModelsState? = nil, configOptions: [ACPConfigOption]? = nil) {
         self.modes = modes
         self.models = models
-        self.configOptions = configOptions
+        self.configOptions = configOptions ?? []
+        hasConfigOptions = configOptions != nil
     }
 
     public static func parse(_ record: Record) -> ACPSessionMetadata {
@@ -371,6 +374,15 @@ public struct ACPSessionMetadata: Sendable, Equatable {
             models: .parse(record["models"] as? Record),
             configOptions: ACPConfigOption.parseList(record["configOptions"])
         )
+    }
+
+    mutating func replaceConfigOptions(_ options: [ACPConfigOption]) {
+        configOptions = options
+        hasConfigOptions = true
+    }
+
+    mutating func updateConfigValue(_ value: String, at index: Int) {
+        configOptions[index].currentValue = value
     }
 
     public func configOption(category: String) -> ACPConfigOption? {
@@ -383,6 +395,7 @@ public struct ACPSessionMetadata: Sendable, Equatable {
                 RuntimeModel(provider: defaultProvider, modelID: $0.value, name: $0.name)
             }
         }
+        if hasConfigOptions && configOptions.isEmpty { return [] }
         if let models, !models.availableModels.isEmpty {
             return models.availableModels.map {
                 RuntimeModel(provider: defaultProvider, modelID: $0.modelID, name: $0.name)
@@ -400,6 +413,7 @@ public struct ACPSessionMetadata: Sendable, Equatable {
         if let option = configOption(category: "model"), !option.currentValue.isEmpty {
             return option.currentValue
         }
+        if hasConfigOptions && configOptions.isEmpty { return nil }
         if let id = models?.currentModelID, !id.isEmpty {
             return id
         }
@@ -413,6 +427,7 @@ public struct ACPSessionMetadata: Sendable, Equatable {
             }
             if !option.currentValue.isEmpty { return option.currentValue }
         }
+        if hasConfigOptions && configOptions.isEmpty { return fallback }
         if let models, !models.currentModelID.isEmpty {
             if let match = models.availableModels.first(where: { $0.modelID == models.currentModelID }) {
                 return match.name
@@ -433,6 +448,7 @@ public struct ACPSessionMetadata: Sendable, Equatable {
         if let option = configOption(category: "mode"), !option.currentValue.isEmpty {
             return option.currentValue
         }
+        if hasConfigOptions { return nil }
         if let id = modes?.currentModeID, !id.isEmpty {
             return id
         }
@@ -440,8 +456,10 @@ public struct ACPSessionMetadata: Sendable, Equatable {
     }
 
     public func availableModesList() -> [ACPModeInfo] {
-        if let option = configOption(category: "mode"), !option.options.isEmpty {
-            return option.options.map { ACPModeInfo(id: $0.value, name: $0.name, description: $0.description) }
+        if hasConfigOptions {
+            return (configOption(category: "mode")?.options ?? []).map {
+                ACPModeInfo(id: $0.value, name: $0.name, description: $0.description)
+            }
         }
         return modes?.availableModes ?? []
     }
@@ -622,6 +640,7 @@ public struct ACPJSONRPCError: Error, Sendable, Equatable {
 }
 
 enum ACPJSON {
+    static let maximumImageBytes = RuntimeACPInlineImage.maximumBytes
     static func int(_ raw: Any?) -> Int? {
         guard let number = raw as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
         let value = number.doubleValue
@@ -655,6 +674,14 @@ enum ACPJSON {
         }
     }
 
+    static func imageDataFromContentBlock(_ raw: Any?) -> Data? {
+        guard let block = raw as? Record, block["type"] as? String == "image",
+              let mime = block["mimeType"] as? String, mime.hasPrefix("image/"),
+              let encoded = block["data"] as? String, encoded.utf8.count <= (maximumImageBytes + 2) / 3 * 4,
+              let data = Data(base64Encoded: encoded), !data.isEmpty, data.count <= maximumImageBytes else { return nil }
+        return data
+    }
+
     static func extractToolContent(_ raw: Any?) -> (text: String, diffs: [ACPDiffBlock], imageData: Data?) {
         guard let items = raw as? [Record] else { return ("", [], nil) }
         var texts: [String] = []
@@ -666,12 +693,7 @@ enum ACPJSON {
                 if let inner = item["content"] as? Record {
                     let blockText = textFromContentBlock(inner)
                     if !blockText.isEmpty { texts.append(blockText) }
-                    if imageData == nil, inner["type"] as? String == "image",
-                       let mime = inner["mimeType"] as? String, mime.hasPrefix("image/"),
-                       let encoded = inner["data"] as? String, encoded.utf8.count <= 8 * 1024 * 1024,
-                       let data = Data(base64Encoded: encoded), !data.isEmpty {
-                        imageData = data
-                    }
+                    if imageData == nil { imageData = imageDataFromContentBlock(inner) }
                 }
             case "diff":
                 if let path = item["path"] as? String, !path.isEmpty,

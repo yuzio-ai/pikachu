@@ -8,6 +8,7 @@
     case modelChange(TranscriptItem, SessionModelChange)
     case turnHeader(TurnRecord)
     case turnChanges(TurnRecord)
+    case turnFailure(TurnRecord)
     case thinking(TurnRecord)
     case toolCalls([TranscriptItem]) // Consecutive tool calls in the same turn.
 
@@ -17,6 +18,7 @@
         case .modelChange(let item, _): "model-change:\(item.timelineID)"
         case .turnHeader(let turn): "turn-header:\(turn.timelineID)"
         case .turnChanges(let turn): "turn-changes:\(turn.timelineID)"
+        case .turnFailure(let turn): "turn-failure:\(turn.timelineID)"
         case .thinking(let turn): "thinking:\(turn.timelineID)"
         case .toolCalls(let items): items[0].timelineID
         }
@@ -30,6 +32,7 @@
             item === otherItem && change == otherChange
         case (.turnHeader(let turn), .turnHeader(let otherTurn)),
              (.turnChanges(let turn), .turnChanges(let otherTurn)),
+             (.turnFailure(let turn), .turnFailure(let otherTurn)),
              (.thinking(let turn), .thinking(let otherTurn)):
             turn === otherTurn
         case (.toolCalls(let items), .toolCalls(let otherItems)):
@@ -79,7 +82,10 @@
             guard shownTurns.insert(turn.displayID).inserted else { return }
             flushTools()
             rows.append(.turnHeader(turn))
-            if lastItems[turn.displayID] == nil { showChanges(turn) }
+            if lastItems[turn.displayID] == nil {
+                showChanges(turn)
+                showFailure(turn)
+            }
         }
 
         func showChanges(_ turn: TurnRecord) {
@@ -88,19 +94,28 @@
             rows.append(.turnChanges(turn))
         }
 
+        func showFailure(_ turn: TurnRecord) {
+            guard turn.failure != nil, (turn.status == .failed || turn.status == .uncertain) else { return }
+            flushTools()
+            rows.append(.turnFailure(turn))
+        }
+
         for start in startsByPredecessor[nil] ?? [] { showHeader(start.turn) }
         for item in items {
             if item.kind != .user, let turn = item.turn { showHeader(turn) }
             if item.kind == .tool {
                 if let last = tools.last, last.turn !== item.turn { flushTools() }
                 tools.append(item)
-            } else if item.kind != .assistant || item.hasVisibleText {
+            } else if item.kind != .assistant || item.hasVisibleContent {
                 flushTools()
                 if let change = item.modelChange { rows.append(.modelChange(item, change)) }
                 rows.append(.item(item))
             }
             if item.kind == .user, let turn = item.turn { showHeader(turn) }
-            if let turn = item.turn, lastItems[turn.displayID] == item.id { showChanges(turn) }
+            if let turn = item.turn, lastItems[turn.displayID] == item.id {
+                showChanges(turn)
+                showFailure(turn)
+            }
             if let starts = startsByPredecessor[item.id] {
                 for start in starts { showHeader(start.turn) }
             }
@@ -111,7 +126,7 @@
         if showsThinking {
             switch rows.last {
             case .toolCalls(let tools):
-                if let turn = tools.last?.turn, turn.status == .running,
+                if let turn = tools.last?.turn, turn.status == .running, turn.liveStage != .streaming,
                    !turn.thoughtText.isEmpty ||
                        !items.contains(where: { $0.turn === turn && $0.kind == .tool && $0.toolSummary?.state == .running }) {
                     rows.append(.thinking(turn))

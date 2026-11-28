@@ -252,7 +252,7 @@ public enum TranscriptFileLinks {
                 }
             }
 
-            // Handle CJK prose attached directly to an ASCII path (e.g. "在Pikachu/App/AppSettings.swift中").
+            // Handle CJK prose attached directly to an ASCII path (e.g. "在Zivvi/App/AppSettings.swift中").
             let nsTokenRange = NSRange(tokenRange, in: string)
             for sub in asciiPathRegex.matches(in: string, range: nsTokenRange) {
                 guard let subRange = Range(sub.range, in: string) else { continue }

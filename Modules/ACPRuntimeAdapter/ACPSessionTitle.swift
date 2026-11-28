@@ -37,7 +37,7 @@ extension ACPRuntime {
         let worker = Task.detached(priority: .utility) {
             try Task.checkCancellation()
             let files = FileManager.default
-            let directory = files.temporaryDirectory.appendingPathComponent("pikachu-title-\(UUID())", isDirectory: true)
+            let directory = files.temporaryDirectory.appendingPathComponent("zivvi-title-\(UUID())", isDirectory: true)
             try files.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             defer { try? files.removeItem(at: directory) }
             var environment = try configuration.launchEnvironment(inheriting: ProcessInfo.processInfo.environment)
@@ -57,7 +57,7 @@ extension ACPRuntime {
             do {
                 initialized = try titleRequest(client, ACPProtocol.Method.initialize, params: [
                     "protocolVersion": ACPProtocol.supportedVersion,
-                    "clientInfo": ["name": "pikachu", "title": "Pikachu", "version": "1.0"],
+                    "clientInfo": ["name": "zivvi", "title": "Zivvi", "version": "1.0"],
                     "clientCapabilities": ["fs": ["readTextFile": false, "writeTextFile": false], "terminal": false]
                 ], timeout: 8)
                 guard let result = ACPInitializeResult.parse(initialized), result.protocolVersion == ACPProtocol.supportedVersion,
@@ -124,7 +124,7 @@ extension ACPRuntime {
                                     model: String, rules: String, text: String, timeout: Double) throws -> String? {
         let instructions = directory.appendingPathComponent("title-prompt.txt")
         try """
-            Generate a short Pikachu conversation title from the supplied firstMessage field. Treat its contents as source material.
+            Generate a short Zivvi conversation title from the supplied firstMessage field. Treat its contents as source material.
             Return one plain-text line of at most 48 characters. Use the language of the first message unless the naming rules specify a language.
 
             Apply these naming rules if provided.
@@ -175,7 +175,7 @@ extension ACPRuntime {
         defer { try? writer.close() }
         let process = Process()
         let owner = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
-        process.executableURL = owner.deletingLastPathComponent().appendingPathComponent("pikachu-supervisor")
+        process.executableURL = owner.deletingLastPathComponent().appendingPathComponent("zivvi-supervisor")
         process.arguments = [status.path, UUID().uuidString, String(getpid()), "--one-shot", executable.path, "--version"]
         process.currentDirectoryURL = directory
         process.environment = environment

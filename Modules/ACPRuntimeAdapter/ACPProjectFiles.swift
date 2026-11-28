@@ -97,7 +97,7 @@ struct ACPProjectFiles: Sendable {
                 throw Failure.fileUnavailable
             }
             if exists, info.st_mode & 0o111 != 0, !confirmed { throw Failure.confirmationRequired }
-            let temp = ".pikachu-acp-\(UUID().uuidString)"
+            let temp = ".zivvi-acp-\(UUID().uuidString)"
             let fd = openat(directory, temp, O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0o600)
             guard fd >= 0 else { throw Failure.fileUnavailable }
             let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)

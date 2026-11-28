@@ -38,11 +38,20 @@ def parse_args():
     parser.add_argument("--no-image", action="store_true")
     parser.add_argument("--legacy-models", action="store_true")
     parser.add_argument("--config-options-only", action="store_true")
+    parser.add_argument("--empty-config-options", choices=("prompt", "set-response", "load-response", "set-after", "load-after"))
+    parser.add_argument("--identified-messages", action="store_true")
     parser.add_argument("--delay-prompt", type=float, default=0.0)
     parser.add_argument("--ignore-cancel", action="store_true")
     parser.add_argument("--permission-id-type", choices=["int", "string"], default="int")
     parser.add_argument("--state-file", default="")
     parser.add_argument("--v1-extended", action="store_true")
+    parser.add_argument("--reject-session-close", action="store_true")
+    parser.add_argument("--ignore-session-close", action="store_true")
+    parser.add_argument("--session-new-gate", default="")
+    parser.add_argument("--session-list-gate", default="")
+    parser.add_argument("--exit-on-session-close", action="store_true")
+    parser.add_argument("--close-queued-update", action="store_true")
+    parser.add_argument("--session-mutation-result", choices=["object", "null", "array", "number-meta", "null-meta"], default="object")
     parser.add_argument("--worker", action="store_true")
     return parser.parse_args()
 
@@ -126,6 +135,16 @@ class FakeACPServer:
 
     def send_result(self, req_id, result):
         self.send({"jsonrpc": "2.0", "id": req_id, "result": result})
+
+    def send_result_then_clear_config(self, req_id, session_id, result):
+        frames = [
+            {"jsonrpc": "2.0", "id": req_id, "result": result},
+            {"jsonrpc": "2.0", "method": "session/update", "params": {
+                "sessionId": session_id,
+                "update": {"sessionUpdate": "config_option_update", "configOptions": []},
+            }},
+        ]
+        self.send_raw("\n".join(json.dumps(frame) for frame in frames))
 
     def send_error(self, req_id, code, message, data=None):
         err = {"code": code, "message": message}
@@ -343,8 +362,25 @@ class FakeACPServer:
     def handle_session_management(self, method, req_id, params):
         if not self.check_auth(req_id):
             return
-        self.record_receipt(method)
         session_id = params.get("sessionId")
+        self.record_receipt(method, {"sessionId": session_id, "cwd": params.get("cwd")})
+        if method == "session/close" and self.args.ignore_session_close:
+            return
+        if method == "session/close" and self.args.reject_session_close:
+            self.send_error(req_id, -32601, "Method not found")
+            return
+        if method == "session/close" and self.args.exit_on_session_close:
+            os._exit(0)
+        if method == "session/list" and self.args.session_list_gate:
+            def list_after_gate():
+                self.wait_for_gate(self.args.session_list_gate)
+                self.reply_to_session_management(method, req_id, params, session_id)
+
+            threading.Thread(target=list_after_gate, daemon=True).start()
+            return
+        self.reply_to_session_management(method, req_id, params, session_id)
+
+    def reply_to_session_management(self, method, req_id, params, session_id):
         with self.state_lock:
             if method == "session/list":
                 entries = [{"sessionId": key, "cwd": value["cwd"], "title": key}
@@ -359,8 +395,23 @@ class FakeACPServer:
             if method == "session/delete":
                 del self.sessions[session_id]
                 self.save_persisted_state()
+            if method == "session/close" and session_id in self.active_cancel_events:
+                self.active_cancel_events[session_id].set()
             metadata = self.build_session_metadata(self.sessions[session_id]) if method == "session/resume" else {}
+        if method in ("session/close", "session/delete"):
+            metadata = {"object": {}, "null": None, "array": [], "number-meta": {"_meta": 1},
+                        "null-meta": {"_meta": None}}[self.args.session_mutation_result]
+        if method == "session/close" and self.args.close_queued_update:
+            self.send_update(session_id, {"sessionUpdate": "agent_message_chunk",
+                                          "content": {"type": "text", "text": "stale-closed-endpoint"}})
         self.send_result(req_id, metadata)
+
+    @staticmethod
+    def wait_for_gate(path):
+        gate = pathlib.Path(path)
+        deadline = time.monotonic() + 10
+        while not gate.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
 
     def handle_session_new(self, req_id, params):
         if not self.check_auth(req_id):
@@ -380,6 +431,8 @@ class FakeACPServer:
             self.sessions[session_id] = session
             self.save_persisted_state()
         self.record_receipt("session/new", {"sessionId": session_id, "cwd": cwd})
+        if self.args.session_new_gate:
+            self.wait_for_gate(self.args.session_new_gate)
         result = {"sessionId": session_id}
         result.update(self.build_session_metadata(session))
         self.send_result(req_id, result)
@@ -430,7 +483,9 @@ class FakeACPServer:
         # ACP v1: Replay history via session/update notifications BEFORE returning the session/load response.
         for item in history_snapshot:
             role = item.get("role")
-            if role == "user":
+            if "sessionUpdate" in item:
+                self.send_update(session_id, item)
+            elif role == "user":
                 self.send_update(session_id, {
                     "sessionUpdate": "user_message_chunk",
                     "content": {"type": "text", "text": item.get("text", "")},
@@ -465,6 +520,15 @@ class FakeACPServer:
                 })
 
         result = self.build_session_metadata(session)
+        if self.args.empty_config_options == "load-response":
+            self.send_update(session_id, {
+                "sessionUpdate": "config_option_update",
+                "configOptions": self.build_config_options(session),
+            })
+            result["configOptions"] = []
+        if self.args.empty_config_options == "load-after":
+            self.send_result_then_clear_config(req_id, session_id, result)
+            return
         self.send_result(req_id, result)
 
     def handle_set_mode(self, req_id, params):
@@ -552,6 +616,12 @@ class FakeACPServer:
             self.save_persisted_state()
             config_options = self.build_config_options(session)
 
+        if self.args.empty_config_options == "set-response":
+            self.send_result(req_id, {"configOptions": []})
+            return
+        if self.args.empty_config_options == "set-after":
+            self.send_result_then_clear_config(req_id, session_id, {"configOptions": config_options})
+            return
         self.send_update(session_id, {
             "sessionUpdate": "config_option_update",
             "configOptions": config_options,
@@ -563,15 +633,16 @@ class FakeACPServer:
             })
         self.send_result(req_id, {"configOptions": config_options})
 
-    def send_client_request(self, method, params, use_string_id=False, cancel_event=None):
+    def send_client_request(self, method, params, use_string_id=False, cancel_event=None, wait_for_response=True):
         with self.state_lock:
             self.next_server_req_id += 1
             num = self.next_server_req_id
             req_id = f"perm-{num}" if use_string_id else num
-            id_key = (type(req_id).__name__, req_id)
-            done = threading.Event()
-            box = {}
-            self.pending_client_responses[id_key] = (done, box)
+            if wait_for_response:
+                id_key = (type(req_id).__name__, req_id)
+                done = threading.Event()
+                box = {}
+                self.pending_client_responses[id_key] = (done, box)
 
         self.send({
             "jsonrpc": "2.0",
@@ -579,6 +650,8 @@ class FakeACPServer:
             "method": method,
             "params": params,
         })
+        if not wait_for_response:
+            return None
 
         # Wait until client responds or turn is cancelled.
         deadline = time.monotonic() + 30.0
@@ -628,6 +701,15 @@ class FakeACPServer:
             combined = "\n".join(texts).strip()
             lower = combined.lower()
             self.record_receipt("session/prompt", {"sessionId": session_id, "images": image_count})
+
+            if self.args.empty_config_options == "prompt":
+                self.send_update(session_id, {"sessionUpdate": "config_option_update", "configOptions": []})
+                self.send_result(req_id, {"stopReason": "end_turn"})
+                return
+            if self.args.identified_messages:
+                self.send_identified_messages(session_id, combined)
+                self.send_result(req_id, {"stopReason": "end_turn"})
+                return
 
             if "reject-length-fixture" in lower or "unknown-length-fixture" in lower:
                 code = -32602 if "reject-length-fixture" in lower else -32603
@@ -806,6 +888,7 @@ class FakeACPServer:
                     },
                     use_string_id=use_string_id,
                     cancel_event=cancel_event,
+                    wait_for_response=lower != "cancel pending approval fixture",
                 )
                 if cancel_event.is_set() or reply is None:
                     self.send_result(req_id, {"stopReason": "cancelled"})
@@ -922,6 +1005,24 @@ class FakeACPServer:
                 if self.active_cancel_events.get(session_id) is cancel_event:
                     self.active_cancel_events.pop(session_id, None)
 
+    def send_identified_messages(self, session_id, text):
+        image = {"type": "image", "mimeType": "image/png",
+                 "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPQjer5DwAD3gIT+2LWGAAAAABJRU5ErkJggg=="}
+        updates = [
+            {"sessionUpdate": "user_message_chunk", "messageId": "user-input", "content": {"type": "text", "text": text}},
+            {"sessionUpdate": "agent_message_chunk", "messageId": "first", "content": {"type": "text", "text": "First"}},
+            {"sessionUpdate": "tool_call", "toolCallId": "interleaved", "title": "Inspect", "status": "completed"},
+            {"sessionUpdate": "agent_message_chunk", "messageId": "first", "content": image},
+            {"sessionUpdate": "agent_message_chunk", "messageId": "first", "content": {"type": "text", "text": " reply"}},
+            {"sessionUpdate": "agent_message_chunk", "messageId": "second", "content": {"type": "text", "text": "Next reply"}},
+            {"sessionUpdate": "agent_message_chunk", "messageId": "image-only", "content": image},
+        ]
+        for update in updates:
+            self.send_update(session_id, update)
+        with self.state_lock:
+            self.sessions[session_id]["history"].extend(updates)
+            self.save_persisted_state()
+
     def verify_client_services(self, session_id):
         def request(method, session=session_id, **params):
             response = self.send_client_request(method, {"sessionId": session, **params})
@@ -929,12 +1030,13 @@ class FakeACPServer:
             self.record_receipt(method, {"error": response.get("error"), "result": response.get("result")})
             return response
 
-        path = str(pathlib.Path.cwd().resolve() / "fixture.txt")
+        workspace = pathlib.Path(self.sessions[session_id]["cwd"]).resolve()
+        path = str(workspace / "fixture.txt")
         assert request("fs/write_text_file", path=path, content="first\r\nsecond\n")["result"] == {}
         assert request("fs/read_text_file", path=path, line=2, limit=1)["result"] == {"content": "second\n"}
         assert "error" in request("fs/read_text_file", session="unrelated", path=path)
-        assert "error" in request("fs/read_text_file", path=str(pathlib.Path.cwd().resolve() / "escape" / "outside.txt"))
-        config = str(pathlib.Path.cwd().resolve() / "AGENTS.md")
+        assert "error" in request("fs/read_text_file", path=str(workspace / "escape" / "outside.txt"))
+        config = str(workspace / "AGENTS.md")
         assert request("fs/write_text_file", path=config, content="# Fixture rules")["result"] == {}
         assert request("fs/read_text_file", path=config)["result"]["content"] == "# Fixture rules"
         terminal = request("terminal/create", command="/usr/bin/printf", args=["åååEND"], outputByteLimit=4)
@@ -957,7 +1059,7 @@ class FakeACPServer:
         assert reply is not None and "terminalId" in reply["result"]
 
     def verify_client_read_only(self, session_id):
-        path = str(pathlib.Path.cwd().resolve() / "fixture.txt")
+        path = str(pathlib.Path(self.sessions[session_id]["cwd"]).resolve() / "fixture.txt")
         def request(method, **params):
             reply = self.send_client_request(method, {"sessionId": session_id, **params})
             assert reply is not None, method
@@ -986,6 +1088,7 @@ class FakeACPServer:
 
     def handle_client_response(self, message):
         req_id = message.get("id")
+        self.record_receipt("client response", {"id": req_id})
         id_key = (type(req_id).__name__, req_id)
         with self.state_lock:
             entry = self.pending_client_responses.get(id_key)
@@ -1088,7 +1191,7 @@ def verify_login_supervisor(helper):
     import uuid
 
     for cancel in (False, True):
-        with tempfile.TemporaryDirectory(prefix="pikachu-login-probe-") as temp:
+        with tempfile.TemporaryDirectory(prefix="zivvi-login-probe-") as temp:
             status = pathlib.Path(temp) / "status.json"
             marker = pathlib.Path(temp) / "state"
             pipe = pathlib.Path(temp) / "agent-environment"

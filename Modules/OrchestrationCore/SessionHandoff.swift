@@ -181,11 +181,13 @@ public struct SessionHistorySnapshot: Codable, Sendable, Equatable {
         let turnID: String?
         var modelChange: SessionModelChange?
         var submissionID: UUID?
+        var delivery: DeliveryState?
     }
 
     struct Turn: Codable, Sendable, Equatable {
         let displayID: String
         let record: RecordedTurnRecord
+        var outcomeMissing: Bool? = nil
     }
 
     struct Start: Codable, Sendable, Equatable {
@@ -229,11 +231,12 @@ public struct SessionHistorySnapshot: Codable, Sendable, Equatable {
             let record = RecordedTurnRecord(id: turn.id, startedAt: turn.startedAt, endedAt: turn.endedAt,
                                             durationSeconds: turn.durationSeconds, status: turn.status,
                                             fileChanges: turn.fileChanges)
-            turns[turn.timelineID] = Turn(displayID: turn.timelineID, record: record)
+            turns[turn.timelineID] = Turn(displayID: turn.timelineID, record: record,
+                                          outcomeMissing: turn.isHistoricalOutcomeMissing)
         }
         items = transcript.compactMap { row in
             guard row.delivery != .rejected, row.expiredInteraction == nil,
-                  row.kind != .assistant || row.hasVisibleText else { return nil }
+                  row.kind != .assistant || row.hasVisibleContent else { return nil }
             let kind: HistoryItemKind = switch row.kind {
             case .user: .user
             case .assistant: .assistant
@@ -244,9 +247,11 @@ public struct SessionHistorySnapshot: Codable, Sendable, Equatable {
             var tool = row.tool
             tool?.outputImage = nil
             let item = HistoryItem(id: row.timelineID, kind: kind, text: row.kind == .user ? row.editableText : row.text,
-                                   tool: tool, sentAt: row.sentAt, messageTimestampMs: row.messageTimestampMs)
+                                   tool: tool, sentAt: row.sentAt, messageTimestampMs: row.messageTimestampMs,
+                                   images: row.images.isEmpty ? nil : row.images.map(\.data))
             return Item(history: item, files: row.editableFiles, turnID: row.turn?.timelineID,
-                        modelChange: row.modelChange, submissionID: row.submissionID)
+                        modelChange: row.modelChange, submissionID: row.submissionID,
+                        delivery: row.kind == .user && row.delivery != .accepted ? row.delivery : nil)
         }
         let timelineIDs = Dictionary(transcript.map { ($0.id, $0.timelineID) }, uniquingKeysWith: { first, _ in first })
         starts = turnStarts.map { start in
@@ -256,12 +261,23 @@ public struct SessionHistorySnapshot: Codable, Sendable, Equatable {
         self.turns = turns.values.sorted { $0.displayID < $1.displayID }
     }
 
-    @MainActor func timeline() -> (items: [TranscriptItem], rows: [TranscriptDisplayRow]) {
+    @MainActor func timeline(frozenSegmentID: UUID? = nil) -> (items: [TranscriptItem], rows: [TranscriptDisplayRow]) {
+        // Older snapshots omit provenance. A synthesized turn used its first
+        // assistant/tool row ID as its display ID.
+        let legacyFallbacks = Set(items.compactMap { item -> String? in
+            guard item.history.kind == .assistant || item.history.kind == .tool,
+                  item.turnID == item.history.id else { return nil }
+            return item.history.id
+        })
         let turnsByID = Dictionary(turns.map { turn in
             let record = turn.record
-            return (turn.displayID, TurnRecord(id: record.id, status: record.status, startedAt: record.startedAt,
-                                              endedAt: record.endedAt, durationSeconds: record.durationSeconds,
-                                              displayID: turn.displayID, fileChanges: record.fileChanges))
+            let outcomeMissing = record.status == .running || (turn.outcomeMissing ?? legacyFallbacks.contains(turn.displayID))
+            let restored = TurnRecord(id: record.id, status: outcomeMissing ? .uncertain : record.status,
+                                      startedAt: record.startedAt, endedAt: record.endedAt,
+                                      durationSeconds: record.durationSeconds, displayID: turn.displayID,
+                                      fileChanges: record.fileChanges)
+            restored.isHistoricalOutcomeMissing = outcomeMissing
+            return (turn.displayID, restored)
         }, uniquingKeysWith: { first, _ in first })
         let items = self.items.map { item in
             let history = item.history
@@ -271,12 +287,18 @@ public struct SessionHistorySnapshot: Codable, Sendable, Equatable {
             case .tool: .tool
             case .notice: .notice
             }
-            let row = TranscriptItem(id: history.id, kind: kind, text: history.text, tool: history.tool,
+            let row = TranscriptItem(id: history.id, kind: kind, text: history.text, delivery: item.delivery ?? .accepted, tool: history.tool,
                                      sentAt: history.sentAt, messageTimestampMs: history.messageTimestampMs,
-                                     turn: item.turnID.flatMap { turnsByID[$0] }, attachedFiles: item.files)
+                                     turn: item.turnID.flatMap { turnsByID[$0] }, attachedFiles: item.files,
+                                     images: history.images ?? [])
+            // The stored ID is already the row's timeline ID, including for legacy unqualified IDs.
+            row.frozenTimelineSegmentID = frozenSegmentID
             row.modelChange = item.modelChange
             row.recordedSubmissionID = item.submissionID
             return row
+        }
+        if let fileChangeRecords, turns.contains(where: { $0.outcomeMissing == nil }) {
+            SessionController.restoreFrozenOutcomes(from: fileChangeRecords, onto: items)
         }
         let turnStarts = (starts ?? []).compactMap { start in
             turnsByID[start.turnID].map { TranscriptTurnStart(turn: $0, precedingItemID: start.precedingItemID) }

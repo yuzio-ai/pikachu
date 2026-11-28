@@ -21,6 +21,7 @@ ACTIONS=()
 PATCHES=()
 OVERLAYS=()
 ONLY_TESTING=()
+SKIP_TESTING=()
 POSITIONAL_ARGS=()
 
 usage() {
@@ -37,27 +38,28 @@ Source options (default: current workspace excluding build/.verification-runs/.y
   --overlay <src>:<rel-dst>  Copy file/dir into source/<rel-dst> (repeatable)
 
 Built-in xcodebuild options:
-  --scheme <name>            Xcode scheme (e.g. Pikachu)
+  --scheme <name>            Xcode scheme (e.g. Zivvi)
   --action <act>             build | build-for-testing | test | test-without-building (repeatable)
   --configuration <cfg>      Debug | Release (optional)
   --only-testing <spec>      xcodebuild -only-testing:<spec> (repeatable, applied to test actions)
+  --skip-testing <spec>      xcodebuild -skip-testing:<spec> (repeatable, applied to test actions)
   --disable-sandbox-macro    Pass OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -disable-sandbox'
   --tool <name>              Build and run a verification tool; pass tool arguments after --
 
 Evidence & sandbox options:
-  --evidence-dir <new-dir>   Export run.log, tool summaries and $PIKACHU_EVIDENCE_OUT/*
+  --evidence-dir <new-dir>   Export run.log, tool summaries and $ZIVVI_EVIDENCE_OUT/*
   --save-xcresult            Export validated result bundles from both evidence paths
   --label <name>             Sandbox directory label (default: verify)
   --keep-on-failure          Preserve /tmp sandbox if verification exits non-zero
   -h, --help                 Show this help
 
 Custom command environment variables:
-  PIKACHU_SANDBOX_DIR        Root temporary sandbox directory
-  PIKACHU_SOURCE_DIR         Staged source snapshot (also cwd for custom command)
-  PIKACHU_DERIVED_DATA       Isolated DerivedData path inside the sandbox
-  PIKACHU_RESULT_BUNDLE      Isolated result.xcresult path inside the sandbox
-  PIKACHU_FIXTURE_DIR        Empty fixture/state directory inside the sandbox
-  PIKACHU_EVIDENCE_OUT       Drop files here to persist them into --evidence-dir
+  ZIVVI_SANDBOX_DIR        Root temporary sandbox directory
+  ZIVVI_SOURCE_DIR         Staged source snapshot (also cwd for custom command)
+  ZIVVI_DERIVED_DATA       Isolated DerivedData path inside the sandbox
+  ZIVVI_RESULT_BUNDLE      Isolated result.xcresult path inside the sandbox
+  ZIVVI_FIXTURE_DIR        Empty fixture/state directory inside the sandbox
+  ZIVVI_EVIDENCE_OUT       Drop files here to persist them into --evidence-dir
 EOF
 }
 
@@ -122,6 +124,11 @@ while [[ $# -gt 0 ]]; do
             ONLY_TESTING+=("$2")
             shift 2
             ;;
+        --skip-testing)
+            require_arg "$@"
+            SKIP_TESTING+=("$2")
+            shift 2
+            ;;
         --save-xcresult)
             SAVE_XCRESULT=1
             shift
@@ -163,21 +170,21 @@ if [[ -n "$VERIFICATION_TOOL" ]]; then
         acp-compat-probe|runtime-verify) ;;
         *) die "Unknown verification tool: $VERIFICATION_TOOL" ;;
     esac
-    if [[ -n "$SCHEME" || ${#ACTIONS[@]} -gt 0 || ${#ONLY_TESTING[@]} -gt 0 ]]; then
-        die "Use --tool without --scheme, --action or --only-testing"
+    if [[ -n "$SCHEME" || ${#ACTIONS[@]} -gt 0 || ${#ONLY_TESTING[@]} -gt 0 || ${#SKIP_TESTING[@]} -gt 0 ]]; then
+        die "Use --tool without --scheme, --action, --only-testing or --skip-testing"
     fi
     SCHEME="$VERIFICATION_TOOL"
     ACTIONS=(build)
     CONFIGURATION="${CONFIGURATION:-Debug}"
 elif [[ ${#POSITIONAL_ARGS[@]} -gt 0 ]]; then
-    if [[ -n "$SCHEME" || ${#ACTIONS[@]} -gt 0 ]]; then
-        die "Do not combine --scheme/--action with a custom command after --"
+    if [[ -n "$SCHEME" || ${#ACTIONS[@]} -gt 0 || ${#ONLY_TESTING[@]} -gt 0 || ${#SKIP_TESTING[@]} -gt 0 ]]; then
+        die "Do not combine --scheme/--action/--only-testing/--skip-testing with a custom command after --"
     fi
 else
     if [[ -z "$SCHEME" && ${#ACTIONS[@]} -eq 0 ]]; then
         die "Specify --scheme/--action, --tool or a custom command after --"
     fi
-    [[ -n "$SCHEME" ]] || SCHEME="Pikachu"
+    [[ -n "$SCHEME" ]] || SCHEME="Zivvi"
     if [[ ${#ACTIONS[@]} -eq 0 ]]; then
         ACTIONS=("build")
     fi
@@ -216,7 +223,7 @@ reserve_evidence() {
     parent="$(cd -- "$parent" && pwd -P)"
     EVIDENCE_DIR="$parent/$name"
     [[ ! -e "$EVIDENCE_DIR" && ! -L "$EVIDENCE_DIR" ]] || die "Use a new evidence directory: $EVIDENCE_DIR"
-    reservation="$parent/.${name}.pikachu-pending"
+    reservation="$parent/.${name}.zivvi-pending"
     DEFER_CANCEL=1
     if mkdir -m 700 -- "$reservation"; then
         EVIDENCE_RESERVATION="$reservation"
@@ -432,7 +439,7 @@ run_xcodebuild() {
     for action in "${ACTIONS[@]}"; do
         local cmd=(
             xcodebuild
-            -project "${STAGED_SOURCE}/Pikachu.xcodeproj"
+            -project "${STAGED_SOURCE}/Zivvi.xcodeproj"
             -scheme "$SCHEME"
             -derivedDataPath "$DERIVED_DATA"
         )
@@ -440,12 +447,17 @@ run_xcodebuild() {
             cmd+=(-configuration "$CONFIGURATION")
         fi
         if [[ "$action" == "test" || "$action" == "test-without-building" ]]; then
+            local spec
             rm -rf "$RESULT_BUNDLE"
             cmd+=(-resultBundlePath "$RESULT_BUNDLE")
             if [[ ${#ONLY_TESTING[@]} -gt 0 ]]; then
-                local spec
                 for spec in "${ONLY_TESTING[@]}"; do
                     cmd+=("-only-testing:${spec}")
+                done
+            fi
+            if [[ ${#SKIP_TESTING[@]} -gt 0 ]]; then
+                for spec in "${SKIP_TESTING[@]}"; do
+                    cmd+=("-skip-testing:${spec}")
                 done
             fi
         fi
@@ -492,19 +504,19 @@ run_custom_cmd() {
         fi
     fi
     run_in_job "$STAGED_SOURCE" env \
-        PIKACHU_SANDBOX_DIR="$SANDBOX_DIR" \
-        PIKACHU_SOURCE_DIR="$STAGED_SOURCE" \
-        PIKACHU_DERIVED_DATA="$DERIVED_DATA" \
-        PIKACHU_RESULT_BUNDLE="$RESULT_BUNDLE" \
-        PIKACHU_FIXTURE_DIR="$FIXTURE_DIR" \
-        PIKACHU_EVIDENCE_OUT="$EVIDENCE_OUT" \
+        ZIVVI_SANDBOX_DIR="$SANDBOX_DIR" \
+        ZIVVI_SOURCE_DIR="$STAGED_SOURCE" \
+        ZIVVI_DERIVED_DATA="$DERIVED_DATA" \
+        ZIVVI_RESULT_BUNDLE="$RESULT_BUNDLE" \
+        ZIVVI_FIXTURE_DIR="$FIXTURE_DIR" \
+        ZIVVI_EVIDENCE_OUT="$EVIDENCE_OUT" \
         TMPDIR="$SANDBOX_TMP" \
         "${cmd[@]}" >"$RUN_LOG" 2>&1 || RUN_STATUS=$?
 }
 
 reserve_evidence
 DEFER_CANCEL=1
-SANDBOX_DIR="$(mktemp -d "${TMP_BASE}/pikachu-${SAFE_LABEL}-XXXXXX")"
+SANDBOX_DIR="$(mktemp -d "${TMP_BASE}/zivvi-${SAFE_LABEL}-XXXXXX")"
 DEFER_CANCEL=0
 [[ "$RUN_STATUS" -ne 130 ]] || exit 130
 

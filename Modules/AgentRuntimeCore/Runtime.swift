@@ -51,6 +51,7 @@ public struct RuntimeSession: Sendable, Equatable {
     public let availableModes: [RuntimeModeOption]
     public let resumable: Bool
     public let replaysHistory: Bool
+    public let configurationRevision: Int
     public init(
         id: String,
         model: String,
@@ -63,11 +64,13 @@ public struct RuntimeSession: Sendable, Equatable {
         modeID: String? = nil,
         availableModes: [RuntimeModeOption] = [],
         resumable: Bool = false,
-        replaysHistory: Bool = true
+        replaysHistory: Bool = true,
+        configurationRevision: Int = 0
     ) {
         self.id = id; self.model = model; self.thinking = thinking; self.capabilities = capabilities
         self.file = file; self.provider = provider; self.modelID = modelID
         self.runtimeID = runtimeID; self.modeID = modeID; self.availableModes = availableModes; self.resumable = resumable; self.replaysHistory = replaysHistory
+        self.configurationRevision = configurationRevision
     }
 }
 public struct PendingPrompt: Sendable, Codable, Equatable, Identifiable {
@@ -206,6 +209,7 @@ public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
 
     public let id: String
     public var name: String
+    public var summary: String?
     public var arguments: String
     public var argumentsTruncated: Bool?
     public var editArguments: EditArguments?
@@ -214,8 +218,8 @@ public struct RuntimeTool: Sendable, Codable, Equatable, Identifiable {
     public var output: String
     public var state: ToolState
     public var truncated: Bool
-    public init(id: String, name: String, arguments: String = "", output: String = "", state: ToolState = .running, truncated: Bool = false) {
-        self.id = id; self.name = name; self.arguments = arguments; self.output = output; self.state = state; self.truncated = truncated
+    public init(id: String, name: String, summary: String? = nil, arguments: String = "", output: String = "", state: ToolState = .running, truncated: Bool = false) {
+        self.id = id; self.name = name; self.summary = summary; self.arguments = arguments; self.output = output; self.state = state; self.truncated = truncated
     }
 }
 public enum RuntimeFailureKind: String, Sendable {
@@ -231,7 +235,14 @@ public enum RuntimeFailureKind: String, Sendable {
 public struct RuntimeFailure: Error, Sendable, Equatable {
     public let kind: RuntimeFailureKind
     public let detail: String
-    public init(_ kind: RuntimeFailureKind, _ detail: String) { self.kind = kind; self.detail = detail }
+    public let rawDetail: String?
+    public let resetHint: String?
+    public init(_ kind: RuntimeFailureKind, _ detail: String, rawDetail: String? = nil, resetHint: String? = nil) {
+        self.kind = kind
+        self.detail = detail
+        self.rawDetail = rawDetail
+        self.resetHint = resetHint
+    }
 
     public static func promptLengthRejection(_ reason: String?) -> Self? {
         guard let reason else { return nil }
@@ -278,6 +289,7 @@ public enum AgentEvent: Sendable {
     case assistantStarted(UUID)
     case assistantTimestamp(UUID, Int64)
     case textDelta(UUID, Int, String)
+    case assistantImage(UUID, Data)
     case assistantCompleted(UUID, String)
     case assistantAttemptFailed(UUID, RuntimeFailure)
     case tool(RuntimeTool)
@@ -304,6 +316,16 @@ public struct RuntimeEnvelope: Sendable {
     public let event: AgentEvent
     public init(instanceID: UUID, event: AgentEvent) { self.instanceID = instanceID; self.event = event }
 }
+public struct RuntimeConnectionImpact: Sendable, Equatable {
+    public let connectionID: UUID
+    public let runtimeIDs: Set<UUID>
+
+    public init(connectionID: UUID, runtimeIDs: Set<UUID>) {
+        self.connectionID = connectionID
+        self.runtimeIDs = runtimeIDs
+    }
+}
+
 public protocol AgentRuntime: Sendable {
     var instanceID: UUID { get }
     var events: AsyncStream<RuntimeEnvelope> { get }
@@ -313,6 +335,8 @@ public protocol AgentRuntime: Sendable {
     func send(_ prompt: UserPrompt) async throws -> PromptDisposition
     func stop() async throws
     func close(force: Bool) async throws
+    func sharedConnectionImpact() async -> RuntimeConnectionImpact?
+    func forceEndSharedConnection(matching impact: RuntimeConnectionImpact) async throws -> Bool
     func configurationOptions() async throws -> RuntimeConfigurationOptions
     func modelCatalogue() async throws -> [RuntimeModel]
     func thinkingLevels() async throws -> [String]
@@ -325,6 +349,8 @@ public protocol AgentRuntime: Sendable {
 }
 
 public extension AgentRuntime {
+    func sharedConnectionImpact() async -> RuntimeConnectionImpact? { nil }
+    func forceEndSharedConnection(matching impact: RuntimeConnectionImpact) async throws -> Bool { false }
     func connectForHistory() async throws -> RuntimeSession { try await connect() }
     func loadedSessionHistory() async -> [HistoryItem]? { nil }
     func configurationOptions() async throws -> RuntimeConfigurationOptions { throw RuntimeFailure(.setup, String(localized: "此运行时不支持模型配置。", bundle: #bundle)) }

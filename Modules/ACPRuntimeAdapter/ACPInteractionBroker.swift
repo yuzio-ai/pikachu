@@ -28,15 +28,21 @@ final class ACPInteractionBroker: @unchecked Sendable {
     static let maximumIDBytes = 4_096
     static let maximumTitleBytes = 4_096
     static let maximumMessageBytes = 65_536
+    static let maximumApprovalPayloadBytes = 16 * 1_024 * 1_024
+    static let maximumPrettyPrintedRawInputBytes = 262_144
+    static let maximumRetainedToolCallBytes = maximumApprovalPayloadBytes
+    static let maximumRetainedCacheBytes = 16 * 1_024 * 1_024
     static let maximumOptionIDBytes = 512
     static let maximumOptionNameBytes = 1_024
-    static let maximumPathCount = 64
+    static let maximumPathCount = 256
 
     private let lock = NSLock()
     private var pending: [String: PendingEntry] = [:]
     private var seen = Set<String>()
     private var toolCalls: [ToolCallKey: Record] = [:]
+    private var toolCallSizes: [ToolCallKey: Int] = [:]
     private var toolCallOrder: [ToolCallKey] = []
+    private var retainedToolCallBytes = 0
     private var paused = false
     private var acceptedExternalIDs = Set<String>()
 
@@ -221,17 +227,26 @@ final class ACPInteractionBroker: @unchecked Sendable {
     }
 
     private func retainToolCall(_ toolCall: Record, for key: ToolCallKey) {
-        // Bound retained input independently of the notification/transport size.
+        // Bound retained input by total cache memory and entry count without blocking large tool calls.
         toolCallOrder.removeAll { $0 == key }
+        if let previousSize = toolCallSizes.removeValue(forKey: key) {
+            retainedToolCallBytes = max(0, retainedToolCallBytes - previousSize)
+        }
         guard let data = try? JSONSerialization.data(withJSONObject: toolCall),
-              data.count <= Self.maximumMessageBytes + Self.maximumPathCount * Self.maximumTitleBytes else {
+              data.count <= Self.maximumRetainedToolCallBytes else {
             toolCalls.removeValue(forKey: key)
             return
         }
-        if toolCallOrder.count >= 64 {
-            toolCalls.removeValue(forKey: toolCallOrder.removeFirst())
+        while toolCallOrder.count >= 64 || (retainedToolCallBytes + data.count > Self.maximumRetainedCacheBytes && !toolCallOrder.isEmpty) {
+            let evicted = toolCallOrder.removeFirst()
+            toolCalls.removeValue(forKey: evicted)
+            if let evictedSize = toolCallSizes.removeValue(forKey: evicted) {
+                retainedToolCallBytes = max(0, retainedToolCallBytes - evictedSize)
+            }
         }
         toolCalls[key] = toolCall
+        toolCallSizes[key] = data.count
+        retainedToolCallBytes += data.count
         toolCallOrder.append(key)
     }
 
@@ -254,6 +269,18 @@ final class ACPInteractionBroker: @unchecked Sendable {
     private static func sameUTF8(_ lhs: String?, _ rhs: String?) -> Bool {
         guard let lhs, let rhs else { return lhs == nil && rhs == nil }
         return lhs.utf8.elementsEqual(rhs.utf8)
+    }
+
+    private static func serializeRawInput(_ value: Any) -> String? {
+        let compactOptions: JSONSerialization.WritingOptions = [.sortedKeys, .fragmentsAllowed, .withoutEscapingSlashes]
+        guard let compact = try? JSONSerialization.data(withJSONObject: value, options: compactOptions) else {
+            return nil
+        }
+        if compact.count <= Self.maximumPrettyPrintedRawInputBytes,
+           let pretty = try? JSONSerialization.data(withJSONObject: value, options: compactOptions.union(.prettyPrinted)) {
+            return String(decoding: pretty, as: UTF8.self)
+        }
+        return String(decoding: compact, as: UTF8.self)
     }
 
     private func permissionInteraction(
@@ -279,10 +306,7 @@ final class ACPInteractionBroker: @unchecked Sendable {
               (paths + diffs.map(\.path)).allSatisfy({ $0.utf8.count <= Self.maximumTitleBytes }) else { return nil }
 
         let rawInput = toolCall["rawInput"]
-        let rawInputJSON = rawInput.flatMap { value in
-            (try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed, .withoutEscapingSlashes]))
-                .map { String(decoding: $0, as: UTF8.self) }
-        }
+        let rawInputJSON = rawInput.flatMap { Self.serializeRawInput($0) }
         let input = rawInput as? Record ?? [:]
         let command = (input["CommandLine"] as? String) ?? (input["command"] as? String)
         let directory = (input["Cwd"] as? String) ?? (input["cwd"] as? String)
@@ -291,8 +315,9 @@ final class ACPInteractionBroker: @unchecked Sendable {
         let diffBytes = diffs.reduce(0) { $0 + ($1.oldText?.utf8.count ?? 0) + $1.newText.utf8.count }
         let additionalDisplayFields = [command, directory, toolSummary].compactMap { $0 }
         guard rawInput == nil || rawInputJSON != nil,
-              message.utf8.count + (rawInputJSON?.utf8.count ?? 0) + diffBytes <= Self.maximumMessageBytes,
-              additionalDisplayFields.allSatisfy({ $0.utf8.count <= Self.maximumMessageBytes }) else { return nil }
+              message.utf8.count + diffBytes <= Self.maximumApprovalPayloadBytes,
+              (rawInputJSON?.utf8.count ?? 0) <= Self.maximumApprovalPayloadBytes,
+              additionalDisplayFields.allSatisfy({ $0.utf8.count <= Self.maximumApprovalPayloadBytes }) else { return nil }
 
         let approval: RuntimeToolApproval?
         if toolKind == "execute", let command, !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -303,9 +328,9 @@ final class ACPInteractionBroker: @unchecked Sendable {
         let awaitingDetails: Bool
         switch toolKind {
         case "execute":
-            awaitingDetails = approval == nil
+            awaitingDetails = toolCallID != nil && approval == nil
         case "edit":
-            awaitingDetails = diffs.isEmpty
+            awaitingDetails = toolCallID != nil && diffs.isEmpty
         case nil:
             // An update can supply input before the operation kind. A standard diff is
             // already reviewable, while arbitrary input is only shown in folded JSON.
@@ -427,13 +452,22 @@ final class ACPInteractionBroker: @unchecked Sendable {
     func expire(now: Date = Date()) throws {
         let expired: [PendingEntry] = lock.withLock {
             let items = pending.values.filter { $0.interaction.expiresAt <= now }
+                .sorted {
+                    let lhs = $0.interaction, rhs = $1.interaction
+                    if lhs.expiresAt != rhs.expiresAt { return lhs.expiresAt < rhs.expiresAt }
+                    if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
+                    return lhs.requestID < rhs.requestID
+                }
             for item in items {
                 pending.removeValue(forKey: item.interaction.requestID)
             }
             return items
         }
+        // A cancellation reply can settle the turn. Publish the entire batch first.
         for entry in expired {
             emit(.interactionEnded(entry.interaction.id, .expired))
+        }
+        for entry in expired {
             try sendResponse(entry.rpcID, entry.cancellation)
         }
     }
@@ -444,7 +478,9 @@ final class ACPInteractionBroker: @unchecked Sendable {
             pending.removeAll()
             acceptedExternalIDs.removeAll()
             toolCalls.removeAll()
+            toolCallSizes.removeAll()
             toolCallOrder.removeAll()
+            retainedToolCallBytes = 0
             return items
         }
         for entry in entries {

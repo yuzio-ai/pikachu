@@ -8,10 +8,12 @@ public actor ACPAgentConnection: RuntimeAgentControl {
     private let configuration: ACPConfiguration
     private let channel: RuntimeEventChannel
     private let terminalAuthenticator: RuntimeTerminalAuthenticator?
+    private let pool: ACPConnectionPool?
     private var terminalLogin: Task<Void, Error>?
     private var startingBridge: Task<ACPConnection, Error>?
     private var terminalCleanup: RuntimeTerminalCleanupPending?
     private var startupCleanup: ACPStartupCleanupPending?
+    private var connecting = false
     private var closing = false
     public nonisolated let events: AsyncStream<RuntimeEnvelope>
     public var isConnected: Bool {
@@ -22,17 +24,22 @@ public actor ACPAgentConnection: RuntimeAgentControl {
         return bridge.authentication
     }
 
-    public init(configuration: ACPConfiguration, terminalAuthenticator: RuntimeTerminalAuthenticator? = nil) {
+    public var sharedConnectionID: UUID? { bridge?.sharedHost?.id }
+
+    public init(configuration: ACPConfiguration, terminalAuthenticator: RuntimeTerminalAuthenticator? = nil,
+                pool: ACPConnectionPool? = nil) {
         self.configuration = configuration
         let channel = RuntimeEventChannel()
         self.channel = channel
         self.terminalAuthenticator = terminalAuthenticator
+        self.pool = pool
         events = channel.stream()
     }
 
     public static func open(_ configuration: ACPConfiguration,
-                            terminalAuthenticator: RuntimeTerminalAuthenticator? = nil) async throws -> ACPAgentConnection {
-        let opened = ACPAgentConnection(configuration: configuration, terminalAuthenticator: terminalAuthenticator)
+                            terminalAuthenticator: RuntimeTerminalAuthenticator? = nil,
+                            pool: ACPConnectionPool? = nil) async throws -> ACPAgentConnection {
+        let opened = ACPAgentConnection(configuration: configuration, terminalAuthenticator: terminalAuthenticator, pool: pool)
         do {
             try await opened.connect()
         } catch {
@@ -44,10 +51,21 @@ public actor ACPAgentConnection: RuntimeAgentControl {
 
     public func connect() async throws {
         try Task.checkCancellation()
-        guard !closing, startingBridge == nil, bridge == nil, startupCleanup == nil else { throw unsupported() }
+        guard !closing, !connecting, startingBridge == nil, bridge == nil, startupCleanup == nil else { throw unsupported() }
+        connecting = true
+        defer { connecting = false }
         let config = configuration
         let sink = channel
         let supportsTerminal = terminalAuthenticator != nil
+        let host = try await pool?.connection(for: config)
+        try Task.checkCancellation()
+        guard !closing else { throw CancellationError() }
+        if let host {
+            let endpoint = try ACPConnection(configuration: config, instanceID: UUID(), sink: sink,
+                                             host: host, deferDisconnectEvents: false, isControl: true)
+            bridge = endpoint
+            return
+        }
         try await startBridge {
             try ACPConnection(configuration: config, instanceID: UUID(), sink: sink,
                               terminalAuthentication: supportsTerminal, deferDisconnectEvents: true)
@@ -97,6 +115,7 @@ public actor ACPAgentConnection: RuntimeAgentControl {
         }
         if method.kind == .agent {
             try await bridge.authenticateAgent(methodID: methodID)
+            await pool?.authenticated(on: bridge.sharedHost)
             return
         }
 
@@ -115,6 +134,18 @@ public actor ACPAgentConnection: RuntimeAgentControl {
         try await Task.detached { try bridge.close(force: false, notify: false) }.value
         self.bridge = nil
         guard !closing, !Task.isCancelled else { throw CancellationError() }
+
+        if let previousHost = bridge.sharedHost, let pool {
+            if let host = try await pool.reconnectAfterLogin(configuration, replacing: previousHost) {
+                try Task.checkCancellation()
+                guard !closing else { throw CancellationError() }
+                self.bridge = try ACPConnection(configuration: configuration, instanceID: UUID(), sink: channel,
+                                                host: host, deferDisconnectEvents: false, isControl: true)
+            } else {
+                try await connect()
+            }
+            return
+        }
 
         try await startBridge {
             try bridge.reopenAfterTerminalAuthentication(instanceID: UUID(), deferDisconnectEvents: true)
@@ -182,8 +213,9 @@ public actor ACPAgentConnection: RuntimeAgentControl {
     public func delete(sessionID: String) async throws {
         let bridge = try connectedBridge()
         guard bridge.initializeResult.agentCapabilities.sessions.contains("delete") else { throw unsupported() }
-        _ = try await request(ACPProtocol.Method.sessionDelete, params: ["sessionId": sessionID],
-                              allowedError: ACPProtocol.ErrorCode.resourceNotFound)
+        let response = try await request(ACPProtocol.Method.sessionDelete, params: ["sessionId": sessionID],
+                                         allowedError: ACPProtocol.ErrorCode.resourceNotFound)
+        try ACPConnection.requireSessionMutationResult(response)
     }
 
     public func respond(to interaction: RuntimeInteraction, with response: InteractionResponse) async throws {
@@ -194,11 +226,13 @@ public actor ACPAgentConnection: RuntimeAgentControl {
                          allowedError: Int? = nil) async throws -> JSONRPCResponse {
         try Task.checkCancellation()
         let bridge = try connectedBridge()
-        let id = try bridge.client.sendRequest(method: method, params: params)
-        defer { bridge.broker.cancelLinkedRequests(id) }
+        let id = try bridge.sendLinkedRequest(method, params: params)
+        defer { bridge.finishLinkedRequest(id) }
         let response = try await bridge.client.awaitResponse(id: id, timeout: timeout, notifyPeerOnCancel: true)
         if let error = response.error, error.code != allowedError {
-            throw ACPEventMapper.failure(from: ACPConnection.toACPError(error))
+            let failure = ACPEventMapper.failure(from: ACPConnection.toACPError(error))
+            if failure.kind == .authentication { await pool?.authenticationRequired(on: bridge.sharedHost) }
+            throw failure
         }
         return response
     }

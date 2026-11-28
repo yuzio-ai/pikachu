@@ -60,7 +60,7 @@ let defaultOutput = projectRoot.appendingPathComponent(".verification-runs/acp-c
 let output = URL(fileURLWithPath: option("--output", defaultOutput.path) ?? defaultOutput.path)
 try fm.createDirectory(at: output, withIntermediateDirectories: true)
 
-let tempWork = fm.temporaryDirectory.appendingPathComponent("Pikachu-acp-compat-probe-\(UUID().uuidString)")
+let tempWork = fm.temporaryDirectory.appendingPathComponent("Zivvi-acp-compat-probe-\(UUID().uuidString)")
 try fm.createDirectory(at: tempWork, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
 defer { try? fm.removeItem(at: tempWork) }
 
@@ -690,7 +690,7 @@ if suite == "local" {
 
         let initParams: Record = [
             "protocolVersion": ACPProtocol.supportedVersion,
-            "clientInfo": ["name": "pikachu-probe", "version": "1.0"] as Record,
+            "clientInfo": ["name": "zivvi-probe", "version": "1.0"] as Record,
             "clientCapabilities": [
                 "fs": ["readTextFile": false, "writeTextFile": false] as Record,
                 "terminal": false

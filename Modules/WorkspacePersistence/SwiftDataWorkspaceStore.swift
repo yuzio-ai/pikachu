@@ -23,7 +23,7 @@ public actor SwiftDataWorkspaceStore: WorkspaceStore {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         sessionHistoryDirectory = url.appendingPathExtension("session-history")
         let schema = Schema(versionedSchema: WorkspaceSchemaV1.self)
-        let config = ModelConfiguration("Pikachu", schema: schema, url: url, cloudKitDatabase: .none)
+        let config = ModelConfiguration("Zivvi", schema: schema, url: url, cloudKitDatabase: .none)
         container = try ModelContainer(for: schema, configurations: [config])
     }
     private func modelContext() -> ModelContext {

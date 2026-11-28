@@ -1,5 +1,27 @@
 import Foundation
 
+public enum RuntimeACPInlineImage {
+    public static let maximumBytes = 8 * 1_024 * 1_024
+
+    public static func mimeType(for file: URL) -> String? {
+        switch file.pathExtension.lowercased() {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        default: return nil
+        }
+    }
+}
+
+public enum ACPPoolStatus: Sendable, Equatable {
+    case starting, ready(UUID), reconnecting, dedicated(ACPDedicatedConnectionReason), needsLogin(UUID?), failed(String)
+}
+
+public enum ACPDedicatedConnectionReason: Sendable, Equatable {
+    case missingSessionClose, incompatible
+}
+
 /// Identifies the protocol family of a configured Coding Agent runtime.
 public enum RuntimeAgentKind: String, Codable, Sendable, Equatable, Hashable, CaseIterable {
     case acp
@@ -335,28 +357,6 @@ public struct RuntimePermissionContext: Codable, Sendable, Equatable {
     }
 }
 
-/// Identifies whether a session's authoritative history lives in a local file or is managed by a runtime (`session/load`).
-public enum RuntimeHistorySource: Codable, Sendable, Equatable, Hashable {
-    case localFile(URL)
-    case runtimeManaged(runtimeID: String, sessionID: String)
-}
-
-/// Bounded, read-only offline display cache for file-less ACP sessions.
-/// Never treated as execution truth when reconnecting (`session/load` is authoritative).
-public struct ACPReadOnlyCache: Codable, Sendable, Equatable {
-    public var runtimeID: String
-    public var runtimeSessionID: String
-    public var items: [HistoryItem]
-    public var updatedAt: Date
-
-    public init(runtimeID: String, runtimeSessionID: String, items: [HistoryItem], updatedAt: Date = Date()) {
-        self.runtimeID = runtimeID
-        self.runtimeSessionID = runtimeSessionID
-        self.items = items
-        self.updatedAt = updatedAt
-    }
-}
-
 public struct RuntimeRemoteSession: Equatable, Sendable, Identifiable {
     public let id: String
     public let directory: String
@@ -478,10 +478,15 @@ public protocol RuntimeAgentControl: Sendable {
     var authentication: RuntimeAgentAuthentication { get async }
     var isConnected: Bool { get async }
     var events: AsyncStream<RuntimeEnvelope> { get }
+    var sharedConnectionID: UUID? { get async }
     func authenticate(methodID: String) async throws
     func logout() async throws
     func list(cursor: String?) async throws -> RuntimeRemoteSessionPage
     func delete(sessionID: String) async throws
     func respond(to interaction: RuntimeInteraction, with response: InteractionResponse) async throws
     func close() async throws
+}
+
+public extension RuntimeAgentControl {
+    var sharedConnectionID: UUID? { get async { nil } }
 }

@@ -26,8 +26,15 @@ public struct HistoryItem: Sendable, Identifiable, Codable, Equatable {
     public var tool: RuntimeTool?
     public var sentAt: Date?
     public var messageTimestampMs: Int64?
-    public init(id: String, kind: HistoryItemKind, text: String = "", tool: RuntimeTool? = nil, sentAt: Date? = nil, messageTimestampMs: Int64? = nil) {
+    public var images: [Data]?
+    public init(id: String, kind: HistoryItemKind, text: String = "", tool: RuntimeTool? = nil, sentAt: Date? = nil,
+                messageTimestampMs: Int64? = nil, images: [Data]? = nil) {
         self.id = id; self.kind = kind; self.text = text; self.tool = tool; self.sentAt = sentAt; self.messageTimestampMs = messageTimestampMs
+        self.images = images
+    }
+    public mutating func appendImage(_ image: Data) {
+        if images == nil { images = [] }
+        images?.append(image)
     }
 }
 public struct HistoryTurnInfo: Sendable, Equatable {
@@ -51,28 +58,5 @@ public struct HistoryTurnInfo: Sendable, Equatable {
         self.lastAssistantTimestampMs = lastAssistantTimestampMs ?? firstAssistantTimestampMs
         self.endedAt = endedAt; self.durationSeconds = durationSeconds; self.status = status
         self.hadAssistantFailure = hadAssistantFailure
-    }
-}
-public struct RuntimeHistory: Sendable {
-    public let sessionID: String
-    public let file: URL
-    public let cwd: String
-    public let title: String
-    public let items: [HistoryItem]
-    public let turns: [HistoryTurnInfo]
-    public let incompleteTail: Bool
-    public let warnings: [String]
-    public let selection: RuntimeSelection?
-    public let usage: RuntimeUsage?
-    public let activityAt: Date?
-    public let lastObservedModel: RuntimeSelection?
-    public let needsAttention: Bool
-    public init(sessionID: String, file: URL, cwd: String, title: String, items: [HistoryItem], turns: [HistoryTurnInfo] = [], incompleteTail: Bool, warnings: [String], selection: RuntimeSelection?, usage: RuntimeUsage? = nil,
-                activityAt: Date? = nil, lastObservedModel: RuntimeSelection? = nil, needsAttention: Bool = false) {
-        self.sessionID = sessionID; self.file = file; self.cwd = cwd; self.title = title; self.items = items; self.turns = turns
-        self.incompleteTail = incompleteTail; self.warnings = warnings; self.selection = selection
-        self.usage = usage
-        self.activityAt = activityAt; self.lastObservedModel = lastObservedModel
-        self.needsAttention = needsAttention || incompleteTail
     }
 }

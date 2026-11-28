@@ -10,7 +10,7 @@ import time
 folder = pathlib.Path.cwd()
 if "--short-lived-parent" in sys.argv:
     env = dict(os.environ)
-    env.pop("PIKACHU_EXECUTION_TOKEN", None)
+    env.pop("ZIVVI_EXECUTION_TOKEN", None)
     leaf = subprocess.Popen(["/bin/sleep", "10"], env=env, start_new_session=True,
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     (folder / "leaf.pid").write_text(str(leaf.pid))

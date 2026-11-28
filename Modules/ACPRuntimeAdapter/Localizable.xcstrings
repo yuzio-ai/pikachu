@@ -51,6 +51,26 @@
         }
       }
     },
+    "ACP Agent 启动失败。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to start ACP agent."
+          }
+        }
+      }
+    },
+    "ACP Agent 响应格式无效。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid ACP agent response format."
+          }
+        }
+      }
+    },
     "ACP Agent 已确认外部交互完成。" : {
       "localizations" : {
         "en" : {
@@ -81,12 +101,32 @@
         }
       }
     },
+    "ACP Agent 返回的会话标识已在此连接上使用。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent returned a session ID already used on this connection."
+          }
+        }
+      }
+    },
     "允许写入" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allow write"
+          }
+        }
+      }
+    },
+    "共享 ACP 连接暂时无法打开新会话。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The shared ACP connection cannot open new sessions at the moment."
           }
         }
       }
@@ -191,6 +231,16 @@
         }
       }
     },
+    "ACP 会话创建结果待核实。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session creation result is still unknown."
+          }
+        }
+      }
+    },
     "ACP 初始化响应格式无效。" : {
       "localizations" : {
         "en" : {
@@ -251,6 +301,16 @@
         }
       }
     },
+    "ACP 智能体配置已经更改，请重试。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The ACP agent configuration changed. Try again."
+          }
+        }
+      }
+    },
     "ACP 环境变量无效。" : {
       "localizations" : {
         "en" : {
@@ -286,7 +346,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The ACP runtime disconnected and managed processes were cleaned up. Pikachu will not resend the task automatically."
+            "value" : "The ACP runtime disconnected and managed processes were cleaned up. Zivvi will not resend the task automatically."
           }
         }
       }
@@ -399,7 +459,14 @@
       }
     },
     "已恢复 ACP 会话。历史记录可能不完整。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restored ACP session. History may be incomplete."
+          }
+        }
+      }
     },
     "当前 ACP Agent 不支持恢复已有会话（session/load），请新建会话。" : {
       "localizations" : {
@@ -407,6 +474,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This ACP agent does not support resuming existing sessions (session/load). Start a new session instead."
+          }
+        }
+      }
+    },
+    "当前 ACP Agent 不支持模型配置。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This ACP agent does not support model configuration."
           }
         }
       }
@@ -437,6 +514,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This build supports ACP v1 (protocolVersion: 1). The agent returned an unsupported protocol version."
+          }
+        }
+      }
+    },
+    "当前模型额度已耗尽，请查看额度或切换其他模型。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The current model's quota is exhausted. Check your quota or switch models."
           }
         }
       }
@@ -626,7 +713,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The request timed out and the result is unconfirmed. Pikachu will not resend automatically."
+            "value" : "The request timed out and the result is unconfirmed. Zivvi will not resend automatically."
           }
         }
       }

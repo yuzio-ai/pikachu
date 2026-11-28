@@ -176,15 +176,45 @@ public struct ACPHandoffCleanup: Sendable, Equatable {
 
     public var isConfirmed: Bool { Self.isConfirmed(in: directory) }
 
+    private static let sharedConnectionFile = "shared-connection.json"
+    private static let sharedSessionClosedFile = "shared-session-closed"
+
+    func recordSharedConnection(_ id: UUID) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        do {
+            try JSONEncoder().encode(id).write(to: directory.appendingPathComponent(Self.sharedConnectionFile), options: .atomic)
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
+    func recordSharedSessionClose() throws {
+        try Data().write(to: directory.appendingPathComponent(Self.sharedSessionClosedFile), options: .atomic)
+    }
+
     private static func isConfirmed(in directory: URL) -> Bool {
-        guard hasCleanReport(in: directory),
-              let entries = try? FileManager.default.contentsOfDirectory(
+        guard let entries = try? FileManager.default.contentsOfDirectory(
                 at: directory, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
               ) else { return false }
+        let sharedFile = directory.appendingPathComponent(sharedConnectionFile)
+        let ignored: Set<String>
+        if let data = try? Data(contentsOf: sharedFile), let id = try? JSONDecoder().decode(UUID.self, from: data) {
+            let connection = directory.deletingLastPathComponent().appendingPathComponent("connections", isDirectory: true)
+                .appendingPathComponent(id.uuidString, isDirectory: true)
+            let closed = directory.appendingPathComponent(sharedSessionClosedFile)
+            guard FileManager.default.fileExists(atPath: closed.path) || hasCleanReport(in: connection) else { return false }
+            ignored = [sharedConnectionFile, sharedSessionClosedFile]
+        } else {
+            guard hasCleanReport(in: directory) else { return false }
+            ignored = ["status.json"]
+        }
         // Terminal supervisors are siblings of the ACP supervisor. Its clean report
         // does not cover them, including terminals whose launch never acknowledged.
-        return entries.filter { $0.lastPathComponent != "status.json" }.allSatisfy { entry in
-            entry.lastPathComponent.hasPrefix("pikachu-terminal-") && hasCleanReport(in: entry)
+        return entries.filter { !ignored.contains($0.lastPathComponent) }.allSatisfy { entry in
+            let name = entry.lastPathComponent
+            return (name.hasPrefix("zivvi-terminal-") || name.hasPrefix("pikachu-terminal-")) && hasCleanReport(in: entry)
         }
     }
 
@@ -205,6 +235,18 @@ public struct ACPHandoffCleanup: Sendable, Equatable {
         for entry in entries {
             guard let id = UUID(uuidString: entry.lastPathComponent), !ids.contains(id), isConfirmed(in: entry) else { continue }
             try? manager.removeItem(at: entry)
+        }
+        guard let remaining = try? manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return }
+        let sharedIDs = Set(remaining.compactMap { directory -> UUID? in
+            guard UUID(uuidString: directory.lastPathComponent) != nil,
+                  let data = try? Data(contentsOf: directory.appendingPathComponent(sharedConnectionFile)) else { return nil }
+            return try? JSONDecoder().decode(UUID.self, from: data)
+        })
+        let connections = root.appendingPathComponent("connections", isDirectory: true)
+        let reports = (try? manager.contentsOfDirectory(at: connections, includingPropertiesForKeys: nil)) ?? []
+        for report in reports {
+            guard let id = UUID(uuidString: report.lastPathComponent), !sharedIDs.contains(id), hasCleanReport(in: report) else { continue }
+            try? manager.removeItem(at: report)
         }
     }
 }

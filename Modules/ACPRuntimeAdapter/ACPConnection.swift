@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import AgentRuntimeCore
 import ProcessSupervision
 
@@ -10,7 +11,11 @@ struct ACPStartupCleanupPending: Error, Sendable {
     }
 
     func confirm() throws {
-        guard !process.isRunning else { throw failure }
+        // Foundation can report the process as running briefly after the kernel marks it exited.
+        let pid = process.process.processIdentifier
+        let exited = !process.isRunning || ProcessIdentity.read(pid)?.live == false
+            || (pid > 0 && Darwin.kill(pid, 0) == -1 && errno == ESRCH)
+        guard exited else { throw failure }
         if let url = process.supervisionStatusURL {
             let status = process.supervisionStatus
             guard status["state"] as? String == "clean", status["remaining"] as? Int == 0,
@@ -25,7 +30,6 @@ struct ACPStartupCleanupPending: Error, Sendable {
 /// Manages handshake, session creation/resume with replay isolation, non-blocking `session/prompt`,
 /// `session/cancel` with bounded settlement wait, dual-path config updates, and supervised close.
 final class ACPConnection: @unchecked Sendable {
-    static let maximumImageAttachmentBytes = 8 * 1_024 * 1_024
     static let defaultControlTimeout: Double = 15
     static let sessionOpenTimeout: Double = 30
 
@@ -38,6 +42,8 @@ final class ACPConnection: @unchecked Sendable {
     let initializeResult: ACPInitializeResult
     private let launchEnvironment: [String: String]
     private let terminalAuthentication: Bool
+    let sharedHost: ACPSharedHost?
+    let isControl: Bool
 
     private let stateLock = NSLock()
     private let closeLock = NSLock()
@@ -47,6 +53,9 @@ final class ACPConnection: @unchecked Sendable {
 
     private var mapper = ACPEventMapper()
     private var metadata = ACPSessionMetadata()
+    private var configurationRevision = 0
+    private var configOptionsReceiveOrder = 0
+    private var reportedMode: (id: String, receiveOrder: Int)?
     private var sessionID: String?
     private var pendingReplaySessionID: String?
     private var loadedHistory: [HistoryItem]?
@@ -58,6 +67,9 @@ final class ACPConnection: @unchecked Sendable {
     private var disposed = false
     private var deferDisconnectEvents: Bool
     private var connectionEnded = false
+    private var sharedDisconnectConfirmed = false
+    private var sharedSessionMayBeOpen = false
+    private var sharedSessionClosed = false
 
     private var defaultProvider: String {
         if let name = initializeResult.agentInfo?.name, !name.isEmpty {
@@ -74,12 +86,15 @@ final class ACPConnection: @unchecked Sendable {
         supervisionRoot: URL? = nil,
         precheckedEnvironment: [String: String]? = nil,
         terminalAuthentication: Bool = false,
-        deferDisconnectEvents: Bool = false
+        deferDisconnectEvents: Bool = false,
+        startPump: Bool = true
     ) throws {
         self.configuration = config
         self.instanceID = instanceID
         self.sink = sink
         self.deferDisconnectEvents = deferDisconnectEvents
+        self.sharedHost = nil
+        self.isControl = false
         let command = config.executable.resolvingSymlinksInPath().lastPathComponent
         let shellCommands = ["sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "ssh", "mosh"]
         self.terminalAuthentication = terminalAuthentication && !shellCommands.contains(command)
@@ -139,9 +154,33 @@ final class ACPConnection: @unchecked Sendable {
             throw error
         }
 
-        Thread.detachNewThread { [self] in
-            self.pump()
+        if startPump {
+            Thread.detachNewThread { [self] in self.pump() }
         }
+    }
+
+    init(configuration: ACPConfiguration, instanceID: UUID, sink: RuntimeEventChannel,
+         host: ACPSharedHost, deferDisconnectEvents: Bool, isControl: Bool = false) throws {
+        self.configuration = configuration
+        self.instanceID = instanceID
+        self.sink = sink
+        self.deferDisconnectEvents = deferDisconnectEvents
+        self.sharedHost = host
+        self.isControl = isControl
+        let root = host.root
+        client = root.client
+        initializeResult = root.initializeResult
+        launchEnvironment = root.launchEnvironment
+        terminalAuthentication = root.terminalAuthentication
+        let services = ACPClientServices(client: root.client, configuration: configuration,
+                                         advertisedPermissions: root.clientServices.advertisedPermissions)
+        clientServices = services
+        broker = ACPInteractionBroker(instanceID: instanceID, sendResponse: { id, payload in
+            try services.respondToApproval(id, payload: payload)
+        }, emit: { event in
+            sink.send(.init(instanceID: instanceID, event: event))
+        })
+        try host.attach(self)
     }
 
     // MARK: - Handshake & Session Lifecycle
@@ -152,8 +191,8 @@ final class ACPConnection: @unchecked Sendable {
         let params: Record = [
             "protocolVersion": ACPProtocol.supportedVersion,
             "clientInfo": [
-                "name": "pikachu",
-                "title": "Pikachu",
+                "name": "zivvi",
+                "title": "Zivvi",
                 "version": appVersion
             ],
             "clientCapabilities": [
@@ -194,6 +233,15 @@ final class ACPConnection: @unchecked Sendable {
     }
 
     func openSession() throws -> RuntimeSession {
+        if let sharedHost {
+            return try sharedHost.open(self, isNew: configuration.expectedSessionID?.isEmpty != false) {
+                try self.openConfiguredSession()
+            }
+        }
+        return try openConfiguredSession()
+    }
+
+    private func openConfiguredSession() throws -> RuntimeSession {
         if let expectedID = configuration.expectedSessionID, !expectedID.isEmpty {
             if initializeResult.agentCapabilities.loadSession {
                 return try loadSession(id: expectedID)
@@ -262,11 +310,13 @@ final class ACPConnection: @unchecked Sendable {
         }
         let response: JSONRPCResponse
         do {
-            let rpcID = try client.sendRequest(method: ACPProtocol.Method.authenticate, params: ["methodId": methodID])
-            defer { broker.cancelLinkedRequests(rpcID) }
+            let rpcID = try sendLinkedRequest(ACPProtocol.Method.authenticate, params: ["methodId": methodID])
+            defer { finishLinkedRequest(rpcID) }
             response = try await client.awaitResponse(id: rpcID, timeout: 300, notifyPeerOnCancel: true)
         } catch is CancellationError {
             throw CancellationError()
+        } catch let failure as RuntimeFailure {
+            throw failure
         } catch {
             throw ACPEventMapper.failure(String(describing: error))
         }
@@ -279,7 +329,7 @@ final class ACPConnection: @unchecked Sendable {
               method.arguments.allSatisfy({ !$0.utf8.contains(0) }),
               method.environment.allSatisfy({ name, value in
                   !name.isEmpty && !name.contains("=") && !name.utf8.contains(0)
-                      && !name.hasPrefix("PIKACHU_") && !value.utf8.contains(0)
+                      && !name.hasPrefix("ZIVVI_") && !value.utf8.contains(0)
               }) else {
             throw RuntimeFailure(.setup, String(localized: "ACP 终端登录配置无效。", bundle: #bundle))
         }
@@ -305,7 +355,7 @@ final class ACPConnection: @unchecked Sendable {
     }
 
     var isAvailable: Bool {
-        stateLock.withLock { !closing && !disposed && !connectionEnded } && client.isRunning
+        stateLock.withLock { !closing && !disposed && !connectionEnded } && client.isRunning && !client.isTransportEnding
     }
 
     func enableDisconnectEvents() throws {
@@ -332,14 +382,32 @@ final class ACPConnection: @unchecked Sendable {
             }
             continuation.yield(response)
             continuation.finish()
+        } else if let sharedHost {
+            try sharedHost.withInboundDispatch { try broker.respond(request, response) }
         } else {
-            try broker.respond(request, response)
+            try inboundDispatchLock.withLock { try broker.respond(request, response) }
         }
     }
 
     func cancelInteractions() {
         stateLock.withLock { authenticationInteraction?.1.finish() }
         broker.cancelAll()
+    }
+
+    func sendLinkedRequest(_ method: String, params: Record?) throws -> JSONRPCID {
+        if let sharedHost { return try sharedHost.sendLinkedRequest(from: self, method: method, params: params) }
+        return try client.sendRequest(method: method, params: params)
+    }
+
+    func finishLinkedRequest(_ id: JSONRPCID) {
+        sharedHost?.finishLinkedRequest(id)
+        broker.cancelLinkedRequests(id)
+    }
+
+    private func sessionSetupRequest(_ method: String, params: Record) throws -> JSONRPCResponse {
+        let request = try sendLinkedRequest(method, params: params)
+        defer { finishLinkedRequest(request) }
+        return try client.waitResponse(id: request, timeout: Self.sessionOpenTimeout)
     }
 
     private func createSession() throws -> RuntimeSession {
@@ -349,8 +417,11 @@ final class ACPConnection: @unchecked Sendable {
         ]
         let response: JSONRPCResponse
         do {
-            response = try client.request(method: ACPProtocol.Method.sessionNew, params: params, timeout: Self.sessionOpenTimeout)
+            response = try sessionSetupRequest(ACPProtocol.Method.sessionNew, params: params)
+        } catch let failure as RuntimeFailure where failure.kind == .setup {
+            throw failure
         } catch {
+            sharedHost?.markUnknownCreation(self)
             throw ACPEventMapper.failure(String(describing: error))
         }
 
@@ -360,14 +431,16 @@ final class ACPConnection: @unchecked Sendable {
 
         guard let record = response.resultRecord,
               let id = record["sessionId"] as? String, !id.isEmpty else {
+            sharedHost?.markUnknownCreation(self)
             throw RuntimeFailure(.protocolError, String(localized: "ACP Agent 未返回有效的会话标识。", bundle: #bundle))
         }
 
-        let parsedMetadata = ACPSessionMetadata.parse(record)
-        stateLock.withLock {
+        updateConfiguration {
             sessionID = id
-            metadata = parsedMetadata
+            mergeSessionMetadata(response)
         }
+        try sharedHost?.bind(self, sessionID: id, newlyCreated: true)
+        sharedSessionMayBeOpen = sharedHost != nil
 
         try applyInitialModeIfNeeded()
         return sessionSnapshot()
@@ -385,6 +458,11 @@ final class ACPConnection: @unchecked Sendable {
             pendingReplaySessionID = expectedID
             mapper.beginHistoryReplay()
         }
+        if let sharedHost {
+            try sharedHost.bind(self, sessionID: expectedID)
+            stateLock.withLock { sessionID = expectedID }
+            sharedSessionMayBeOpen = true
+        }
 
         let params: Record = [
             "sessionId": expectedID,
@@ -394,16 +472,21 @@ final class ACPConnection: @unchecked Sendable {
 
         let response: JSONRPCResponse
         do {
-            response = try client.request(method: ACPProtocol.Method.sessionLoad, params: params, timeout: Self.sessionOpenTimeout)
+            response = try sessionSetupRequest(ACPProtocol.Method.sessionLoad, params: params)
         } catch {
             _ = mapperLock.withLock { () -> [HistoryItem] in
                 pendingReplaySessionID = nil
                 return mapper.finishHistoryReplay()
             }
+            if let failure = error as? RuntimeFailure, failure.kind == .setup {
+                sharedSessionMayBeOpen = false
+                throw failure
+            }
             throw ACPEventMapper.failure(String(describing: error))
         }
 
         if let rpcError = response.error {
+            sharedSessionMayBeOpen = false
             _ = mapperLock.withLock { () -> [HistoryItem] in
                 pendingReplaySessionID = nil
                 return mapper.finishHistoryReplay()
@@ -413,22 +496,26 @@ final class ACPConnection: @unchecked Sendable {
 
         // Drain any remaining notifications emitted before the session/load response
         // while replayingHistory is still active, so nothing leaks as a live turn.
-        let replayedItems: [HistoryItem] = inboundDispatchLock.withLock {
-            let batch = client.drainInbound()
-            handleInboundMessages(batch.messages)
-            return mapperLock.withLock {
-                pendingReplaySessionID = nil
-                return mapper.finishHistoryReplay()
+        let finishReplay = {
+            self.mapperLock.withLock {
+                self.pendingReplaySessionID = nil
+                return self.mapper.finishHistoryReplay()
+            }
+        }
+        let replayedItems: [HistoryItem]
+        if let sharedHost {
+            replayedItems = sharedHost.drainInbound(then: finishReplay)
+        } else {
+            replayedItems = inboundDispatchLock.withLock {
+                handleInboundMessages(client.drainInbound().messages)
+                return finishReplay()
             }
         }
 
-        let responseMetadata = response.resultRecord.map(ACPSessionMetadata.parse) ?? ACPSessionMetadata()
-        stateLock.withLock {
+        updateConfiguration {
             sessionID = expectedID
             loadedHistory = replayedItems
-            if let modes = responseMetadata.modes { metadata.modes = modes }
-            if let models = responseMetadata.models { metadata.models = models }
-            if !responseMetadata.configOptions.isEmpty { metadata.configOptions = responseMetadata.configOptions }
+            mergeSessionMetadata(response)
         }
 
         if !replayedItems.isEmpty {
@@ -451,12 +538,27 @@ final class ACPConnection: @unchecked Sendable {
         guard initializeResult.agentCapabilities.sessions.contains("resume") else {
             throw RuntimeFailure(.setup, String(localized: "当前 ACP Agent 不支持恢复已有会话（session/load），请新建会话。", bundle: #bundle))
         }
-        let result = try controlRequest(ACPProtocol.Method.sessionResume, params: [
-            "sessionId": id, "cwd": configuration.workspace.path, "mcpServers": [] as [Any]
-        ], timeout: Self.sessionOpenTimeout)
-        stateLock.withLock {
+        if let sharedHost {
+            try sharedHost.bind(self, sessionID: id)
+            stateLock.withLock { sessionID = id }
+            sharedSessionMayBeOpen = true
+        }
+        let response: JSONRPCResponse
+        do {
+            response = try sessionSetupRequest(ACPProtocol.Method.sessionResume, params: [
+                "sessionId": id, "cwd": configuration.workspace.path, "mcpServers": [] as [Any]
+            ])
+        } catch let failure as RuntimeFailure where failure.kind == .setup {
+            sharedSessionMayBeOpen = false
+            throw failure
+        }
+        if let rpcError = response.error {
+            sharedSessionMayBeOpen = false
+            throw ACPEventMapper.failure(from: Self.toACPError(rpcError))
+        }
+        updateConfiguration {
             sessionID = id
-            metadata = ACPSessionMetadata.parse(result)
+            mergeSessionMetadata(response)
         }
         emit(.notice(String(localized: "已恢复 ACP 会话。历史记录可能不完整。", bundle: #bundle)))
         try applyInitialModeIfNeeded()
@@ -479,8 +581,53 @@ final class ACPConnection: @unchecked Sendable {
 
     // MARK: - Session Snapshot & Configuration
 
+    private func updateConfiguration(_ update: () -> Void) {
+        stateLock.withLock {
+            let previous = metadata
+            update()
+            if metadata != previous { configurationRevision += 1 }
+        }
+    }
+
+    // The following metadata helpers run inside updateConfiguration.
+    private func mergeSessionMetadata(_ response: JSONRPCResponse) {
+        guard let record = response.resultRecord else { return }
+        if var modes = ACPModesState.parse(record["modes"] as? Record) {
+            if let reportedMode, reportedMode.receiveOrder > response.receiveOrder { modes.currentModeID = reportedMode.id }
+            metadata.modes = modes
+        }
+        if let models = ACPModelsState.parse(record["models"] as? Record) { metadata.models = models }
+        if let options = ACPConfigOption.parseList(record["configOptions"]) {
+            replaceConfigOptions(options, receiveOrder: response.receiveOrder)
+        }
+    }
+
+    private func replaceConfigOptions(_ options: [ACPConfigOption], receiveOrder: Int) {
+        guard receiveOrder >= configOptionsReceiveOrder else { return }
+        configOptionsReceiveOrder = receiveOrder
+        metadata.replaceConfigOptions(options)
+        if let reportedMode, reportedMode.receiveOrder > receiveOrder,
+           let index = options.firstIndex(where: { $0.category == "mode" }) {
+            metadata.updateConfigValue(reportedMode.id, at: index)
+        }
+    }
+
+    private func reportMode(_ id: String, receiveOrder: Int) {
+        guard receiveOrder >= (reportedMode?.receiveOrder ?? 0) else { return }
+        reportedMode = (id, receiveOrder)
+        if let modes = metadata.modes {
+            metadata.modes = ACPModesState(currentModeID: id, availableModes: modes.availableModes)
+        } else {
+            metadata.modes = ACPModesState(currentModeID: id, availableModes: [])
+        }
+        if receiveOrder >= configOptionsReceiveOrder,
+           let index = metadata.configOptions.firstIndex(where: { $0.category == "mode" }) {
+            metadata.updateConfigValue(id, at: index)
+        }
+    }
+
     func sessionSnapshot() -> RuntimeSession {
-        let (id, currentMetadata) = stateLock.withLock { (sessionID ?? "", metadata) }
+        let (id, currentMetadata, revision) = stateLock.withLock { (sessionID ?? "", metadata, configurationRevision) }
         let models = currentMetadata.availableRuntimeModels(defaultProvider: defaultProvider)
         let thinkingLevels = currentMetadata.availableThinkingLevels()
         let modes = currentMetadata.availableModesList()
@@ -514,7 +661,8 @@ final class ACPConnection: @unchecked Sendable {
             modeID: currentMetadata.currentModeID(),
             availableModes: modes.map { RuntimeModeOption(id: $0.id, name: $0.name, description: $0.description) },
             resumable: initializeResult.agentCapabilities.canRestoreSession,
-            replaysHistory: initializeResult.agentCapabilities.loadSession
+            replaysHistory: initializeResult.agentCapabilities.loadSession,
+            configurationRevision: revision
         )
     }
 
@@ -581,6 +729,9 @@ final class ACPConnection: @unchecked Sendable {
         if let modeOption = current.configOption(category: "mode") {
             try applyConfigOption(sessionID: id, configID: modeOption.id, value: modeID)
         } else {
+            guard !current.hasConfigOptions else {
+                throw RuntimeFailure(.setup, String(localized: "无效的执行模式。", bundle: #bundle))
+            }
             let response: JSONRPCResponse
             do {
                 response = try client.request(
@@ -594,13 +745,7 @@ final class ACPConnection: @unchecked Sendable {
             if let rpcError = response.error {
                 throw ACPEventMapper.failure(from: Self.toACPError(rpcError))
             }
-            stateLock.withLock {
-                if metadata.modes != nil {
-                    metadata.modes?.currentModeID = modeID
-                } else {
-                    metadata.modes = ACPModesState(currentModeID: modeID, availableModes: [])
-                }
-            }
+            updateConfiguration { reportMode(modeID, receiveOrder: response.receiveOrder) }
         }
 
         let updated = sessionSnapshot()
@@ -610,6 +755,9 @@ final class ACPConnection: @unchecked Sendable {
 
     private func applyModel(sessionID: String, modelID: String) throws {
         let current = stateLock.withLock { metadata }
+        guard !current.hasConfigOptions || !current.configOptions.isEmpty else {
+            throw RuntimeFailure(.setup, String(localized: "当前 ACP Agent 不支持模型配置。", bundle: #bundle))
+        }
         if let modelOption = current.configOption(category: "model") {
             do {
                 try applyConfigOption(sessionID: sessionID, configID: modelOption.id, value: modelID)
@@ -633,7 +781,7 @@ final class ACPConnection: @unchecked Sendable {
         if let rpcError = response.error {
             throw ACPEventMapper.failure(from: Self.toACPError(rpcError))
         }
-        stateLock.withLock {
+        updateConfiguration {
             if metadata.models != nil {
                 metadata.models?.currentModelID = modelID
             } else {
@@ -656,30 +804,26 @@ final class ACPConnection: @unchecked Sendable {
         if let rpcError = response.error {
             throw ACPEventMapper.failure(from: Self.toACPError(rpcError))
         }
-        if let record = response.resultRecord {
-            let updatedOptions = ACPConfigOption.parseList(record["configOptions"])
-            if !updatedOptions.isEmpty {
-                stateLock.withLock {
-                    metadata.configOptions = updatedOptions
-                    if let modeOption = updatedOptions.first(where: { $0.category == "mode" }) {
-                        metadata.modes?.currentModeID = modeOption.currentValue
-                    }
-                    if let modelOption = updatedOptions.first(where: { $0.category == "model" }) {
-                        metadata.models?.currentModelID = modelOption.currentValue
-                    }
-                }
-                return
-            }
+        if let options = ACPConfigOption.parseList(response.resultRecord?["configOptions"]) {
+            updateConfiguration { replaceConfigOptions(options, receiveOrder: response.receiveOrder) }
+            return
         }
         // Fallback if server acknowledged without echoing the full configOptions array.
-        stateLock.withLock {
-            if let index = metadata.configOptions.firstIndex(where: { $0.id == configID }) {
-                metadata.configOptions[index].currentValue = value
-                if metadata.configOptions[index].category == "mode" {
-                    metadata.modes?.currentModeID = value
-                } else if metadata.configOptions[index].category == "model" {
-                    metadata.models?.currentModelID = value
-                }
+        let acknowledge = {
+            self.updateConfiguration {
+                guard response.receiveOrder >= self.configOptionsReceiveOrder,
+                      let index = self.metadata.configOptions.firstIndex(where: { $0.id == configID }) else { return }
+                if self.metadata.configOptions[index].category == "mode",
+                   let mode = self.reportedMode, mode.receiveOrder > response.receiveOrder { return }
+                self.metadata.updateConfigValue(value, at: index)
+            }
+        }
+        if let sharedHost {
+            sharedHost.drainInbound(then: acknowledge)
+        } else {
+            inboundDispatchLock.withLock {
+                handleInboundMessages(client.drainInbound().messages)
+                acknowledge()
             }
         }
     }
@@ -705,14 +849,30 @@ final class ACPConnection: @unchecked Sendable {
         )
         let promptID = prompt.id
         let isHandoff = prompt.handoffContext != nil
-        let requestID = try turnCondition.withLock {
+        let requestID = try issuePrompt(sessionID: id, blocks: blocks, promptID: promptID, isHandoff: isHandoff)
+
+        client.onResponse(id: requestID) { [weak self] result in
+            self?.handlePromptResponse(requestID: requestID, promptID: promptID, isHandoff: isHandoff, result: result)
+        }
+
+        return isHandoff ? .awaitingAcceptance : .started
+    }
+
+    private func issuePrompt(sessionID: String, blocks: [Record], promptID: UUID, isHandoff: Bool) throws -> JSONRPCID {
+        try turnCondition.withLock {
             guard activePromptID == nil else {
                 throw RuntimeFailure(.setup, String(localized: "当前 ACP 会话正在运行，不支持并发排队发送。", bundle: #bundle))
             }
             let requestID: JSONRPCID
             do {
+                guard stateLock.withLock({ !closing && !disposed && !connectionEnded }) else {
+                    throw RuntimeFailure(.setup, String(localized: "尚未建立 ACP 会话。", bundle: #bundle))
+                }
                 requestID = try client.sendRequest(method: ACPProtocol.Method.sessionPrompt,
-                                                   params: ["sessionId": id, "prompt": blocks])
+                                                   params: ["sessionId": sessionID, "prompt": blocks],
+                                                   writeGate: sharedHost.map { host in { try host.admitRequest($0) } })
+            } catch let failure as RuntimeFailure {
+                throw failure
             } catch {
                 throw ACPEventMapper.failure(String(describing: error))
             }
@@ -722,12 +882,6 @@ final class ACPConnection: @unchecked Sendable {
             emit(.runStarted)
             return requestID
         }
-
-        client.onResponse(id: requestID) { [weak self] result in
-            self?.handlePromptResponse(requestID: requestID, promptID: promptID, isHandoff: isHandoff, result: result)
-        }
-
-        return isHandoff ? .awaitingAcceptance : .started
     }
 
     private func takeUnconfirmedPrompt(requestID: JSONRPCID? = nil) -> UUID? {
@@ -768,14 +922,14 @@ final class ACPConnection: @unchecked Sendable {
     }
 
     static func encodeImageBlock(_ url: URL) -> Record? {
-        guard let mimeType = imageMIMEType(for: url) else { return nil }
+        guard let mimeType = RuntimeACPInlineImage.mimeType(for: url) else { return nil }
         guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
               values.isRegularFile == true,
               let fileSize = values.fileSize,
-              fileSize > 0, fileSize <= maximumImageAttachmentBytes else {
+              fileSize > 0, fileSize <= ACPJSON.maximumImageBytes else {
             return nil
         }
-        guard let data = try? Data(contentsOf: url), !data.isEmpty, data.count <= maximumImageAttachmentBytes else {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty, data.count <= ACPJSON.maximumImageBytes else {
             return nil
         }
         return [
@@ -785,24 +939,26 @@ final class ACPConnection: @unchecked Sendable {
         ]
     }
 
-    private static func imageMIMEType(for url: URL) -> String? {
-        switch url.pathExtension.lowercased() {
-        case "png": return "image/png"
-        case "jpg", "jpeg": return "image/jpeg"
-        case "gif": return "image/gif"
-        case "webp": return "image/webp"
-        default: return nil
-        }
-    }
-
     private func handlePromptResponse(requestID: JSONRPCID, promptID: UUID, isHandoff: Bool, result: Result<JSONRPCResponse, Error>) {
         // Serialize with the inbound pump so all session/update frames emitted before
         // the prompt response are processed before turn settlement.
-        inboundDispatchLock.lock()
-        defer { inboundDispatchLock.unlock() }
-        let trailing = client.drainInbound()
-        handleInboundMessages(trailing.messages)
+        if let sharedHost {
+            sharedHost.drainInbound {
+                settlePrompt(requestID: requestID, promptID: promptID, isHandoff: isHandoff, result: result)
+            }
+        } else {
+            inboundDispatchLock.withLock {
+                handleInboundMessages(client.drainInbound().messages)
+                settlePrompt(requestID: requestID, promptID: promptID, isHandoff: isHandoff, result: result)
+            }
+        }
+    }
 
+    func ownsPromptRequest(_ id: JSONRPCID) -> Bool {
+        turnCondition.withLock { activePromptID == id }
+    }
+
+    private func settlePrompt(requestID: JSONRPCID, promptID: UUID, isHandoff: Bool, result: Result<JSONRPCResponse, Error>) {
         let shouldEmit: Bool = stateLock.withLock { !closing && !disposed }
         defer {
             turnCondition.withLock {
@@ -815,7 +971,7 @@ final class ACPConnection: @unchecked Sendable {
         }
         guard shouldEmit else { return }
 
-        broker.cancelAll(reason: .expired, send: false)
+        broker.cancelAll(reason: .cancelled, send: false)
 
         func reportAcceptance(_ acceptance: RuntimePromptAcceptance) {
             if isHandoff { emit(.promptAcceptance(promptID, acceptance)) }
@@ -916,6 +1072,10 @@ final class ACPConnection: @unchecked Sendable {
         closeLock.lock()
         defer { closeLock.unlock() }
         guard !stateLock.withLock({ disposed }) else { return }
+        if let sharedHost {
+            try closeShared(on: sharedHost, force: force, notify: notify)
+            return
+        }
         broker.pause()
         broker.cancelAll(reason: .disconnected, send: !force)
         stateLock.withLock {
@@ -956,6 +1116,109 @@ final class ACPConnection: @unchecked Sendable {
         }
     }
 
+    private func closeShared(on host: ACPSharedHost, force: Bool, notify: Bool) throws {
+        stateLock.withLock {
+            closing = true
+            authenticationInteraction?.1.finish()
+        }
+        defer { stateLock.withLock { closing = false } }
+        broker.pause()
+        broker.cancelAll(reason: .disconnected, send: !force && host.isRunning)
+        if force {
+            try host.shutdown(force: true)
+        } else if host.hasUnknownCreation(for: self) {
+            throw RuntimeFailure(.outcomeUnknown, String(localized: "ACP 会话创建结果待核实。", bundle: #bundle))
+        } else if sharedSessionMayBeOpen, !sharedSessionClosed, let id = stateLock.withLock({ sessionID }) {
+            try releaseSharedSession(id, on: host)
+        } else if !isControl, !host.isRunning || client.isTransportEnding {
+            try confirmEndedHost(host)
+        }
+        guard clientServices.close() else {
+            throw RuntimeFailure(.supervision, String(localized: "终端进程清理未确认。", bundle: #bundle))
+        }
+        if sharedSessionClosed || !sharedSessionMayBeOpen { try configuration.handoffCleanup?.recordSharedSessionClose() }
+        guard configuration.handoffCleanup?.isConfirmed != false else {
+            throw RuntimeFailure(.supervision, String(localized: "终端进程清理未确认。", bundle: #bundle))
+        }
+        stateLock.withLock { disposed = true }
+        turnCondition.withLock {
+            activePromptID = nil
+            unconfirmedPromptID = nil
+            turnCondition.broadcast()
+        }
+        host.detach(self)
+        if notify { emit(.disconnected(cleanupConfirmed: true)) }
+    }
+
+    private func releaseSharedSession(_ id: String, on host: ACPSharedHost) throws {
+        guard host.isRunning, !client.isTransportEnding else { return try confirmEndedHost(host) }
+        let response: JSONRPCResponse
+        do {
+            response = try client.request(method: ACPProtocol.Method.sessionClose, params: ["sessionId": id], timeout: 5)
+        } catch {
+            guard client.isTransportEnding || !host.isRunning else { throw error }
+            return try confirmEndedHost(host)
+        }
+        if let error = response.error, error.code != ACPProtocol.ErrorCode.resourceNotFound {
+            if error.code == -32601 { host.markIncompatible() }
+            throw ACPEventMapper.failure(from: Self.toACPError(error))
+        }
+        try Self.requireSessionMutationResult(response)
+        sharedSessionClosed = true
+    }
+
+    private func confirmEndedHost(_ host: ACPSharedHost) throws {
+        // EOF can reach a response waiter before the host's pump has finished cleanup.
+        // The host rechecks all endpoints together. This close also checks its own terminals below.
+        try? host.shutdown(force: false)
+        try host.confirmCleanup()
+    }
+
+    static func requireSessionMutationResult(_ response: JSONRPCResponse) throws {
+        if response.error?.code == ACPProtocol.ErrorCode.resourceNotFound { return }
+        guard let result = response.resultRecord, result.keys.allSatisfy({ $0 == "_meta" }),
+              result["_meta"].map({ $0 is Record || $0 is NSNull }) ?? true else {
+            throw RuntimeFailure(.protocolError, String(localized: "ACP Agent 响应格式无效。", bundle: #bundle))
+        }
+    }
+
+    func sharedConnectionEnded(clean: Bool, failed: Bool) -> Bool {
+        let first = stateLock.withLock {
+            let first = !connectionEnded && !disposed
+            connectionEnded = true
+            if first { authenticationInteraction?.1.finish() }
+            return first
+        }
+        if first {
+            broker.cancelAll(reason: .disconnected, send: false)
+            turnCondition.withLock {
+                activePromptID = nil
+                unconfirmedPromptID = nil
+                turnCondition.broadcast()
+            }
+        }
+        let terminalsClean = clientServices.close()
+        let confirmed = clean && terminalsClean && configuration.handoffCleanup?.isConfirmed != false
+        let notification = stateLock.withLock { () -> (failure: Bool, disconnected: Bool) in
+            let becameConfirmed = confirmed && !sharedDisconnectConfirmed
+            sharedDisconnectConfirmed = confirmed
+            guard !disposed, !deferDisconnectEvents else { return (false, false) }
+            return (first && !closing && (!isControl || failed || !confirmed), first || becameConfirmed)
+        }
+        if notification.failure {
+            emit(.failure(.init(failed ? .protocolError : .connection, confirmed
+                                ? String(localized: "ACP 运行时连接已中断，受管进程已清理。不会自动重发任务。", bundle: #bundle)
+                                : String(localized: "ACP 运行时连接已中断，进程清理尚未确认。", bundle: #bundle))))
+        }
+        if notification.disconnected { emit(.disconnected(cleanupConfirmed: confirmed)) }
+        return confirmed
+    }
+
+    func expirePendingInteractions() {
+        do { try broker.expire() }
+        catch { emit(.failure(ACPEventMapper.failure(String(describing: error)))) }
+    }
+
     // MARK: - Inbound Pump & Dispatch
 
     private func emit(_ event: AgentEvent) {
@@ -964,14 +1227,11 @@ final class ACPConnection: @unchecked Sendable {
 
     private func pump() {
         while !stateLock.withLock({ disposed }) {
-            do {
-                try broker.expire()
-            } catch {
-                emit(.failure(ACPEventMapper.failure(String(describing: error))))
-            }
-
+            // A prompt reply or approval action can dispatch while the transport is idle.
+            client.waitForInboundActivity(timeout: 0.02)
             let observation: (messages: [JSONRPCInboundMessage], ended: Bool, failure: String?) = inboundDispatchLock.withLock {
-                let batch = client.waitInbound(timeout: 0.02)
+                expirePendingInteractions()
+                let batch = client.drainInbound()
                 handleInboundMessages(batch.messages)
                 return batch
             }
@@ -1017,7 +1277,7 @@ final class ACPConnection: @unchecked Sendable {
         }
     }
 
-    private func handleInboundMessages(_ messages: [JSONRPCInboundMessage]) {
+    func handleInboundMessages(_ messages: [JSONRPCInboundMessage]) {
         for message in messages {
             switch message {
             case .notification(let notification):
@@ -1075,28 +1335,11 @@ final class ACPConnection: @unchecked Sendable {
 
         var sessionChanged = false
         if let modeID = mapped.metadata.currentModeID {
-            stateLock.withLock {
-                if metadata.modes != nil {
-                    metadata.modes?.currentModeID = modeID
-                } else {
-                    metadata.modes = ACPModesState(currentModeID: modeID, availableModes: [])
-                }
-                if let index = metadata.configOptions.firstIndex(where: { $0.category == "mode" }) {
-                    metadata.configOptions[index].currentValue = modeID
-                }
-            }
+            updateConfiguration { reportMode(modeID, receiveOrder: notification.receiveOrder) }
             sessionChanged = true
         }
         if let configOptions = mapped.metadata.configOptions {
-            stateLock.withLock {
-                metadata.configOptions = configOptions
-                if let modeOption = configOptions.first(where: { $0.category == "mode" }) {
-                    metadata.modes?.currentModeID = modeOption.currentValue
-                }
-                if let modelOption = configOptions.first(where: { $0.category == "model" }) {
-                    metadata.models?.currentModelID = modelOption.currentValue
-                }
-            }
+            updateConfiguration { replaceConfigOptions(configOptions, receiveOrder: notification.receiveOrder) }
             sessionChanged = true
         }
 
@@ -1115,6 +1358,10 @@ final class ACPConnection: @unchecked Sendable {
     }
 
     private func handleAgentRequest(_ request: JSONRPCRequest) {
+        if sharedHost != nil, stateLock.withLock({ closing || disposed || connectionEnded }) {
+            try? client.sendErrorResponse(id: request.id, code: ACPProtocol.ErrorCode.resourceNotFound, message: "Session is closing")
+            return
+        }
         switch request.method {
         case ACPProtocol.Method.elicitationCreate:
             let requestSession = request.params["sessionId"] as? String
@@ -1146,7 +1393,7 @@ final class ACPConnection: @unchecked Sendable {
                 if let promptID = takeUnconfirmedPrompt() { emit(.promptConfirmed(promptID)) }
             } catch {
                 emit(.failure((error as? RuntimeFailure) ?? ACPEventMapper.failure(String(describing: error))))
-                client.crash()
+                if sharedHost == nil { client.crash() }
             }
         default:
             clientServices.handle(request, sessionID: stateLock.withLock { sessionID }, broker: broker)

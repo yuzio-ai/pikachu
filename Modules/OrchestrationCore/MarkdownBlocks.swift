@@ -336,3 +336,329 @@ public enum MarkdownBlocks {
         }
     }
 }
+
+/// Semantic skeleton type inferred for the unstable trailing segment during streaming.
+public enum ProgressiveMarkdownSkeletonKind: String, Sendable, Equatable {
+    case text
+    case list
+    case code
+    case table
+}
+
+/// Result of splitting a streaming Markdown source into a semantically stable prefix
+/// (safe to parse and display immediately) and an unstable trailing segment (represented
+/// by a stable semantic skeleton until its block structure closes or streaming ends).
+public struct ProgressiveMarkdownSplit: Sendable, Equatable {
+    public let stableSource: String
+    public let unstableTail: String
+    public let skeletonKind: ProgressiveMarkdownSkeletonKind?
+
+    public init(stableSource: String, unstableTail: String, skeletonKind: ProgressiveMarkdownSkeletonKind?) {
+        self.stableSource = stableSource
+        self.unstableTail = unstableTail
+        self.skeletonKind = skeletonKind
+    }
+}
+
+public enum ProgressiveMarkdownSplitter {
+    /// Splits streaming Markdown source along semantic block boundaries.
+    /// When `isStreaming` is false, the entire source is treated as stable so the
+    /// rendered output always matches one-shot `MarkdownBlocks.parse(text)`.
+    public static func split(_ text: String, isStreaming: Bool) -> ProgressiveMarkdownSplit {
+        guard isStreaming else {
+            return ProgressiveMarkdownSplit(stableSource: text, unstableTail: "", skeletonKind: nil)
+        }
+        guard text.contains(where: { !$0.isWhitespace }) else {
+            return ProgressiveMarkdownSplit(stableSource: "", unstableTail: "", skeletonKind: nil)
+        }
+
+        let lines = splitLinesPreservingNewlines(text)
+        var stableEnd = text.startIndex
+        var blockStart: String.Index? = nil
+        var activeFenceChar: Character? = nil
+        var activeFenceLen = 0
+        var inTable = false
+        var tableHasSeparator = false
+        var inList = false
+        var inQuote = false
+
+        var index = 0
+        while index < lines.count {
+            let line = lines[index]
+            let content = line.content
+            let trimmed = content.trimmingCharacters(in: .whitespaces)
+            let hasNewline = line.hasNewline
+
+            // 1. Inside fenced code block
+            if let fenceChar = activeFenceChar {
+                if hasNewline && isClosingFence(trimmed, char: fenceChar, minLength: activeFenceLen) {
+                    activeFenceChar = nil
+                    activeFenceLen = 0
+                    blockStart = nil
+                    stableEnd = line.range.upperBound
+                }
+                index += 1
+                continue
+            }
+
+            // 2. Check opening fenced code block
+            if let fence = openingFence(trimmed) {
+                if blockStart != nil && !inTable {
+                    // Previous paragraph/list/quote ended cleanly before the new fence.
+                    stableEnd = line.range.lowerBound
+                }
+                inTable = false
+                tableHasSeparator = false
+                inList = false
+                inQuote = false
+                activeFenceChar = fence.char
+                activeFenceLen = fence.length
+                blockStart = line.range.lowerBound
+                index += 1
+                continue
+            }
+
+            // 3. Blank line closes open paragraphs, quotes, lists, and tables
+            if trimmed.isEmpty {
+                if hasNewline {
+                    if inTable && !tableHasSeparator {
+                        // Incomplete table-like text without separator becomes a normal paragraph once blank-terminated.
+                    }
+                    inTable = false
+                    tableHasSeparator = false
+                    inList = false
+                    inQuote = false
+                    blockStart = nil
+                    stableEnd = line.range.upperBound
+                }
+                index += 1
+                continue
+            }
+
+            // 4. Incomplete final line (no trailing newline) is always unstable,
+            //    but if it opens a new distinct block (list item, heading, fence, table),
+            //    commit the preceding newline-terminated block immediately.
+            if !hasNewline {
+                if blockStart != nil {
+                    if isATXHeading(trimmed) || isListItem(trimmed) || openingFence(trimmed) != nil ||
+                        (!inTable && isTableRow(trimmed)) {
+                        stableEnd = line.range.lowerBound
+                        if isListItem(trimmed) { inList = true }
+                    }
+                } else {
+                    blockStart = line.range.lowerBound
+                }
+                break
+            }
+
+            // 5. Table continuation / header detection
+            if inTable {
+                if isTableRow(trimmed) {
+                    if !tableHasSeparator && isTableSeparator(trimmed) {
+                        tableHasSeparator = true
+                        stableEnd = line.range.upperBound
+                    } else if tableHasSeparator {
+                        // Complete newline-terminated body row is safe to commit progressively!
+                        stableEnd = line.range.upperBound
+                    }
+                    index += 1
+                    continue
+                } else {
+                    if tableHasSeparator {
+                        stableEnd = line.range.lowerBound
+                    }
+                    inTable = false
+                    tableHasSeparator = false
+                    blockStart = nil
+                }
+            }
+
+            // 6. ATX Heading (# Heading) terminated by newline
+            if isATXHeading(trimmed) {
+                if blockStart != nil {
+                    stableEnd = line.range.lowerBound
+                }
+                inList = false
+                inQuote = false
+                blockStart = nil
+                stableEnd = line.range.upperBound
+                index += 1
+                continue
+            }
+
+            // 7. Thematic break (--- / *** / ___) — only commit immediately if not immediately following paragraph (Setext guard)
+            if isThematicBreak(trimmed) && blockStart == nil {
+                inList = false
+                inQuote = false
+                stableEnd = line.range.upperBound
+                index += 1
+                continue
+            }
+
+            // 8. Potential Table start (pipe line)
+            if isTableRow(trimmed) && !inQuote && !inList {
+                if blockStart != nil {
+                    stableEnd = line.range.lowerBound
+                }
+                inTable = true
+                tableHasSeparator = false
+                blockStart = line.range.lowerBound
+                index += 1
+                continue
+            }
+
+            // 9. List item start — commit previous complete list item when a new sibling item begins
+            if isListItem(trimmed) && !inQuote {
+                if inList, blockStart != nil {
+                    stableEnd = line.range.lowerBound
+                } else if blockStart != nil {
+                    stableEnd = line.range.lowerBound
+                }
+                inList = true
+                blockStart = line.range.lowerBound
+                index += 1
+                continue
+            }
+
+            // 10. Blockquote line
+            if trimmed.hasPrefix(">") {
+                if !inQuote && blockStart != nil {
+                    stableEnd = line.range.lowerBound
+                    inList = false
+                }
+                inQuote = true
+                if blockStart == nil { blockStart = line.range.lowerBound }
+                index += 1
+                continue
+            } else if inQuote {
+                inQuote = false
+                stableEnd = line.range.lowerBound
+                blockStart = line.range.lowerBound
+                index += 1
+                continue
+            }
+
+            // 11. Setext heading underline (=== or ---) closes the preceding paragraph
+            if blockStart != nil && !inList && isSetextUnderline(trimmed) {
+                blockStart = nil
+                stableEnd = line.range.upperBound
+                index += 1
+                continue
+            }
+
+            // Regular text line inside paragraph or list item continuation
+            if blockStart == nil {
+                blockStart = line.range.lowerBound
+            }
+            index += 1
+        }
+
+        let stable = String(text[..<stableEnd])
+        let tail = String(text[stableEnd...])
+        let trimmedTail = tail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTail.isEmpty else {
+            return ProgressiveMarkdownSplit(stableSource: stable, unstableTail: "", skeletonKind: nil)
+        }
+
+        let skeletonKind: ProgressiveMarkdownSkeletonKind
+        if activeFenceChar != nil || openingFence(trimmedTail.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? "") != nil {
+            skeletonKind = .code
+        } else if inTable || isTableRow(trimmedTail.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? "") {
+            skeletonKind = .table
+        } else if inList || isListItem(trimmedTail.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? "") {
+            skeletonKind = .list
+        } else {
+            skeletonKind = .text
+        }
+
+        return ProgressiveMarkdownSplit(stableSource: stable, unstableTail: tail, skeletonKind: skeletonKind)
+    }
+
+    private struct LineSlice {
+        let range: Range<String.Index>
+        let content: Substring
+        let hasNewline: Bool
+    }
+
+    private static func splitLinesPreservingNewlines(_ text: String) -> [LineSlice] {
+        var result: [LineSlice] = []
+        var start = text.startIndex
+        var current = start
+        while current < text.endIndex {
+            if text[current] == "\n" {
+                let next = text.index(after: current)
+                let contentEnd = (current > start && text[text.index(before: current)] == "\r")
+                    ? text.index(before: current)
+                    : current
+                result.append(LineSlice(range: start..<next, content: text[start..<contentEnd], hasNewline: true))
+                start = next
+                current = next
+            } else {
+                current = text.index(after: current)
+            }
+        }
+        if start < text.endIndex {
+            result.append(LineSlice(range: start..<text.endIndex, content: text[start..<text.endIndex], hasNewline: false))
+        }
+        return result
+    }
+
+    private static func openingFence(_ trimmed: String) -> (char: Character, length: Int)? {
+        guard let first = trimmed.first, first == "`" || first == "~" else { return nil }
+        let count = trimmed.prefix(while: { $0 == first }).count
+        guard count >= 3 else { return nil }
+        let rest = trimmed.dropFirst(count)
+        if first == "`" && rest.contains("`") { return nil }
+        return (first, count)
+    }
+
+    private static func isClosingFence(_ trimmed: String, char: Character, minLength: Int) -> Bool {
+        let count = trimmed.prefix(while: { $0 == char }).count
+        guard count >= minLength else { return false }
+        return trimmed.dropFirst(count).allSatisfy(\.isWhitespace)
+    }
+
+    private static func isATXHeading(_ trimmed: String) -> Bool {
+        let hashes = trimmed.prefix(while: { $0 == "#" }).count
+        guard (1...6).contains(hashes) else { return false }
+        let after = trimmed.dropFirst(hashes)
+        return after.isEmpty || after.first == " " || after.first == "\t"
+    }
+
+    private static func isThematicBreak(_ trimmed: String) -> Bool {
+        let compact = trimmed.filter { !$0.isWhitespace }
+        guard compact.count >= 3, let first = compact.first, first == "-" || first == "*" || first == "_" else {
+            return false
+        }
+        return compact.allSatisfy { $0 == first }
+    }
+
+    private static func isSetextUnderline(_ trimmed: String) -> Bool {
+        guard let first = trimmed.first, first == "=" || first == "-" else { return false }
+        return trimmed.allSatisfy { $0 == first }
+    }
+
+    private static func isListItem(_ trimmed: String) -> Bool {
+        if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") ||
+            trimmed.hasPrefix("-\t") || trimmed.hasPrefix("*\t") || trimmed.hasPrefix("+\t") {
+            return true
+        }
+        let digits = trimmed.prefix(while: { $0.isASCII && $0.isNumber })
+        guard !digits.isEmpty && digits.count <= 9 else { return false }
+        let after = trimmed.dropFirst(digits.count)
+        guard let punct = after.first, punct == "." || punct == ")" else { return false }
+        let rest = after.dropFirst()
+        return rest.first == " " || rest.first == "\t"
+    }
+
+    private static func isTableRow(_ trimmed: String) -> Bool {
+        trimmed.contains("|") && (trimmed.hasPrefix("|") || trimmed.split(separator: "|").count >= 2)
+    }
+
+    private static func isTableSeparator(_ trimmed: String) -> Bool {
+        guard trimmed.contains("-") else { return false }
+        let cleaned = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "| \t"))
+        guard !cleaned.isEmpty else { return false }
+        return cleaned.allSatisfy { $0 == "-" || $0 == ":" || $0 == "|" || $0 == " " || $0 == "\t" }
+    }
+}

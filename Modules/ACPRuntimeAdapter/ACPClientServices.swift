@@ -13,10 +13,11 @@ final class ACPClientServices: @unchecked Sendable {
     private var waiting: [JSONRPCID: UUID] = [:]
     private var closed = false
 
-    init(client: JSONRPCProcess, configuration: ACPConfiguration) {
+    init(client: JSONRPCProcess, configuration: ACPConfiguration,
+         advertisedPermissions: RuntimeACPClientPermissions? = nil) {
         self.client = client
         self.configuration = configuration
-        advertisedPermissions = configuration.effectiveClientPermissions
+        self.advertisedPermissions = advertisedPermissions ?? configuration.effectiveClientPermissions
         files = ACPProjectFiles(workspace: configuration.workspace)
     }
 
@@ -107,7 +108,7 @@ final class ACPClientServices: @unchecked Sendable {
             try files.write(path, content: content, confirmed: false)
         } catch ACPProjectFiles.Failure.confirmationRequired {
             let previousText = try files.previousTextForWrite(path)
-            guard (previousText?.utf8.count ?? 0) + content.utf8.count <= ACPInteractionBroker.maximumMessageBytes else {
+            guard (previousText?.utf8.count ?? 0) + content.utf8.count <= ACPInteractionBroker.maximumApprovalPayloadBytes else {
                 throw Failure.approvalTooLarge
             }
             var diff: Record = ["type": "diff", "path": path, "newText": content]
@@ -167,7 +168,7 @@ final class ACPClientServices: @unchecked Sendable {
         var env = try configuration.launchEnvironment(inheriting: ProcessInfo.processInfo.environment)
         for entry in request.params["env"] as? [Record] ?? [] {
             let name = try Self.string(entry, "name")
-            guard !name.contains("="), !name.hasPrefix("PIKACHU_"),
+            guard !name.contains("="), !name.hasPrefix("ZIVVI_"),
                   let value = entry["value"] as? String, !value.utf8.contains(0) else { throw Failure.invalidParameters }
             env[name] = value
         }

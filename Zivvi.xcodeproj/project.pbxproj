@@ -1,0 +1,1916 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		1E5849C654BEBB376D43FC6C /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		2D7F31168E78909C1ECD3BEB /* WorkspacePersistence.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; };
+		2F33D8CEDE20C3753910F87F /* zivvi-supervisor in Embed Supervisor */ = {isa = PBXBuildFile; fileRef = 3CE9C2281ADACB4E4044FB30 /* zivvi-supervisor */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		4EAE92CBA9049BDD42E8D304 /* WorkspacePersistence.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6D1967981F6722F07F482843 /* CProcessInspection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; };
+		6F0B08C17CAA7A12ED294D43 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		9BBCCD4FCB0309236F922A18 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		9ED49D621D517E74DD1F8EA1 /* AgentRuntimeCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A05CB1D554AB874D3C947756 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		A6B5A61E30D0C6A2BF34BDF6 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		AA0400000000000000000001 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		AA0400000000000000000002 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		AA0400000000000000000003 /* ACPRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0100000000000000000001 /* ACPRuntimeAdapter.framework */; };
+		AA0400000000000000000004 /* ACPRuntimeAdapter.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AA0100000000000000000001 /* ACPRuntimeAdapter.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AA0400000000000000000005 /* ACPRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0100000000000000000001 /* ACPRuntimeAdapter.framework */; };
+		AA0400000000000000000006 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		AA0400000000000000000007 /* ACPRuntimeAdapter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0100000000000000000001 /* ACPRuntimeAdapter.framework */; };
+		AA0400000000000000000008 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		AA0400000000000000000009 /* ProcessSupervision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; };
+		AABBCC110000000000000003 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = AABBCC110000000000000002 /* SwiftTerm */; };
+		ACCC84368C9731A3F7DDB7D3 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; };
+		B1F76092125E4D07BACB386F /* CProcessInspection.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		C65D0BEBB69CD7B48D1D8435 /* AgentRuntimeCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */; };
+		CE2C0BEBB36A8497B7F38549 /* OrchestrationCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E8586500D68EBBBA3453E0B9 /* ProcessSupervision.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FEF70892D76DE5A70030891A /* CProcessInspection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		004D273C498A98462C56F905 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9284448B92222BB1E47636AB;
+			remoteInfo = CProcessInspection;
+		};
+		05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "zivvi-supervisor";
+		};
+		0E2D92C60F44540F70A94A28 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		1224EE0F7D22021A4B59A80A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		13112D549003B7D54A53B610 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
+			remoteInfo = OrchestrationCore;
+		};
+		19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9284448B92222BB1E47636AB;
+			remoteInfo = CProcessInspection;
+		};
+		4892C742F62798F9C01A0095 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A54AAAB5EA605775A493521A;
+			remoteInfo = Zivvi;
+		};
+		57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9284448B92222BB1E47636AB;
+			remoteInfo = CProcessInspection;
+		};
+		5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		657065C2CF5505ED308BF02A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		777167653B93183876A215CB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
+			remoteInfo = OrchestrationCore;
+		};
+		79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
+			remoteInfo = OrchestrationCore;
+		};
+		9B79845FE764BB08B42771AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		A42E931D853590D14A335F4E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
+			remoteInfo = WorkspacePersistence;
+		};
+		AA0600000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		AA0600000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		AA0600000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0300000000000000000001;
+			remoteInfo = ACPRuntimeAdapter;
+		};
+		AA0600000000000000000004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0300000000000000000001;
+			remoteInfo = ACPRuntimeAdapter;
+		};
+		AA0600000000000000000005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		AA0600000000000000000006 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0300000000000000000001;
+			remoteInfo = ACPRuntimeAdapter;
+		};
+		AA0600000000000000000007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7D56B4B0BD34DAAED2C8FDB;
+			remoteInfo = AgentRuntimeCore;
+		};
+		AA0600000000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		AA0600000000000000000009 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "zivvi-supervisor";
+		};
+		AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B2A065540391B48F5B407D5;
+			remoteInfo = ProcessSupervision;
+		};
+		C1B02D2E8C407FAB6B867537 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD503C5FF400B347FD0BD07E;
+			remoteInfo = OrchestrationCore;
+		};
+		C23DC084AC2308669EDA7669 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CFD61F8CB8D022DAC6E9AE7B;
+			remoteInfo = WorkspacePersistence;
+		};
+		C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D3DCE6A81C5E70352DF19641 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B026431BEFB421CEA527844;
+			remoteInfo = "zivvi-supervisor";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		72048E898E7718DE599B7EFF /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				B1F76092125E4D07BACB386F /* CProcessInspection.framework in Embed Frameworks */,
+				E8586500D68EBBBA3453E0B9 /* ProcessSupervision.framework in Embed Frameworks */,
+				9ED49D621D517E74DD1F8EA1 /* AgentRuntimeCore.framework in Embed Frameworks */,
+				CE2C0BEBB36A8497B7F38549 /* OrchestrationCore.framework in Embed Frameworks */,
+				AA0400000000000000000004 /* ACPRuntimeAdapter.framework in Embed Frameworks */,
+				4EAE92CBA9049BDD42E8D304 /* WorkspacePersistence.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE99F012E966045F40150599 /* Embed Supervisor */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				2F33D8CEDE20C3753910F87F /* zivvi-supervisor in Embed Supervisor */,
+			);
+			name = "Embed Supervisor";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = AgentRuntimeCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		0DC918BA123BF83B727241DD /* Verification/Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Verification/Fixtures; sourceTree = SOURCE_ROOT; };
+		0E1F05E6B17BD3F58C55A867 /* Scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Scripts; sourceTree = SOURCE_ROOT; };
+		0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = OrchestrationCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CE9C2281ADACB4E4044FB30 /* zivvi-supervisor */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "zivvi-supervisor"; sourceTree = BUILT_PRODUCTS_DIR; };
+		64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProcessSupervisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		65DE53EE5A851DEFDA75DDC9 /* Verification/README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Verification/README.md; sourceTree = SOURCE_ROOT; };
+		72A4F2C5A725D5D9B45E343D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
+		75A4F2C5A725D5D9B45E343E /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = SOURCE_ROOT; };
+		76A4F2C5A725D5D9B45E343F /* DESIGN_TOKEN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DESIGN_TOKEN.md; sourceTree = SOURCE_ROOT; };
+		77A4F2C5A725D5D9B45E3440 /* THIRD-PARTY-NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "THIRD-PARTY-NOTICES.md"; sourceTree = SOURCE_ROOT; };
+		7D3BA445049EF6B8CA9AE3A0 /* DESIGN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DESIGN.md; sourceTree = SOURCE_ROOT; };
+		7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CProcessInspection.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		9751D92040781601B149857A /* runtime-verify */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "runtime-verify"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = WorkspacePersistence.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3BE198D76C896C9EE201857 /* docs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = docs; sourceTree = SOURCE_ROOT; };
+		AA0100000000000000000001 /* ACPRuntimeAdapter.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ACPRuntimeAdapter.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0100000000000000000002 /* acp-compat-probe */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "acp-compat-probe"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ProcessSupervision.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		D394BD061FA06894F9BE74E5 /* Zivvi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Zivvi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FF1231F81D0DFB260F6D734A /* ZivviTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ZivviTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		60B1B1ED33BD8855EC388989 /* Exceptions for "CProcessInspection" folder in "CProcessInspection" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			publicHeaders = (
+				include/CProcessInspection.h,
+			);
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		238497D9D5843DA2DCD295DE /* OrchestrationCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OrchestrationCore;
+			sourceTree = "<group>";
+		};
+		424D1720C4A8101A7C23D313 /* Zivvi */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFolders = (
+				Resources/ACPAgentLogos,
+				Resources/ProviderLogos,
+			);
+			path = Zivvi;
+			sourceTree = "<group>";
+		};
+		58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = RuntimeVerify;
+			sourceTree = "<group>";
+		};
+		5B2223EACA3A195E95476530 /* CProcessInspection */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				60B1B1ED33BD8855EC388989 /* Exceptions for "CProcessInspection" folder in "CProcessInspection" target */,
+			);
+			path = CProcessInspection;
+			sourceTree = "<group>";
+		};
+		5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ProcessSupervisionTests;
+			sourceTree = "<group>";
+		};
+		AA0200000000000000000001 /* ACPRuntimeAdapter */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ACPRuntimeAdapter;
+			sourceTree = "<group>";
+		};
+		AA0200000000000000000002 /* ACPCompatProbe */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ACPCompatProbe;
+			sourceTree = "<group>";
+		};
+		C2780B234DE45366EE77679C /* ZivviTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ZivviTests;
+			sourceTree = "<group>";
+		};
+		C5D453216966ABC84DE6F9D8 /* ProcessSupervision */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ProcessSupervision;
+			sourceTree = "<group>";
+		};
+		CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WorkspacePersistence;
+			sourceTree = "<group>";
+		};
+		E43288365D894732E9A7E13F /* ZivviSupervisor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ZivviSupervisor;
+			sourceTree = "<group>";
+		};
+		F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AgentRuntimeCore;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		09087B32F97684A289CA112B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEF70892D76DE5A70030891A /* CProcessInspection.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3C34AD1AA1090DEC1B52FB59 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9CC60A24EBB967D93EB32EE9 /* AgentRuntimeCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		602C823EE088253FDE6A17A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A6B5A61E30D0C6A2BF34BDF6 /* ProcessSupervision.framework in Frameworks */,
+				6D1967981F6722F07F482843 /* CProcessInspection.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		836D0C0BEE5F1FD36BF4C02D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AABBCC110000000000000003 /* SwiftTerm in Frameworks */,
+				ACCC84368C9731A3F7DDB7D3 /* AgentRuntimeCore.framework in Frameworks */,
+				AA0400000000000000000003 /* ACPRuntimeAdapter.framework in Frameworks */,
+				1E5849C654BEBB376D43FC6C /* OrchestrationCore.framework in Frameworks */,
+				2D7F31168E78909C1ECD3BEB /* WorkspacePersistence.framework in Frameworks */,
+				A05CB1D554AB874D3C947756 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		87B845E64EE764E91371992A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		984AA5936F70A80B32431E09 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C65D0BEBB69CD7B48D1D8435 /* AgentRuntimeCore.framework in Frameworks */,
+				9BBCCD4FCB0309236F922A18 /* OrchestrationCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0500000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0400000000000000000001 /* AgentRuntimeCore.framework in Frameworks */,
+				AA0400000000000000000002 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0500000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0400000000000000000007 /* ACPRuntimeAdapter.framework in Frameworks */,
+				AA0400000000000000000008 /* AgentRuntimeCore.framework in Frameworks */,
+				AA0400000000000000000009 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B8B8C8B61131D2C53EBCDCDE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0A6AAB2088C93F83DB3212E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A6EC3778429FD6CEE18FC494 /* OrchestrationCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA13E8ED80937847A8E365D9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6F0B08C17CAA7A12ED294D43 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC83B8F5B93928A0B74449D8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A7C91EA23803BB35B68B0A5 /* AgentRuntimeCore.framework in Frameworks */,
+				AEA3A73AC16C2F4257CBE148 /* OrchestrationCore.framework in Frameworks */,
+				AA0400000000000000000005 /* ACPRuntimeAdapter.framework in Frameworks */,
+				09CCCF0E563C36CFDDD1AA1A /* WorkspacePersistence.framework in Frameworks */,
+				AA0400000000000000000006 /* ProcessSupervision.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2F3A6B1E78F896718625FF06 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */,
+				B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */,
+				0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */,
+				0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */,
+				AA0100000000000000000001 /* ACPRuntimeAdapter.framework */,
+				A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */,
+				3CE9C2281ADACB4E4044FB30 /* zivvi-supervisor */,
+				D394BD061FA06894F9BE74E5 /* Zivvi.app */,
+				AA0100000000000000000002 /* acp-compat-probe */,
+				9751D92040781601B149857A /* runtime-verify */,
+				FF1231F81D0DFB260F6D734A /* ZivviTests.xctest */,
+				64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		518DA81DB9B99529C0C0AEBE = {
+			isa = PBXGroup;
+			children = (
+				424D1720C4A8101A7C23D313 /* Zivvi */,
+				E43288365D894732E9A7E13F /* ZivviSupervisor */,
+				B36D15E24ACC0ADCBB8DC602 /* Modules */,
+				74C0354F987B4FC0FDE2C044 /* Tests */,
+				5313DEB9E90DC2846F629CE0 /* Verification */,
+				0E1F05E6B17BD3F58C55A867 /* Scripts */,
+				A3BE198D76C896C9EE201857 /* docs */,
+				75A4F2C5A725D5D9B45E343E /* AGENTS.md */,
+				72A4F2C5A725D5D9B45E343D /* README.md */,
+				7D3BA445049EF6B8CA9AE3A0 /* DESIGN.md */,
+				76A4F2C5A725D5D9B45E343F /* DESIGN_TOKEN.md */,
+				77A4F2C5A725D5D9B45E3440 /* THIRD-PARTY-NOTICES.md */,
+				2F3A6B1E78F896718625FF06 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5313DEB9E90DC2846F629CE0 /* Verification */ = {
+			isa = PBXGroup;
+			children = (
+				AA0200000000000000000002 /* ACPCompatProbe */,
+				58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */,
+				0DC918BA123BF83B727241DD /* Verification/Fixtures */,
+				65DE53EE5A851DEFDA75DDC9 /* Verification/README.md */,
+			);
+			path = Verification;
+			sourceTree = "<group>";
+		};
+		74C0354F987B4FC0FDE2C044 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				C2780B234DE45366EE77679C /* ZivviTests */,
+				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		B36D15E24ACC0ADCBB8DC602 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
+				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
+				AA0200000000000000000001 /* ACPRuntimeAdapter */,
+				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
+				C5D453216966ABC84DE6F9D8 /* ProcessSupervision */,
+				5B2223EACA3A195E95476530 /* CProcessInspection */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		869D2EBBEC00E75F44575C34 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		4B026431BEFB421CEA527844 /* zivvi-supervisor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "zivvi-supervisor" */;
+			buildPhases = (
+				5FE4B6F4DC86A0231AC7409E /* Sources */,
+				602C823EE088253FDE6A17A4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5B44B87D7AF7C5659F627559 /* PBXTargetDependency */,
+				315655399D63B5F441AA4C74 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E43288365D894732E9A7E13F /* ZivviSupervisor */,
+			);
+			name = "zivvi-supervisor";
+			productName = "zivvi-supervisor";
+			productReference = 3CE9C2281ADACB4E4044FB30 /* zivvi-supervisor */;
+			productType = "com.apple.product-type.tool";
+		};
+		6B2A065540391B48F5B407D5 /* ProcessSupervision */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AAA3402C6BA5BE0098F4637 /* Build configuration list for PBXNativeTarget "ProcessSupervision" */;
+			buildPhases = (
+				597A28A678D5761F9111FFA0 /* Sources */,
+				09087B32F97684A289CA112B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3CCA0DE11A700B944334D830 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C5D453216966ABC84DE6F9D8 /* ProcessSupervision */,
+			);
+			name = ProcessSupervision;
+			productName = ProcessSupervision;
+			productReference = B0433BC883D021264DB2BB7C /* ProcessSupervision.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7C866B8BA2E4E2D1DC336273 /* ProcessSupervisionTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */;
+			buildPhases = (
+				4ED6CF369FCB9C9E4D6280D7 /* Sources */,
+				FA13E8ED80937847A8E365D9 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FFF5E7BC4C2CFE74B4907FBD /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5E0A38CAE24A02259D32DBFF /* ProcessSupervisionTests */,
+			);
+			name = ProcessSupervisionTests;
+			productName = ProcessSupervisionTests;
+			productReference = 64A92AA0D894367C860A53D6 /* ProcessSupervisionTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9284448B92222BB1E47636AB /* CProcessInspection */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48A2CAFCB7253E7909AB916F /* Build configuration list for PBXNativeTarget "CProcessInspection" */;
+			buildPhases = (
+				869D2EBBEC00E75F44575C34 /* Headers */,
+				8D45A973755CE737DB7D8DCC /* Sources */,
+				B8B8C8B61131D2C53EBCDCDE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5B2223EACA3A195E95476530 /* CProcessInspection */,
+			);
+			name = CProcessInspection;
+			productName = CProcessInspection;
+			productReference = 7D5D51E93BA5E1D18D4E668F /* CProcessInspection.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		A54AAAB5EA605775A493521A /* Zivvi */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6B7A8E171F2F7B5467C83FC0 /* Build configuration list for PBXNativeTarget "Zivvi" */;
+			buildPhases = (
+				FCB4E1C3D9F909600A5E11C6 /* Sources */,
+				836D0C0BEE5F1FD36BF4C02D /* Frameworks */,
+				4B7A5116FC451179A4C0904D /* Resources */,
+				72048E898E7718DE599B7EFF /* Embed Frameworks */,
+				BE99F012E966045F40150599 /* Embed Supervisor */,
+				A038D9C3CEFD69DADC7721A9 /* Embed Diagnostics Configuration */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				646074A45C00F1DD9DD66946 /* PBXTargetDependency */,
+				AA0700000000000000000003 /* PBXTargetDependency */,
+				B69082C65E19A3D5DAB80A0A /* PBXTargetDependency */,
+				8CE7CAD51051D717FD5D9A68 /* PBXTargetDependency */,
+				8715A35381BB90B5D2296330 /* PBXTargetDependency */,
+				A9E06C5070A3B9E7874D9B9E /* PBXTargetDependency */,
+				C141E367826E0F3FFE8C1EE6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				424D1720C4A8101A7C23D313 /* Zivvi */,
+			);
+			name = Zivvi;
+			packageProductDependencies = (
+				AABBCC110000000000000002 /* SwiftTerm */,
+			);
+			productName = Zivvi;
+			productReference = D394BD061FA06894F9BE74E5 /* Zivvi.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA0300000000000000000001 /* ACPRuntimeAdapter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0900000000000000000001 /* Build configuration list for PBXNativeTarget "ACPRuntimeAdapter" */;
+			buildPhases = (
+				AA0500000000000000000001 /* Sources */,
+				AA0500000000000000000002 /* Frameworks */,
+				AA0500000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0700000000000000000001 /* PBXTargetDependency */,
+				AA0700000000000000000002 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA0200000000000000000001 /* ACPRuntimeAdapter */,
+			);
+			name = ACPRuntimeAdapter;
+			productName = ACPRuntimeAdapter;
+			productReference = AA0100000000000000000001 /* ACPRuntimeAdapter.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		AA0300000000000000000002 /* acp-compat-probe */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0900000000000000000002 /* Build configuration list for PBXNativeTarget "acp-compat-probe" */;
+			buildPhases = (
+				AA0500000000000000000004 /* Sources */,
+				AA0500000000000000000005 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA0700000000000000000006 /* PBXTargetDependency */,
+				AA0700000000000000000007 /* PBXTargetDependency */,
+				AA0700000000000000000008 /* PBXTargetDependency */,
+				AA0700000000000000000009 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AA0200000000000000000002 /* ACPCompatProbe */,
+			);
+			name = "acp-compat-probe";
+			productName = "acp-compat-probe";
+			productReference = AA0100000000000000000002 /* acp-compat-probe */;
+			productType = "com.apple.product-type.tool";
+		};
+		B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */;
+			buildPhases = (
+				5A7801E807220F3455FF7D1C /* Sources */,
+				87B845E64EE764E91371992A /* Frameworks */,
+				AD7F94E18FEE471596593689 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F67ED1225C0A4A28AD5875D5 /* AgentRuntimeCore */,
+			);
+			name = AgentRuntimeCore;
+			productName = AgentRuntimeCore;
+			productReference = 0750D83830063FF2DD19F3A5 /* AgentRuntimeCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		C950C1AEFA2D57B2CCE10247 /* ZivviTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C04B79E68C7785F23327EFA6 /* Build configuration list for PBXNativeTarget "ZivviTests" */;
+			buildPhases = (
+				64C8418E754F8D6875FA30E1 /* Sources */,
+				FC83B8F5B93928A0B74449D8 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7627F7630AA833AFFD13F1DE /* PBXTargetDependency */,
+				70EA1500357CBD1F8D306F6A /* PBXTargetDependency */,
+				AA0700000000000000000004 /* PBXTargetDependency */,
+				C0DF4422425C664D43D163F3 /* PBXTargetDependency */,
+				AA0700000000000000000005 /* PBXTargetDependency */,
+				E78C61FDBC58A4F6BE164758 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C2780B234DE45366EE77679C /* ZivviTests */,
+			);
+			name = ZivviTests;
+			productName = ZivviTests;
+			productReference = FF1231F81D0DFB260F6D734A /* ZivviTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		CD503C5FF400B347FD0BD07E /* OrchestrationCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */;
+			buildPhases = (
+				9738CD144BB23643287F59E9 /* Sources */,
+				3C34AD1AA1090DEC1B52FB59 /* Frameworks */,
+				B6538BFE40F04518971B04BA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				238497D9D5843DA2DCD295DE /* OrchestrationCore */,
+			);
+			name = OrchestrationCore;
+			productName = OrchestrationCore;
+			productReference = 0E55C4D828EF2CEDD233D04C /* OrchestrationCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 519AB08EAD3A76B986AD8D30 /* Build configuration list for PBXNativeTarget "WorkspacePersistence" */;
+			buildPhases = (
+				8683E03C86BC4E289FE29E8D /* Sources */,
+				D0A6AAB2088C93F83DB3212E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CB5BE4877C85E1D0580D9E0D /* WorkspacePersistence */,
+			);
+			name = WorkspacePersistence;
+			productName = WorkspacePersistence;
+			productReference = A33B96D5B778DC2423C1F4E4 /* WorkspacePersistence.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		DBDA1566E07CDDDA389B65C1 /* runtime-verify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90B9FE766F12DD1D45232E02 /* Build configuration list for PBXNativeTarget "runtime-verify" */;
+			buildPhases = (
+				493B38B2FD4AE6D77A0D9937 /* Sources */,
+				984AA5936F70A80B32431E09 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */,
+				7E251EE8601089F823D90290 /* PBXTargetDependency */,
+				BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				58B5EBDE08F995AA1E2ABD2E /* RuntimeVerify */,
+			);
+			name = "runtime-verify";
+			productName = "runtime-verify";
+			productReference = 9751D92040781601B149857A /* runtime-verify */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D3DCE6A81C5E70352DF19641 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2720;
+				TargetAttributes = {
+					C950C1AEFA2D57B2CCE10247 = {
+						TestTargetID = A54AAAB5EA605775A493521A;
+					};
+				};
+			};
+			buildConfigurationList = 472871D92D1BEFDFE57BAF78 /* Build configuration list for PBXProject "Zivvi" */;
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AABBCC110000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2F3A6B1E78F896718625FF06 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9284448B92222BB1E47636AB /* CProcessInspection */,
+				6B2A065540391B48F5B407D5 /* ProcessSupervision */,
+				B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */,
+				CD503C5FF400B347FD0BD07E /* OrchestrationCore */,
+				AA0300000000000000000001 /* ACPRuntimeAdapter */,
+				CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */,
+				4B026431BEFB421CEA527844 /* zivvi-supervisor */,
+				A54AAAB5EA605775A493521A /* Zivvi */,
+				AA0300000000000000000002 /* acp-compat-probe */,
+				DBDA1566E07CDDDA389B65C1 /* runtime-verify */,
+				C950C1AEFA2D57B2CCE10247 /* ZivviTests */,
+				7C866B8BA2E4E2D1DC336273 /* ProcessSupervisionTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4B7A5116FC451179A4C0904D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0500000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD7F94E18FEE471596593689 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6538BFE40F04518971B04BA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A038D9C3CEFD69DADC7721A9 /* Embed Diagnostics Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Diagnostics Configuration";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "dest=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/DiagnosticsConfiguration.json\"\nif [ -n \"${ZIVVI_DIAGNOSTICS_CONFIG}\" ]; then\n  if [ \"${PRODUCT_BUNDLE_IDENTIFIER}\" = \"ai.yuzio.zivvi\" ]; then\n    echo \"error: Diagnostic fixtures require a separate bundle identifier\"\n    exit 1\n  fi\n  cp \"${ZIVVI_DIAGNOSTICS_CONFIG}\" \"$dest\"\nelse\n  rm -f \"$dest\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		493B38B2FD4AE6D77A0D9937 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4ED6CF369FCB9C9E4D6280D7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		597A28A678D5761F9111FFA0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A7801E807220F3455FF7D1C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5FE4B6F4DC86A0231AC7409E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		64C8418E754F8D6875FA30E1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8683E03C86BC4E289FE29E8D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8D45A973755CE737DB7D8DCC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9738CD144BB23643287F59E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0500000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0500000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCB4E1C3D9F909600A5E11C6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		315655399D63B5F441AA4C74 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+			targetProxy = 57A8D706C4A4BB26A8D6FE2F /* PBXContainerItemProxy */;
+		};
+		3CCA0DE11A700B944334D830 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+			targetProxy = 19C02C78940FB68F0350DCD5 /* PBXContainerItemProxy */;
+		};
+		5B44B87D7AF7C5659F627559 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = 0E2D92C60F44540F70A94A28 /* PBXContainerItemProxy */;
+		};
+		646074A45C00F1DD9DD66946 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 1224EE0F7D22021A4B59A80A /* PBXContainerItemProxy */;
+		};
+		70EA1500357CBD1F8D306F6A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = C1B02D2E8C407FAB6B867537 /* PBXContainerItemProxy */;
+		};
+		7627F7630AA833AFFD13F1DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 5C5D3A9AD30D2DBE4434E7F6 /* PBXContainerItemProxy */;
+		};
+		7E251EE8601089F823D90290 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = 777167653B93183876A215CB /* PBXContainerItemProxy */;
+		};
+		8715A35381BB90B5D2296330 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = AAAFDFFC6C002A8156B27C72 /* PBXContainerItemProxy */;
+		};
+		8CE7CAD51051D717FD5D9A68 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = A42E931D853590D14A335F4E /* PBXContainerItemProxy */;
+		};
+		A9E06C5070A3B9E7874D9B9E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9284448B92222BB1E47636AB /* CProcessInspection */;
+			targetProxy = 004D273C498A98462C56F905 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = AA0600000000000000000001 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = AA0600000000000000000002 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0300000000000000000001 /* ACPRuntimeAdapter */;
+			targetProxy = AA0600000000000000000003 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0300000000000000000001 /* ACPRuntimeAdapter */;
+			targetProxy = AA0600000000000000000004 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000005 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = AA0600000000000000000005 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000006 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0300000000000000000001 /* ACPRuntimeAdapter */;
+			targetProxy = AA0600000000000000000006 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = AA0600000000000000000007 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = AA0600000000000000000008 /* PBXContainerItemProxy */;
+		};
+		AA0700000000000000000009 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B026431BEFB421CEA527844 /* zivvi-supervisor */;
+			targetProxy = AA0600000000000000000009 /* PBXContainerItemProxy */;
+		};
+		B69082C65E19A3D5DAB80A0A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = 13112D549003B7D54A53B610 /* PBXContainerItemProxy */;
+		};
+		B8C337F1DC2ACB5C61FCF31F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD503C5FF400B347FD0BD07E /* OrchestrationCore */;
+			targetProxy = 79E288B30BCFD00715EAC055 /* PBXContainerItemProxy */;
+		};
+		BD7784DE923E72B29B8B7ED8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B026431BEFB421CEA527844 /* zivvi-supervisor */;
+			targetProxy = C5B6E7D667E59BCB1DF13AE5 /* PBXContainerItemProxy */;
+		};
+		C0DF4422425C664D43D163F3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CFD61F8CB8D022DAC6E9AE7B /* WorkspacePersistence */;
+			targetProxy = C23DC084AC2308669EDA7669 /* PBXContainerItemProxy */;
+		};
+		C141E367826E0F3FFE8C1EE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4B026431BEFB421CEA527844 /* zivvi-supervisor */;
+			targetProxy = 05F9701CC3380D6C959A0E48 /* PBXContainerItemProxy */;
+		};
+		E4D416C7D87FC47634B8C7CF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 9B79845FE764BB08B42771AA /* PBXContainerItemProxy */;
+		};
+		E78C61FDBC58A4F6BE164758 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A54AAAB5EA605775A493521A /* Zivvi */;
+			targetProxy = 4892C742F62798F9C01A0095 /* PBXContainerItemProxy */;
+		};
+		FE9BD35CC322DB704E49FCC7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7D56B4B0BD34DAAED2C8FDB /* AgentRuntimeCore */;
+			targetProxy = 5F8C3E7F1C48C86E378D73DF /* PBXContainerItemProxy */;
+		};
+		FFF5E7BC4C2CFE74B4907FBD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B2A065540391B48F5B407D5 /* ProcessSupervision */;
+			targetProxy = 657065C2CF5505ED308BF02A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		02AFFAE103F0D7197CEC50F9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.OrchestrationCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		0D6F98D42F3DFF97FD51931B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.OrchestrationCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		169589E666083B8035869D08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "runtime-verify";
+			};
+			name = Release;
+		};
+		1F643B5E9103807F512E2ABF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.WorkspacePersistence;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		2B43849026E107C75AC36766 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Zivvi;
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ZIVVI_BUNDLE_IDENTIFIER)";
+				PRODUCT_MODULE_NAME = Zivvi;
+				PRODUCT_NAME = Zivvi;
+				ZIVVI_BUNDLE_IDENTIFIER = ai.yuzio.zivvi;
+				ZIVVI_DIAGNOSTICS_CONFIG = "";
+			};
+			name = Release;
+		};
+		4C95F91A6D5CD87BB5DB8FDD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_MODULE_VERIFIER = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		5CE35C2C0B5AA1D7F91A4F14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "zivvi-supervisor";
+			};
+			name = Release;
+		};
+		9131D3A0E7A86EB41A751019 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Zivvi;
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(ZIVVI_BUNDLE_IDENTIFIER)";
+				PRODUCT_MODULE_NAME = Zivvi;
+				PRODUCT_NAME = Zivvi;
+				ZIVVI_BUNDLE_IDENTIFIER = ai.yuzio.zivvi;
+				ZIVVI_DIAGNOSTICS_CONFIG = "";
+			};
+			name = Debug;
+		};
+		969595A508627F35A110362C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_MODULE_VERIFIER = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A2E321E666A70718B22E9076 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ZivviTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zivvi.app/Contents/MacOS/Zivvi";
+			};
+			name = Release;
+		};
+		AA0800000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ACPRuntimeAdapter;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		AA0800000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ACPRuntimeAdapter;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		AA0800000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "acp-compat-probe";
+			};
+			name = Debug;
+		};
+		AA0800000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "acp-compat-probe";
+			};
+			name = Release;
+		};
+		AF2FAAFCD3931C59D75863F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "zivvi-supervisor";
+			};
+			name = Debug;
+		};
+		BB75D57E0FCB3A707AE002F7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.AgentRuntimeCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		BE57D2927F2B97D06116865B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path",
+				);
+				PRODUCT_NAME = "runtime-verify";
+			};
+			name = Debug;
+		};
+		C3E2E132D65BC40103943E9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Modules/CProcessInspection/include",
+				);
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.CProcessInspection;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		C539BF4A169E032B0A0FD960 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@loader_path/../../..",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ProcessSupervisionTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		C9731623651DFC63B243A0CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.WorkspacePersistence;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		D5869D09ABBEE2F8C9F0D779 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ProcessSupervision;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		DF12FCAE7869F2F31A60579F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Modules/CProcessInspection/include",
+				);
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.CProcessInspection;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		E16C8018370F74BAECDD9BED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.AgentRuntimeCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		E3D3FC4E0EE3DCA487345010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@loader_path/../../..",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ProcessSupervisionTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		F0F7570D818328DD77C821C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEAD_CODE_STRIPPING = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ProcessSupervision;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		F677EA4D8422C359925EAE1E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.yuzio.zivvi.ZivviTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Zivvi.app/Contents/MacOS/Zivvi";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		38301A1743AA37B897A5B3DD /* Build configuration list for PBXNativeTarget "zivvi-supervisor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AF2FAAFCD3931C59D75863F5 /* Debug */,
+				5CE35C2C0B5AA1D7F91A4F14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		46728534FAE1DC6942E65264 /* Build configuration list for PBXNativeTarget "AgentRuntimeCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E16C8018370F74BAECDD9BED /* Debug */,
+				BB75D57E0FCB3A707AE002F7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		472871D92D1BEFDFE57BAF78 /* Build configuration list for PBXProject "Zivvi" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				969595A508627F35A110362C /* Debug */,
+				4C95F91A6D5CD87BB5DB8FDD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		48A2CAFCB7253E7909AB916F /* Build configuration list for PBXNativeTarget "CProcessInspection" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C3E2E132D65BC40103943E9A /* Debug */,
+				DF12FCAE7869F2F31A60579F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		519AB08EAD3A76B986AD8D30 /* Build configuration list for PBXNativeTarget "WorkspacePersistence" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1F643B5E9103807F512E2ABF /* Debug */,
+				C9731623651DFC63B243A0CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5AAA3402C6BA5BE0098F4637 /* Build configuration list for PBXNativeTarget "ProcessSupervision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0F7570D818328DD77C821C6 /* Debug */,
+				D5869D09ABBEE2F8C9F0D779 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6B7A8E171F2F7B5467C83FC0 /* Build configuration list for PBXNativeTarget "Zivvi" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9131D3A0E7A86EB41A751019 /* Debug */,
+				2B43849026E107C75AC36766 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A3A647AD914EC3DD57F022A /* Build configuration list for PBXNativeTarget "OrchestrationCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0D6F98D42F3DFF97FD51931B /* Debug */,
+				02AFFAE103F0D7197CEC50F9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		90B9FE766F12DD1D45232E02 /* Build configuration list for PBXNativeTarget "runtime-verify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE57D2927F2B97D06116865B /* Debug */,
+				169589E666083B8035869D08 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		958E3A8EF6D03BE88C90FBFA /* Build configuration list for PBXNativeTarget "ProcessSupervisionTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E3D3FC4E0EE3DCA487345010 /* Debug */,
+				C539BF4A169E032B0A0FD960 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0900000000000000000001 /* Build configuration list for PBXNativeTarget "ACPRuntimeAdapter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0800000000000000000001 /* Debug */,
+				AA0800000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0900000000000000000002 /* Build configuration list for PBXNativeTarget "acp-compat-probe" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0800000000000000000003 /* Debug */,
+				AA0800000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C04B79E68C7785F23327EFA6 /* Build configuration list for PBXNativeTarget "ZivviTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F677EA4D8422C359925EAE1E /* Debug */,
+				A2E321E666A70718B22E9076 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AABBCC110000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.99.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AABBCC110000000000000002 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AABBCC110000000000000001 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D3DCE6A81C5E70352DF19641 /* Project object */;
+}

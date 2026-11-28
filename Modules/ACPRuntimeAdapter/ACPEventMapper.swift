@@ -6,15 +6,17 @@ import ProcessSupervision
 /// Translates ACP v1 `session/update` notifications and turn settlement into domain `AgentEvent`s
 /// or read-only `HistoryItem`s during `session/load` replay.
 struct ACPEventMapper {
-    struct ReplaySnapshot: Sendable {
-        var items: [HistoryItem]
-        var metadataUpdates: MetadataUpdate
-    }
-
     struct MetadataUpdate: Sendable, Equatable {
         var currentModeID: String?
         var configOptions: [ACPConfigOption]?
         var usage: ACPUsageSnapshot?
+    }
+
+    private struct ToolProjection {
+        var tool: RuntimeTool
+        var hasRawInput = false
+        var contentEdits: RuntimeTool.EditArguments?
+        var titleSummary: String?
     }
 
     static let maximumArgumentsLength = 16_384
@@ -23,12 +25,14 @@ struct ACPEventMapper {
     static let maximumPlanLength = 4_000
 
     var replayingHistory = false
-    var currentAssistant: UUID?
-    var currentAssistantText = ""
+    private var currentAssistant: UUID?
+    private var currentAssistantMessageID: Data?
+    private var currentAssistantText = ""
     var currentThoughtText = ""
-    var tools: [String: RuntimeTool] = [:]
+    private var tools: [String: ToolProjection] = [:]
     var latestUsage: ACPUsageSnapshot?
     private(set) var replayedItems: [HistoryItem] = []
+    private var replayedMessage: (id: Data?, index: Int)?
     private var replayedToolIndices: [String: Int] = [:]
     private var replayCounter = 0
 
@@ -37,7 +41,9 @@ struct ACPEventMapper {
         replayedItems = []
         replayedToolIndices = [:]
         replayCounter = 0
+        replayedMessage = nil
         currentAssistant = nil
+        currentAssistantMessageID = nil
         currentAssistantText = ""
         currentThoughtText = ""
         tools = [:]
@@ -47,6 +53,7 @@ struct ACPEventMapper {
         replayingHistory = false
         let items = replayedItems
         replayedItems = []
+        replayedMessage = nil
         replayedToolIndices = [:]
         tools = [:]
         return items
@@ -57,31 +64,36 @@ struct ACPEventMapper {
         guard let kind = update["sessionUpdate"] as? String else { return ([], metadata) }
 
         switch kind {
-        case "user_message_chunk":
+        case "user_message_chunk", "agent_message_chunk":
+            let isUser = kind == "user_message_chunk"
+            // Live prompts already have a local user row with the original attachments.
+            guard replayingHistory || !isUser else { return ([], metadata) }
+            let messageID = (update["messageId"] as? String).map { Data($0.utf8) }
             let text = ACPJSON.textFromContentBlock(update["content"])
-            guard replayingHistory, !text.isEmpty else { return ([], metadata) }
-            appendReplayedMessage(kind: .user, text: text)
-            return ([], metadata)
-
-        case "agent_message_chunk":
-            let text = ACPJSON.textFromContentBlock(update["content"])
-            guard !text.isEmpty else { return ([], metadata) }
+            let image = ACPJSON.imageDataFromContentBlock(update["content"])
             if replayingHistory {
-                appendReplayedMessage(kind: .assistant, text: text)
+                appendReplayedMessage(kind: isUser ? .user : .assistant, messageID: messageID, text: text, image: image)
                 return ([], metadata)
             }
             var events: [AgentEvent] = []
+            if currentAssistantMessageID != messageID, let completed = completeAssistant() {
+                events.append(completed)
+            }
+            guard !text.isEmpty || image != nil else { return (events, metadata) }
             let id: UUID
             if let existing = currentAssistant {
                 id = existing
             } else {
                 id = UUID()
                 currentAssistant = id
-                currentAssistantText = ""
+                currentAssistantMessageID = messageID
                 events.append(.assistantStarted(id))
             }
-            currentAssistantText += text
-            events.append(.textDelta(id, 0, text))
+            if !text.isEmpty {
+                currentAssistantText += text
+                events.append(.textDelta(id, 0, text))
+            }
+            if let image { events.append(.assistantImage(id, image)) }
             return (events, metadata)
 
         case "agent_thought_chunk":
@@ -99,11 +111,9 @@ struct ACPEventMapper {
                 return ([], metadata)
             }
             var events: [AgentEvent] = []
-            if !replayingHistory, let activeAssistant = currentAssistant {
-                // Separate assistant narrative before a tool call from narrative after it.
-                events.append(.assistantCompleted(activeAssistant, currentAssistantText))
-                currentAssistant = nil
-                currentAssistantText = ""
+            if !replayingHistory, currentAssistantMessageID == nil, let completed = completeAssistant() {
+                // Without an ID, use the tool call to separate adjacent assistant messages.
+                events.append(completed)
             }
             let tool = mergeTool(id: toolCallID, update: update, isCreation: kind == "tool_call")
             if replayingHistory {
@@ -131,10 +141,7 @@ struct ACPEventMapper {
             return ([], metadata)
 
         case "config_option_update":
-            let options = ACPConfigOption.parseList(update["configOptions"])
-            if !options.isEmpty {
-                metadata.configOptions = options
-            }
+            metadata.configOptions = ACPConfigOption.parseList(update["configOptions"])
             return ([], metadata)
 
         default:
@@ -144,11 +151,7 @@ struct ACPEventMapper {
 
     mutating func finishTurn(stopReason: ACPStopReason) -> [AgentEvent] {
         var events: [AgentEvent] = []
-        if let activeAssistant = currentAssistant {
-            events.append(.assistantCompleted(activeAssistant, currentAssistantText))
-            currentAssistant = nil
-            currentAssistantText = ""
-        }
+        if let completed = completeAssistant() { events.append(completed) }
         if !currentThoughtText.isEmpty {
             currentThoughtText = ""
             events.append(.thought(nil))
@@ -174,11 +177,7 @@ struct ACPEventMapper {
 
     mutating func finishTurnWithError(_ failure: RuntimeFailure) -> [AgentEvent] {
         var events: [AgentEvent] = []
-        if let activeAssistant = currentAssistant {
-            events.append(.assistantCompleted(activeAssistant, currentAssistantText))
-            currentAssistant = nil
-            currentAssistantText = ""
-        }
+        if let completed = completeAssistant() { events.append(completed) }
         if !currentThoughtText.isEmpty {
             currentThoughtText = ""
             events.append(.thought(nil))
@@ -189,13 +188,27 @@ struct ACPEventMapper {
         return events
     }
 
-    private mutating func appendReplayedMessage(kind: HistoryItemKind, text: String) {
-        if let lastIndex = replayedItems.indices.last, replayedItems[lastIndex].kind == kind {
-            replayedItems[lastIndex].text += text
-        } else {
-            replayCounter += 1
-            replayedItems.append(HistoryItem(id: "acp-replay-\(replayCounter)", kind: kind, text: text))
+    private mutating func completeAssistant() -> AgentEvent? {
+        guard let id = currentAssistant else { return nil }
+        let event = AgentEvent.assistantCompleted(id, currentAssistantText)
+        currentAssistant = nil
+        currentAssistantMessageID = nil
+        currentAssistantText = ""
+        return event
+    }
+
+    private mutating func appendReplayedMessage(kind: HistoryItemKind, messageID: Data?, text: String, image: Data?) {
+        if let message = replayedMessage, message.id == messageID, replayedItems[message.index].kind == kind,
+           messageID != nil || message.index == replayedItems.indices.last {
+            replayedItems[message.index].text += text
+            if let image { replayedItems[message.index].appendImage(image) }
+            return
         }
+        replayedMessage = nil
+        guard !text.isEmpty || image != nil else { return }
+        replayCounter += 1
+        replayedMessage = (messageID, replayedItems.count)
+        replayedItems.append(HistoryItem(id: "acp-replay-\(replayCounter)", kind: kind, text: text, images: image.map { [$0] }))
     }
 
     private mutating func upsertReplayedTool(_ tool: RuntimeTool) {
@@ -213,7 +226,8 @@ struct ACPEventMapper {
         let rawKind = update["kind"] as? String
         let title = update["title"] as? String
         let initialName = Self.resolvedToolName(kind: rawKind, title: title)
-        var tool = tools[id] ?? RuntimeTool(id: id, name: initialName)
+        var projection = tools[id] ?? ToolProjection(tool: RuntimeTool(id: id, name: initialName))
+        var tool = projection.tool
         if !isCreation, let rawKind {
             let resolved = Self.resolvedToolName(kind: rawKind, title: title)
             if tool.name == "tool" || resolved == "edit" {
@@ -223,9 +237,16 @@ struct ACPEventMapper {
             tool.name = initialName
         }
 
-        if let rawInput = update["rawInput"] {
-            Self.applyArguments(rawInput, on: &tool)
-        } else if tool.arguments.isEmpty, let title, !title.isEmpty {
+        if let rawInput = update["rawInput"], !(rawInput is NSNull) {
+            projection.hasRawInput = true
+            let arguments = rawInput as? Record
+            let inputSummary = (arguments?["toolSummary"] as? String)
+                ?? (arguments?["summary"] as? String)
+                ?? (arguments?["description"] as? String)
+            let trimmed = inputSummary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            tool.summary = trimmed == "" ? nil : trimmed
+            tool.editArguments = Self.applyArguments(rawInput, on: &tool)
+        } else if !projection.hasRawInput, tool.arguments.isEmpty, let title, !title.isEmpty {
             let fallback: Record
             if tool.name == "bash" {
                 fallback = ["command": title]
@@ -235,42 +256,40 @@ struct ACPEventMapper {
             } else {
                 fallback = ["title": title]
             }
-            Self.applyArguments(fallback, on: &tool)
+            if let edits = Self.applyArguments(fallback, on: &tool), tool.editArguments == nil {
+                tool.editArguments = edits
+            }
+        }
+        if let title {
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let distinct = !trimmed.isEmpty && trimmed.lowercased() != tool.name.lowercased()
+                && trimmed.lowercased() != rawKind?.lowercased()
+            projection.titleSummary = distinct ? trimmed : nil
         }
 
-        if let rawContent = update["content"] {
+        if let rawContent = update["content"] as? [Record] {
             let extracted = ACPJSON.extractToolContent(rawContent)
-            if !extracted.text.isEmpty {
-                let retained = Self.clippedOutput(extracted.text)
-                tool.output = retained.text
-                tool.truncated = tool.truncated || retained.truncated
-            }
-            if let image = extracted.imageData {
-                tool.outputImage = image
-            }
-            if !extracted.diffs.isEmpty {
-                tool.name = "edit"
-                if let editArguments = Self.makeEditArguments(from: extracted.diffs) {
-                    tool.editArguments = editArguments
-                }
-            }
-        } else if let rawOutput = update["rawOutput"] {
-            let text = Self.serializeJSON(rawOutput)
-            if !text.isEmpty {
-                let retained = Self.clippedOutput(text)
-                tool.output = retained.text
-                tool.truncated = tool.truncated || retained.truncated
-            }
+            let retained = Self.clippedOutput(extracted.text)
+            tool.output = retained.text
+            tool.truncated = retained.truncated
+            tool.outputImage = extracted.imageData
+            projection.contentEdits = Self.makeEditArguments(from: extracted.diffs)
+        } else if let rawOutput = update["rawOutput"], !(rawOutput is NSNull) {
+            let retained = Self.clippedOutput(Self.serializeJSON(rawOutput))
+            tool.output = retained.text
+            tool.truncated = retained.truncated
         }
 
         if let status = update["status"] as? String {
             tool.state = Self.mapToolState(status)
         }
 
-        if tool.state == .completed || tool.state == .failed {
-            tools.removeValue(forKey: id)
-        } else {
-            tools[id] = tool
+        projection.tool = tool
+        tools[id] = projection
+        tool.summary = tool.summary ?? projection.titleSummary
+        if let edits = projection.contentEdits {
+            tool.name = "edit"
+            tool.editArguments = edits
         }
         return tool
     }
@@ -303,18 +322,16 @@ struct ACPEventMapper {
         return RuntimeTool.EditArguments(path: first.path, edits: edits, replacementCount: edits.count)
     }
 
-    static func applyArguments(_ raw: Any, on tool: inout RuntimeTool) {
+    static func applyArguments(_ raw: Any, on tool: inout RuntimeTool) -> RuntimeTool.EditArguments? {
         let text = serializeJSON(raw)
         let preview = text.prefix(maximumArgumentsLength)
         tool.arguments = String(preview)
         tool.argumentsTruncated = preview.endIndex < text.endIndex ? true : nil
-        if tool.name == "edit", tool.editArguments == nil,
-           let data = text.data(using: .utf8),
-           let decoded = try? RuntimeTool.EditArguments.decodeToolArguments(from: data) {
-            tool.editArguments = decoded
-        } else if tool.name == "write", let path = (raw as? Record)?["path"] as? String {
-            tool.writePath = path
+        tool.writePath = tool.name == "write" ? (raw as? Record)?["path"] as? String : nil
+        if tool.name == "edit" {
+            return try? RuntimeTool.EditArguments.decodeToolArguments(from: Data(text.utf8))
         }
+        return nil
     }
 
     static func clippedOutput(_ text: String) -> (text: String, truncated: Bool) {
@@ -324,8 +341,8 @@ struct ACPEventMapper {
 
     static func serializeJSON(_ value: Any) -> String {
         if let string = value as? String { return string }
-        guard JSONSerialization.isValidJSONObject(value),
-              let data = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]) else {
+        guard let data = try? JSONSerialization.data(withJSONObject: value,
+                                                     options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed]) else {
             return ""
         }
         return String(decoding: data, as: UTF8.self)
@@ -392,10 +409,10 @@ struct ACPEventMapper {
 
     static func failure(from rpcError: ACPJSONRPCError) -> RuntimeFailure {
         if rpcError.isAuthRequired {
-            return RuntimeFailure(.authentication, String(localized: "ACP Agent 认证失败，请先完成登录后重试。", bundle: #bundle))
+            return RuntimeFailure(.authentication, String(localized: "ACP Agent 认证失败，请先完成登录后重试。", bundle: #bundle), rawDetail: rpcError.message)
         }
         if rpcError.code == ACPProtocol.ErrorCode.parseError || rpcError.code == ACPProtocol.ErrorCode.invalidRequest {
-            return RuntimeFailure(.protocolError, String(localized: "ACP 协议格式异常，执行状态待核实。", bundle: #bundle))
+            return RuntimeFailure(.protocolError, String(localized: "ACP 协议格式异常，执行状态待核实。", bundle: #bundle), rawDetail: rpcError.message)
         }
         return failure(rpcError.message)
     }
@@ -404,20 +421,24 @@ struct ACPEventMapper {
         let lower = error.lowercased()
         if lower.contains("401") || lower.contains("api key") || lower.contains("unauthorized")
             || lower.contains("auth_required") || lower.contains("authentication required") {
-            return .init(.authentication, String(localized: "ACP Agent 认证失败，请先完成登录后重试。", bundle: #bundle))
+            return .init(.authentication, String(localized: "ACP Agent 认证失败，请先完成登录后重试。", bundle: #bundle), rawDetail: error)
+        }
+        if lower.contains("quota reached") || lower.contains("individual quota")
+            || lower.contains("insufficient_quota") || lower.contains("usage limit") {
+            return .init(.model, String(localized: "当前模型额度已耗尽，请查看额度或切换其他模型。", bundle: #bundle), rawDetail: error)
         }
         if lower.contains("429") || lower.contains("rate limit") {
-            return .init(.model, String(localized: "模型服务限流，请稍后手动重试。", bundle: #bundle))
+            return .init(.model, String(localized: "模型服务限流，请稍后手动重试。", bundle: #bundle), rawDetail: error)
         }
         if lower.contains("deadline") || lower.contains("timeout") || lower.contains("timed out") {
-            return .init(.outcomeUnknown, String(localized: "请求超时，执行结果尚未确认；不会自动重发。", bundle: #bundle))
+            return .init(.outcomeUnknown, String(localized: "请求超时，执行结果尚未确认；不会自动重发。", bundle: #bundle), rawDetail: error)
         }
         if lower.contains("protocol") || lower.contains("malformed") {
-            return .init(.protocolError, String(localized: "ACP 运行时协议异常，执行状态待核实。", bundle: #bundle))
+            return .init(.protocolError, String(localized: "ACP 运行时协议异常，执行状态待核实。", bundle: #bundle), rawDetail: error)
         }
         if lower.contains("supervis") || lower.contains("cleanup") {
-            return .init(.supervision, String(localized: "进程清理尚未确认，已阻止继续执行。", bundle: #bundle))
+            return .init(.supervision, String(localized: "进程清理尚未确认，已阻止继续执行。", bundle: #bundle), rawDetail: error)
         }
-        return .init(.connection, String(localized: "ACP 运行时请求失败。请结束受管进程并检查 Agent 配置后手动重连。", bundle: #bundle))
+        return .init(.connection, String(localized: "ACP 运行时请求失败。请结束受管进程并检查 Agent 配置后手动重连。", bundle: #bundle), rawDetail: error)
     }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reduce Pikachu's own-window pixel stream to reproducible acceptance samples."""
+"""Reduce Zivvi's own-window pixel stream to reproducible acceptance samples."""
 import argparse
 import itertools
 import json

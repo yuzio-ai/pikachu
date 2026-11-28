@@ -9,10 +9,10 @@ public actor FakeRuntime: AgentRuntime {
     private var active = false
     private var queue = RuntimeQueue()
     private let sessionID = UUID().uuidString
-    private var selection = RuntimeSelection(provider: "pikachu", modelID: "demo", thinking: "off")
+    private var selection = RuntimeSelection(provider: "zivvi", modelID: "demo", thinking: "off")
     public static let models = [
-        RuntimeModel(provider: "pikachu", modelID: "demo", name: String(localized: "演示模型", bundle: #bundle)),
-        RuntimeModel(provider: "pikachu", modelID: "demo-reasoning", name: String(localized: "演示推理模型", bundle: #bundle)),
+        RuntimeModel(provider: "zivvi", modelID: "demo", name: String(localized: "演示模型", bundle: #bundle)),
+        RuntimeModel(provider: "zivvi", modelID: "demo-reasoning", name: String(localized: "演示推理模型", bundle: #bundle)),
     ]
     public nonisolated static func options(for model: RuntimeModel?) -> RuntimeConfigurationOptions {
         .init(models: models, thinkingLevels: model?.modelID == "demo-reasoning" ? ["off", "low", "medium", "high"] : ["off"])

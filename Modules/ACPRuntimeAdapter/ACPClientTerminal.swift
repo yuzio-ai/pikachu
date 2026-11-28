@@ -20,12 +20,12 @@ final class ACPClientTerminal: @unchecked Sendable {
         outputLimit = min(limit, Self.maximumOutputBytes)
         let manager = FileManager.default
         let helper = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
-            .deletingLastPathComponent().appendingPathComponent("pikachu-supervisor")
+            .deletingLastPathComponent().appendingPathComponent("zivvi-supervisor")
         guard manager.isExecutableFile(atPath: helper.path),
               let executable = Self.executable(command, cwd: cwd, path: environment["PATH"] ?? "")
         else { throw ProbeError.failure("Terminal executable or process supervisor unavailable") }
         statusDirectory = (supervisionRoot ?? manager.temporaryDirectory)
-            .appendingPathComponent("pikachu-terminal-\(UUID().uuidString)")
+            .appendingPathComponent("zivvi-terminal-\(UUID().uuidString)")
         try manager.createDirectory(at: statusDirectory, withIntermediateDirectories: false,
                                     attributes: [.posixPermissions: 0o700])
         let status = statusDirectory.appendingPathComponent("status.json")

@@ -106,6 +106,7 @@ public struct JSONRPCResponse: @unchecked Sendable {
     public let resultJSON: Data?
     public let error: JSONRPCError?
     public let raw: Record
+    public fileprivate(set) var receiveOrder = 0
 
     public init(id: JSONRPCID, result: Any?, resultJSON: Data?, error: JSONRPCError?, raw: Record) {
         self.id = id
@@ -156,6 +157,7 @@ public struct JSONRPCNotification: @unchecked Sendable {
     public let params: Record
     public let paramsJSON: Data?
     public let raw: Record
+    public fileprivate(set) var receiveOrder = 0
 
     public init(method: String, params: Record, paramsJSON: Data?, raw: Record) {
         self.method = method
@@ -223,7 +225,7 @@ public struct JSONRPCStartupCleanupPending: Error, Sendable, CustomStringConvert
 }
 
 /// Supervised bidirectional JSON-RPC 2.0 stdio transport.
-/// Reuses `pikachu-supervisor`, `ProcessIdentity`, strict LF `JSONLDecoder`, `F_SETNOSIGPIPE`,
+/// Reuses `zivvi-supervisor`, `ProcessIdentity`, strict LF `JSONLDecoder`, `F_SETNOSIGPIPE`,
 /// bounded 16 MiB records, bounded inbound queue backpressure, and confirmed `SIGTERM -> SIGKILL` shutdown.
 public final class JSONRPCProcess: @unchecked Sendable {
     public let process = Process()
@@ -236,7 +238,7 @@ public final class JSONRPCProcess: @unchecked Sendable {
     private let diagnostic = Pipe()
     private let lock = NSCondition()
     private let writeLock = NSLock()
-    private let callbackQueue = DispatchQueue(label: "com.pikachu.jsonrpc.callbacks")
+    private let callbackQueue = DispatchQueue(label: "ai.yuzio.zivvi.jsonrpc.callbacks")
 
     private let maximumQueueCount: Int
     private let maximumQueueBytes: Int
@@ -301,12 +303,12 @@ public final class JSONRPCProcess: @unchecked Sendable {
             let helper = URL(fileURLWithPath: CommandLine.arguments[0])
                 .resolvingSymlinksInPath()
                 .deletingLastPathComponent()
-                .appendingPathComponent("pikachu-supervisor")
+                .appendingPathComponent("zivvi-supervisor")
             guard FileManager.default.isExecutableFile(atPath: helper.path) else {
-                throw ProbeError.failure("Supervisor executable missing; build pikachu-supervisor")
+                throw ProbeError.failure("Supervisor executable missing; build zivvi-supervisor")
             }
             let directory = supervisionDirectory ?? (supervisionRoot ?? FileManager.default.temporaryDirectory)
-                .appendingPathComponent("pikachu-supervision-\(UUID().uuidString)")
+                .appendingPathComponent("zivvi-supervision-\(UUID().uuidString)")
             if supervisionDirectory != nil {
                 try FileManager.default.createDirectory(at: directory.deletingLastPathComponent(),
                                                         withIntermediateDirectories: true,
@@ -334,7 +336,10 @@ public final class JSONRPCProcess: @unchecked Sendable {
         process.standardOutput = output
         process.standardError = diagnostic
 
-        if fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) != 0 {
+        let writeDescriptor = input.fileHandleForWriting.fileDescriptor
+        let writeFlags = fcntl(writeDescriptor, F_GETFL)
+        if writeFlags < 0 || fcntl(writeDescriptor, F_SETNOSIGPIPE, 1) != 0 ||
+            fcntl(writeDescriptor, F_SETFL, writeFlags | O_NONBLOCK) != 0 {
             throw ProbeError.failure("Cannot establish safe protocol writes")
         }
 
@@ -458,25 +463,71 @@ public final class JSONRPCProcess: @unchecked Sendable {
 
     // MARK: - Outbound Writing
 
+    public typealias WriteGate = (() throws -> Void) throws -> Void
+
     public func raw(_ bytes: Data) throws {
+        try raw(bytes, writeGate: nil)
+    }
+
+    private func raw(_ bytes: Data, writeGate: WriteGate?) throws {
         try writeLock.withLock {
-            if lock.withLock({ streamClosing }) {
+            if isTransportEnding {
+                try writeGate?({})
                 throw ProbeError.failure("Connection is closing")
             }
             if supervisionStatusURL != nil && (!process.isRunning || supervisionStatus["state"] as? String != "running") {
+                try writeGate?({})
                 throw ProbeError.failure("Supervision unavailable; new commands blocked")
             }
-            try input.fileHandleForWriting.write(contentsOf: bytes)
+            if bytes.isEmpty { return }
+            let descriptor = input.fileHandleForWriting.fileDescriptor
+            let deadline = ContinuousClock.now + .seconds(5)
+            try bytes.withUnsafeBytes { buffer in
+                guard let address = buffer.baseAddress else { return }
+                var offset = 0
+                while offset < buffer.count {
+                    guard !isTransportEnding else {
+                        if offset == 0 { try writeGate?({}) }
+                        throw ProbeError.failure("Connection is closing")
+                    }
+                    var count = 0
+                    var writeError: Int32 = 0
+                    let write = {
+                        count = Darwin.write(descriptor, address.advanced(by: offset), buffer.count - offset)
+                        if count < 0 { writeError = errno }
+                    }
+                    // A frame starts on its first successful write. Until then retirement can reject it.
+                    if offset == 0, let writeGate { try writeGate(write) }
+                    else { write() }
+                    if count > 0 { offset += count; continue }
+                    if ContinuousClock.now >= deadline {
+                        failProtocol("Protocol write timed out")
+                        throw ProbeError.failure("Protocol write timed out")
+                    }
+                    if writeError == EINTR { continue }
+                    guard writeError == EAGAIN || writeError == EWOULDBLOCK else {
+                        failProtocol("Protocol write failed")
+                        throw ProbeError.failure("Protocol write failed")
+                    }
+                    var writable = pollfd(fd: descriptor, events: Int16(POLLOUT), revents: 0)
+                    _ = poll(&writable, 1, 50)
+                }
+            }
         }
     }
 
-    private func sendObject(_ value: Record, kind: String, method: String?, id: JSONRPCID?) throws {
+    public var isTransportEnding: Bool {
+        lock.withLock { streamClosing || stdoutFinished || protocolFailure != nil }
+    }
+
+    private func sendObject(_ value: Record, kind: String, method: String?, id: JSONRPCID?,
+                            writeGate: WriteGate? = nil) throws {
         guard JSONSerialization.isValidJSONObject(value) else {
             throw ProbeError.failure("Invalid JSON-RPC payload")
         }
         var data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
         data.append(10)
-        try raw(data)
+        try raw(data, writeGate: writeGate)
         lock.withLock {
             appendTimeline(direction: "send", kind: kind, method: method, id: id)
         }
@@ -484,7 +535,8 @@ public final class JSONRPCProcess: @unchecked Sendable {
 
     /// Sends a JSON-RPC 2.0 request with an auto-incrementing integer ID and returns that ID immediately.
     @discardableResult
-    public func sendRequest(method: String, params: Record? = nil) throws -> JSONRPCID {
+    public func sendRequest(method: String, params: Record? = nil, writeGate: WriteGate? = nil,
+                            register: ((JSONRPCID) throws -> Void)? = nil) throws -> JSONRPCID {
         let id: JSONRPCID = try lock.withLock {
             guard !streamClosing else { throw ProbeError.failure("Connection is closing") }
             guard pendingRequests.count < maximumPendingRequests else {
@@ -495,7 +547,7 @@ public final class JSONRPCProcess: @unchecked Sendable {
             pendingRequests.insert(allocated)
             return allocated
         }
-        return try sendPreparedRequest(id: id, method: method, params: params)
+        return try sendPreparedRequest(id: id, method: method, params: params, writeGate: writeGate, register: register)
     }
 
     /// Sends a JSON-RPC 2.0 request using an explicit caller-provided ID (integer or string).
@@ -514,7 +566,8 @@ public final class JSONRPCProcess: @unchecked Sendable {
         return try sendPreparedRequest(id: id, method: method, params: params)
     }
 
-    private func sendPreparedRequest(id: JSONRPCID, method: String, params: Record?) throws -> JSONRPCID {
+    private func sendPreparedRequest(id: JSONRPCID, method: String, params: Record?,
+                                     writeGate: WriteGate? = nil, register: ((JSONRPCID) throws -> Void)? = nil) throws -> JSONRPCID {
         var payload: Record = [
             "jsonrpc": "2.0",
             "id": id.jsonValue,
@@ -524,7 +577,8 @@ public final class JSONRPCProcess: @unchecked Sendable {
             payload["params"] = params
         }
         do {
-            try sendObject(payload, kind: "request", method: method, id: id)
+            try register?(id)
+            try sendObject(payload, kind: "request", method: method, id: id, writeGate: writeGate)
             return id
         } catch {
             lock.withLock {
@@ -757,6 +811,16 @@ public final class JSONRPCProcess: @unchecked Sendable {
         }
     }
 
+    /// Wait without claiming frames when a caller also serializes response dispatch.
+    public func waitForInboundActivity(timeout: Double) {
+        let deadline = Date().addingTimeInterval(max(0, timeout))
+        lock.withLock {
+            while inboundMessages.isEmpty && !stdoutFinished && !streamClosing && protocolFailure == nil && Date() < deadline {
+                lock.wait(until: deadline)
+            }
+        }
+    }
+
     private func waitNextInbound(timeout: Double) -> JSONRPCInboundMessage? {
         let deadline = Date().addingTimeInterval(max(0, timeout))
         return lock.withLock {
@@ -925,9 +989,10 @@ public final class JSONRPCProcess: @unchecked Sendable {
 
     private func routeInboundFrame(_ frame: JSONRPCWireFrame, recordBytes: Int) {
         switch frame {
-        case .response(let response):
+        case .response(var response):
             let matchedHandler: (@Sendable (Result<JSONRPCResponse, Error>) -> Void)? = lock.withLock {
                 receivedCount += 1
+                response.receiveOrder = receivedCount
                 appendTimeline(direction: "receive", kind: response.isError ? "error_response" : "response", method: nil, id: response.id)
                 if let handler = responseHandlers.removeValue(forKey: response.id) {
                     pendingRequests.remove(response.id)
@@ -940,7 +1005,7 @@ public final class JSONRPCProcess: @unchecked Sendable {
                 return nil
             }
             if let matchedHandler {
-                callbackQueue.async { matchedHandler(.success(response)) }
+                callbackQueue.async { [response] in matchedHandler(.success(response)) }
             }
 
         case .request(let request):
@@ -959,7 +1024,12 @@ public final class JSONRPCProcess: @unchecked Sendable {
                 lock.wait()
             }
             if streamClosing { return }
-            inboundMessages.append(message)
+            if case .notification(var notification) = message {
+                notification.receiveOrder = receivedCount
+                inboundMessages.append(.notification(notification))
+            } else {
+                inboundMessages.append(message)
+            }
             inboundSizes.append(recordBytes)
             inboundBytes += recordBytes
             appendTimeline(direction: "receive", kind: kind, method: method, id: id)

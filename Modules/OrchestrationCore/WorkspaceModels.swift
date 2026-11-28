@@ -49,6 +49,7 @@ public struct RecordedTurnRecord: Codable, Sendable, Equatable, Identifiable {
     public var fileChanges: TurnFileChanges?
     var model: SessionTurnModel?
     var modelChange: SessionModelChange?
+    // The submission associated with the turn's effective model.
     var modelSubmissionID: UUID?
     public init(id: UUID = UUID(), anchorAssistantTimestampMs: Int64? = nil, endAssistantTimestampMs: Int64? = nil,
                 anchorToolCallID: String? = nil, anchorUserTimestampMs: Int64? = nil,
@@ -149,9 +150,10 @@ public struct CachedTranscriptItem: Codable, Sendable, Equatable, Identifiable {
     public let endedAt: Date?
     public let files: [URL]?
     public let submissionID: UUID?
+    public let delivery: DeliveryState?
 
     public init(id: String, kind: HistoryItemKind, text: String = "", tool: RuntimeTool? = nil, sentAt: Date? = nil,
-                endedAt: Date? = nil, files: [URL]? = nil, submissionID: UUID? = nil) {
+                endedAt: Date? = nil, files: [URL]? = nil, submissionID: UUID? = nil, delivery: DeliveryState? = nil) {
         self.id = id
         self.kind = kind
         self.text = Self.boundedUTF8(text, limit: Self.maximumTextBytes)
@@ -160,6 +162,7 @@ public struct CachedTranscriptItem: Codable, Sendable, Equatable, Identifiable {
         self.endedAt = endedAt
         self.files = files?.isEmpty == true ? nil : files
         self.submissionID = submissionID
+        self.delivery = delivery
     }
 
     public var asHistoryItem: HistoryItem {
@@ -170,6 +173,7 @@ public struct CachedTranscriptItem: Codable, Sendable, Equatable, Identifiable {
         var copy = RuntimeTool(
             id: tool.id,
             name: tool.name,
+            summary: tool.summary,
             arguments: boundedUTF8(tool.arguments, limit: maximumToolOutputBytes),
             output: boundedUTF8(tool.output, limit: maximumToolOutputBytes),
             state: tool.state == .running ? .interrupted : tool.state,

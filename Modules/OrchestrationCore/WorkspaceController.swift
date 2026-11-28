@@ -15,6 +15,14 @@ public struct ProjectDeletionSummary: Identifiable, Equatable, Sendable {
     public let draftCount: Int
 }
 
+public struct RemoteHistoryDeletionTarget: Equatable, Sendable {
+    public let sessionID: UUID
+    public let agentID: String
+    public let directory: String
+    public let remoteID: String
+    fileprivate let segmentID: UUID
+}
+
 @MainActor @Observable public final class SessionPresentation: Identifiable {
     public let id: UUID
     public let controller: SessionController
@@ -42,6 +50,26 @@ public struct ProjectDeletionSummary: Identifiable, Equatable, Sendable {
 
     func setSubmittingHandoff(_ value: Bool) {
         isSubmittingHandoff = value
+    }
+
+    func toolSummary(for item: TranscriptItem, reference: SessionReference) -> TranscriptToolSummary? {
+        guard item.kind == .tool else { return nil }
+        let timelineID = item.timelineID
+        let segmentID = item.sourceSegmentID ?? reference.id
+        if reference.frozenSegments?.contains(where: { $0.id == segmentID }) == true {
+            if let current = frozenTranscript.first(where: {
+                $0.kind == .tool && $0.frozenTimelineSegmentID == segmentID && $0.timelineID == timelineID
+            }) {
+                return current.toolSummary
+            }
+            return frozenSegmentIDs.contains(segmentID) ? nil : item.toolSummary
+        }
+        guard item.frozenTimelineSegmentID == nil, item.timelineSegmentID == controller.timelineSegmentID else { return nil }
+        if let current = controller.transcript.first(where: { $0.kind == .tool && $0.timelineID == timelineID }) {
+            return current.toolSummary
+        }
+        guard controller.connection == .disconnected, controller.transcript.isEmpty else { return nil }
+        return reference.cachedHistoryItems?.first(where: { $0.kind == .tool && $0.id == item.id })?.tool.map(TranscriptToolSummary.init)
     }
 }
 
@@ -82,19 +110,24 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     public var newSessionRequest = 0
     public var openProjectRequest = 0
     public private(set) var completedTurnsByDirectory: [String: Int] = [:]
+    public private(set) var agentConnectionStatuses: [String: ACPPoolStatus] = [:]
     @ObservationIgnored public var onLiveTurnFinished: (@MainActor (UUID, TurnRecord) -> Void)?
     @ObservationIgnored public var onLiveApprovalRequested: (@MainActor (UUID, RuntimeInteraction, SessionController) -> Void)?
     @ObservationIgnored public var generateSessionTitle: (@MainActor (SessionTitleSettings, String) async -> String?)?
+    @ObservationIgnored public var isForegroundWindowActive: @MainActor () -> Bool = { false }
     @ObservationIgnored private var titleGenerationTasks: [UUID: Task<Void, Never>] = [:]
     public func focusInput() { inputFocusRequest += 1 }
+    public func setAgentConnectionStatus(_ status: ACPPoolStatus?, for agentID: String) {
+        agentConnectionStatuses[agentID] = status
+    }
     @ObservationIgnored private let store: any WorkspaceStore
     @ObservationIgnored private let clock: any RuntimeClock
     @ObservationIgnored private let runtimeFactory: @MainActor (ProjectRecord, SessionReference, WorkspaceRuntimeLaunch) -> any AgentRuntime
     @ObservationIgnored private let inspectRuntimeModels: @MainActor (String, RuntimeModel?) async throws -> RuntimeConfigurationOptions
     @ObservationIgnored private let verifyHandoffCleanup: @MainActor (UUID) -> Bool
     @ObservationIgnored private var autosave: Task<Void, Never>?
-    @ObservationIgnored private let idleRuntimeTimeout: Duration
-    @ObservationIgnored private var idleReapers: [UUID: Task<Void, Never>] = [:]
+    private var retiringExecutions: Set<UUID> = []
+    @ObservationIgnored private var retirementTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var dirtyDrafts: Set<UUID> = []
     @ObservationIgnored private var defaultModelSaves: [String: Task<Bool, Never>] = [:]
     @ObservationIgnored private var savingSnapshot = false
@@ -111,6 +144,11 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     public func execution(for id: UUID) -> SessionController? {
         activeExecutionIDs.contains(id) ? presentations[id]?.controller : nil
     }
+    public func transcriptToolSummary(for item: TranscriptItem, in id: UUID) -> TranscriptToolSummary? {
+        guard let presentation = presentations[id],
+              let reference = state.sessions.first(where: { $0.id == id }) else { return nil }
+        return presentation.toolSummary(for: item, reference: reference)
+    }
     public func workingDirectory(for id: UUID) -> String? {
         guard let reference = state.sessions.first(where: { $0.id == id }),
               let project = state.projects.first(where: { $0.id == reference.projectID }) else { return nil }
@@ -120,9 +158,6 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
     public var defaultRuntimeID: String? { state.preferences.resolvedDefaultRuntimeID }
     public var availableRuntimes: [RuntimeAgentProfile] { acpAgents.filter(\.enabled) }
     public var availableRuntimeIDs: [String] { availableRuntimes.map(\.id) }
-    public func agentProfile(for runtimeID: String) -> RuntimeAgentProfile? {
-        return acpAgents.first { $0.id == runtimeID }
-    }
     public func isRuntimeAvailable(_ runtimeID: String) -> Bool {
         acpAgents.contains(where: { $0.id == runtimeID && $0.enabled })
     }
@@ -138,27 +173,27 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         (draftIndicators[session.id] ?? (!session.draft.isEmpty || session.draftFiles?.isEmpty == false)) || !session.recovered.isEmpty
     }
     public convenience init(store: any WorkspaceStore,
-                            clock: any RuntimeClock = SystemRuntimeClock(), idleRuntimeTimeout: Duration = .seconds(35 * 60),
+                            clock: any RuntimeClock = SystemRuntimeClock(),
                             validateWorktree: @escaping @MainActor (String, String) async -> Bool = { _, _ in true },
                             inspectModels: @escaping @MainActor (RuntimeModel?) async throws -> RuntimeConfigurationOptions = { _ in
                                 throw RuntimeFailure(.setup, String(localized: "未配置模型目录。", bundle: #bundle))
                             }, factory: @escaping @MainActor (ProjectRecord, SessionReference) -> any AgentRuntime) {
-        self.init(store: store, clock: clock, idleRuntimeTimeout: idleRuntimeTimeout,
+        self.init(store: store, clock: clock,
                   validateWorktree: validateWorktree, inspectModels: inspectModels) { project, reference, _ in
             factory(project, reference)
         }
     }
     public convenience init(store: any WorkspaceStore,
-                            clock: any RuntimeClock = SystemRuntimeClock(), idleRuntimeTimeout: Duration = .seconds(35 * 60),
+                            clock: any RuntimeClock = SystemRuntimeClock(),
                             validateWorktree: @escaping @MainActor (String, String) async -> Bool = { _, _ in true },
                             inspectModels: @escaping @MainActor (RuntimeModel?) async throws -> RuntimeConfigurationOptions = { _ in
                                 throw RuntimeFailure(.setup, String(localized: "未配置模型目录。", bundle: #bundle))
                             }, runtimeFactory: @escaping @MainActor (ProjectRecord, SessionReference, WorkspaceRuntimeLaunch) -> any AgentRuntime) {
-        self.init(store: store, clock: clock, idleRuntimeTimeout: idleRuntimeTimeout,
+        self.init(store: store, clock: clock,
                   validateWorktree: validateWorktree, inspectRuntimeModels: { _, model in try await inspectModels(model) }, runtimeFactory: runtimeFactory)
     }
     public init(store: any WorkspaceStore,
-                clock: any RuntimeClock = SystemRuntimeClock(), idleRuntimeTimeout: Duration = .seconds(35 * 60),
+                clock: any RuntimeClock = SystemRuntimeClock(),
                 validateWorktree: @escaping @MainActor (String, String) async -> Bool = { _, _ in true },
                 verifyHandoffCleanup: @escaping @MainActor (UUID) -> Bool = { _ in false },
                 inspectRuntimeModels: @escaping @MainActor (String, RuntimeModel?) async throws -> RuntimeConfigurationOptions,
@@ -166,7 +201,6 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         self.store = store; self.clock = clock; self.runtimeFactory = runtimeFactory
         self.inspectRuntimeModels = inspectRuntimeModels; self.validateWorktree = validateWorktree
         self.verifyHandoffCleanup = verifyHandoffCleanup
-        self.idleRuntimeTimeout = idleRuntimeTimeout
     }
     public func start() async {
         guard !initialized else { return }
@@ -297,10 +331,10 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
 
     public func projectDeletionBlockReason(for id: UUID) -> String? {
         if state.sessions.contains(where: { session in
-            session.projectID == id && (sessionOperations.contains(session.id) || activeExecutionIDs.contains(session.id) ||
-                executionLaunches[session.id] != nil || presentations[session.id].map { $0.controller.connection != .disconnected } == true)
+            session.projectID == id && (sessionOperations.contains(session.id) || !session.submissions.isEmpty ||
+                execution(for: session.id).map { !$0.canReclaimIdleRuntime } == true)
         }) {
-            return String(localized: "请先结束该项目的任务并断开会话，再删除项目。", bundle: #bundle)
+            return String(localized: "请先结束该项目的任务并处理待核对的提交，再删除项目。", bundle: #bundle)
         }
         if !initialized || isShuttingDown || savingProject || refreshingHistoryIndex ||
             savingProjectNames.contains(id) {
@@ -324,6 +358,11 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             deletingSessionIDs.subtract(sessionIDs)
             deletingProjectID = nil
             savingProject = false
+        }
+        for sessionID in sessionIDs where execution(for: sessionID) != nil {
+            guard await closeExecution(sessionID) else {
+                return .init(message: String(localized: "请先确认此会话的运行时已清理。", bundle: #bundle), warning: true)
+            }
         }
         guard await saveSnapshot(applying: { snapshot in
             snapshot.projects.removeAll { $0.id == id }
@@ -382,27 +421,40 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         return imported.id
     }
 
-    public func deleteRemoteHistory(_ id: UUID,
-                                    delete: (String, String, String) async throws -> Void) async throws {
+    public func remoteHistoryDeletionTarget(for id: UUID) -> RemoteHistoryDeletionTarget? {
         guard let reference = state.sessions.first(where: { $0.id == id }),
               reference.isACPRuntime, reference.remoteHistoryDeleted != true,
               reference.canDeleteRemoteHistory == true, let remoteID = reference.runtimeSessionID,
-              let directory = workingDirectory(for: id), !isOperating(on: id),
+              let directory = workingDirectory(for: id) else { return nil }
+        return .init(sessionID: id, agentID: reference.runtimeID, directory: directory,
+                     remoteID: remoteID, segmentID: reference.segmentID)
+    }
+
+    public func deleteRemoteHistory(_ target: RemoteHistoryDeletionTarget, sharedConnectionID: UUID? = nil,
+                                    delete: (String) async throws -> Void) async throws {
+        let id = target.sessionID
+        let unavailable = RuntimeFailure(.setup, String(localized: "会话当前无法删除远端历史。", bundle: #bundle))
+        guard !isOperating(on: id), remoteHistoryDeletionTarget(for: id) == target,
+              let reference = state.sessions.first(where: { $0.id == id }),
               sessionArchiveBlockReason(for: reference) == nil else {
-            throw RuntimeFailure(.setup, String(localized: "会话当前无法删除远端历史。", bundle: #bundle))
+            throw unavailable
         }
         sessionOperations.insert(id)
         defer { endOperation(id) }
+        if let impact = await execution(for: id)?.sharedConnectionImpact(), sharedConnectionID != impact.connectionID {
+            throw RuntimeFailure(.connection, Self.handoffCleanupIssue)
+        }
         guard await closeExecution(id) else {
             throw RuntimeFailure(.connection, String(localized: "无法断开 ACP 会话。", bundle: #bundle))
         }
-        try await delete(reference.runtimeID, directory, remoteID)
-        if let index = state.sessions.firstIndex(where: { $0.id == id }) {
-            state.sessions[index].remoteHistoryDeleted = true
-            state.sessions[index].awaitsAutomaticTitle = nil
-            titleGenerationTasks[id]?.cancel()
-            presentations[id]?.executionIssue = Self.acpResumeIssue(for: state.sessions[index])
-        }
+        guard remoteHistoryDeletionTarget(for: id) == target else { throw unavailable }
+        try await delete(target.remoteID)
+        guard remoteHistoryDeletionTarget(for: id) == target,
+              let index = state.sessions.firstIndex(where: { $0.id == id }) else { throw unavailable }
+        state.sessions[index].remoteHistoryDeleted = true
+        state.sessions[index].awaitsAutomaticTitle = nil
+        titleGenerationTasks[id]?.cancel()
+        presentations[id]?.executionIssue = Self.acpResumeIssue(for: state.sessions[index])
         guard await flush() else {
             throw RuntimeFailure(.setup, String(localized: "远端历史已删除，但本地状态未能保存。请重试。", bundle: #bundle))
         }
@@ -492,17 +544,22 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         if isOperating(on: session.id) {
             return LocalizedStringResource("请等待当前操作结束。", bundle: .atURL(#bundle.bundleURL))
         }
-        if let controller = execution(for: session.id), !canReclaimRuntime(controller, for: session) {
-            return LocalizedStringResource("请先结束运行并断开会话，再归档。", bundle: .atURL(#bundle.bundleURL))
+        if let controller = execution(for: session.id), !controller.canReclaimIdleRuntime || !session.submissions.isEmpty {
+            return LocalizedStringResource("请先结束任务并处理待核对的提交。", bundle: .atURL(#bundle.bundleURL))
         }
         return nil
     }
 
-    @discardableResult public func setSessionArchived(_ id: UUID, archived: Bool) async -> Bool {
+    public func archiveRequiresConfirmation(_ id: UUID) -> Bool {
+        guard let reference = state.sessions.first(where: { $0.id == id }), let controller = execution(for: id) else { return false }
+        return controller.canReclaimIdleRuntime && !canReclaimRuntime(controller, for: reference)
+    }
+
+    @discardableResult public func setSessionArchived(_ id: UUID, archived: Bool, confirmRelease: Bool = false) async -> Bool {
         guard initialized, storageError == nil, !isOperating(on: id),
               let reference = state.sessions.first(where: { $0.id == id }),
               (reference.archivedAt != nil) != archived else { return false }
-        if archived, sessionArchiveBlockReason(for: reference) != nil { return false }
+        if archived, sessionArchiveBlockReason(for: reference) != nil || (archiveRequiresConfirmation(id) && !confirmRelease) { return false }
         sessionOperations.insert(id)
         defer { endOperation(id) }
         if archived, !(await closeExecution(id)) { return false }
@@ -566,7 +623,6 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         titleGenerationTasks[id]?.cancel()
         presentations.removeValue(forKey: id)
         draftIndicators.removeValue(forKey: id)
-        idleReapers.removeValue(forKey: id)?.cancel()
         dirtyDrafts.remove(id)
     }
 
@@ -587,10 +643,18 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         state.selectedSessionID = id; state.sessions[i].lastViewed = Date()
         if let p = state.projects.firstIndex(where: { $0.id == state.sessions[i].projectID }) { state.projects[p].lastViewed = Date() }
         viewed = presentation(id); scheduleSave()
-        scheduleIdleReap(id)
+        finishRetirementWhenPossible(id)
         await refreshHistory(id)
         trimHistoryCache(keeping: id)
     }
+
+    public func clearSelection(for id: UUID) {
+        guard state.selectedSessionID == id else { return }
+        state.selectedSessionID = nil
+        clearViewedSession(id)
+        scheduleSave()
+    }
+
     public func openSessionForReview(_ id: UUID) async {
         let completion = state.sessions.first(where: { $0.id == id })?.unreadCompletionTurnID
         await openSessionForReview(id, acknowledging: completion)
@@ -605,12 +669,34 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         state.sessions[index].unreadCompletionTurnID = nil
         scheduleSave()
     }
+
+    /// Clears the unread badge when the user directly interacts with the currently viewed session.
+    public func acknowledgeUnreadCompletion(for id: UUID) {
+        guard initialized, !deletingSessionIDs.contains(id),
+              isReadyViewedSession(id),
+              let index = state.sessions.firstIndex(where: { $0.id == id }),
+              state.sessions[index].unreadCompletionTurnID != nil else { return }
+        state.sessions[index].unreadCompletionTurnID = nil
+        scheduleSave()
+    }
+
+    private func isReadyViewedSession(_ id: UUID) -> Bool {
+        state.selectedSessionID == id &&
+            viewed?.id == id &&
+            viewed?.loading == false &&
+            viewed?.loadError == nil
+    }
+
+    private func isActivelyViewedInForeground(_ id: UUID) -> Bool {
+        isReadyViewedSession(id) && isForegroundWindowActive()
+    }
     public func refreshHistory(_ id: UUID) async {
         recheckHandoffCleanup(id)
-        guard let reference = state.sessions.first(where: { $0.id == id }) else { return }
+        guard let previous = state.sessions.first(where: { $0.id == id }) else { return }
         let view = presentation(id)
-        await loadFrozenHistory(reference, into: view)
-        guard state.sessions.first(where: { $0.id == id })?.segmentID == reference.segmentID else { return }
+        await loadFrozenHistory(previous, into: view)
+        guard let reference = state.sessions.first(where: { $0.id == id }),
+              reference.segmentID == previous.segmentID else { return }
         if view.controller.connection != .disconnected { return }
         view.loadError = nil
         view.executionIssue = isHandoffCleanupPending(for: id) ? Self.handoffCleanupIssue : Self.acpResumeIssue(for: reference)
@@ -623,6 +709,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 cached,
                 recordedTurns: reference.recordedTurns ?? [],
                 recordedMessages: reference.recordedMessages ?? [],
+                submissions: reference.submissions,
                 notice: notice
             )
         } else if view.controller.showingCachedHistory {
@@ -706,22 +793,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             executionLaunches.removeValue(forKey: id)
         }
         sessionOperations.remove(id)
-        scheduleIdleReap(id)
-    }
-
-    private func scheduleIdleReap(_ id: UUID) {
-        idleReapers.removeValue(forKey: id)?.cancel()
-        guard !isOperating(on: id), execution(for: id)?.canReclaimIdleRuntime == true else { return }
-        idleReapers[id] = Task { [weak self, idleRuntimeTimeout] in
-            do { try await Task.sleep(for: idleRuntimeTimeout) } catch { return }
-            guard !Task.isCancelled, let self else { return }
-            self.idleReapers.removeValue(forKey: id)
-            guard !self.isOperating(on: id), let controller = self.execution(for: id),
-                  let reference = self.state.sessions.first(where: { $0.id == id }),
-                  self.canReclaimRuntime(controller, for: reference) else { return }
-            // Use the same close path as a manual disconnect. Unknown cleanup keeps the slot blocked.
-            _ = await self.disconnect(id)
-        }
+        finishRetirementWhenPossible(id)
     }
 
     private func canReclaimRuntime(_ controller: SessionController, for reference: SessionReference) -> Bool {
@@ -731,8 +803,73 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             (controller.transcript.isEmpty || (reference.resumableSession == true && reference.runtimeSessionID != nil))
     }
 
+    public func retireACPExecutions(for agents: Set<String>) {
+        let ids = state.sessions.filter { agents.contains($0.runtimeID) && $0.isACPRuntime && activeExecutionIDs.contains($0.id) }.map(\.id)
+        retireExecutions(ids)
+    }
+
+    public func retireACPExecutions(withRuntimeIDs ids: Set<UUID>) {
+        let targets = executionIDs.filter { id in
+            guard let instance = execution(for: id)?.runtimeInstanceID else { return false }
+            return ids.contains(instance)
+        }
+        retireExecutions(targets)
+    }
+
+    private func retireExecutions(_ ids: [UUID]) {
+        retiringExecutions.formUnion(ids)
+        for id in ids { finishRetirementWhenPossible(id) }
+    }
+
+    public func retirementRequiresConfirmation(_ id: UUID) -> Bool {
+        retiringExecutions.contains(id) && archiveRequiresConfirmation(id)
+    }
+
+    public func confirmRetirement(_ id: UUID) async {
+        guard retirementRequiresConfirmation(id), !isOperating(on: id) else { return }
+        _ = await disconnect(id)
+    }
+
+    private func finishRetirementWhenPossible(_ id: UUID) {
+        guard retiringExecutions.contains(id) else { return }
+        guard let controller = execution(for: id) else { retiringExecutions.remove(id); return }
+        guard !isOperating(on: id), retirementTasks[id] == nil,
+              let reference = state.sessions.first(where: { $0.id == id }),
+              canReclaimRuntime(controller, for: reference) else { return }
+        retirementTasks[id] = Task { [weak self] in
+            guard let self else { return }
+            defer { self.retirementTasks[id] = nil }
+            guard self.retiringExecutions.contains(id), !self.isOperating(on: id),
+                  let active = self.execution(for: id), self.canReclaimRuntime(active, for: reference) else { return }
+            _ = await self.disconnect(id)
+        }
+    }
+
     private func matchesLaunchConfiguration(_ id: UUID, directory: String) -> Bool {
         executionLaunches[id]?.canonicalDirectory == Self.canonicalPath(directory)
+    }
+
+    private func validatedExecutionDirectory(for reference: SessionReference, in project: ProjectRecord,
+                                             view: SessionPresentation) async -> String? {
+        let directoryPath = reference.workingDirectory(in: project)
+        if reference.worktreePath == nil, Self.canonicalPath(directoryPath) != Self.canonicalPath(project.path) {
+            view.executionError = String(localized: "历史工作目录与当前位置不同。旧会话可只读查看；请在当前位置新建会话。", bundle: #bundle)
+            return nil
+        }
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directoryPath, isDirectory: &directory), directory.boolValue else {
+            view.executionError = String(localized: "工作目录不可用：\(directoryPath)", bundle: #bundle)
+            return nil
+        }
+        if let path = reference.worktreePath {
+            let registeredPath = URL(fileURLWithPath: path).standardizedFileURL.path
+            guard URL(fileURLWithPath: directoryPath).standardizedFileURL.path == registeredPath,
+                  await validateWorktree(project.path, directoryPath) else {
+                view.executionError = String(localized: "工作树不可用：\(path)", bundle: #bundle)
+                return nil
+            }
+        }
+        return directoryPath
     }
 
     private func openExecution(_ id: UUID, historyOnly: Bool = false) async -> Bool {
@@ -741,29 +878,16 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
               let project = state.projects.first(where: { $0.id == reference.projectID }) else { return false }
         let view = presentation(id)
         view.executionError = nil
+        if retiringExecutions.contains(id), execution(for: id) != nil {
+            view.executionError = String(localized: "ACP 智能体配置已经更改，请等待会话释放后重试。", bundle: #bundle)
+            return false
+        }
         guard !isHandoffCleanupPending(for: id) else {
             view.executionIssue = Self.handoffCleanupIssue
             return false
         }
-        let directoryPath = reference.workingDirectory(in: project)
-        if reference.worktreePath == nil, Self.canonicalPath(directoryPath) != Self.canonicalPath(project.path) {
-            view.executionError = String(localized: "历史工作目录与当前位置不同。旧会话可只读查看；请在当前位置新建会话。", bundle: #bundle)
-            return false
-        }
-        var directory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: directoryPath, isDirectory: &directory), directory.boolValue else {
-            view.executionError = String(localized: "工作目录不可用：\(directoryPath)", bundle: #bundle)
-            return false
-        }
-        if let path = reference.worktreePath {
-            let registeredPath = URL(fileURLWithPath: path).standardizedFileURL.path
-            guard URL(fileURLWithPath: directoryPath).standardizedFileURL.path == registeredPath,
-                  await validateWorktree(project.path, directoryPath) else {
-                view.executionError = String(localized: "工作树不可用：\(path)", bundle: #bundle)
-                return false
-            }
-        }
-        guard !isShuttingDown else { return false }
+        guard let directoryPath = await validatedExecutionDirectory(for: reference, in: project, view: view),
+              !isShuttingDown else { return false }
 
         let active = execution(for: id)
         if let controller = active {
@@ -845,7 +969,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         }
         if let expected = current.runtimeSessionID, view.controller.session?.id != expected {
             view.executionError = String(localized: "执行会话标识与历史绑定不一致，没有发送任务。", bundle: #bundle)
-            _ = await closeExecution(id, force: true)
+            _ = await closeExecution(id, force: await view.controller.sharedConnectionImpact() == nil)
             return false
         }
         await view.controller.reconcileLoadedSessionHistory()
@@ -858,9 +982,22 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                view.controller.session?.availableModes.contains(where: { $0.id == desiredMode }) == true {
             _ = await view.controller.setRuntimeMode(desiredMode)
         }
-        if let desired = current.pendingSelection ?? current.selection,
-           current.pendingSelection != nil || !matchesSelection(desired, session: view.controller.session) {
-            return await applySelection(desired, to: id)
+        if let pending = current.pendingSelection { return await applySelection(pending, to: id) }
+        if let saved = current.selection, !matchesSelection(saved, session: view.controller.session) {
+            if !current.isACPRuntime { return await applySelection(saved, to: id) }
+            if view.controller.session?.capabilities.contains(.modelConfiguration) == true,
+               let available = try? await view.controller.configurationOptions(),
+               available.models.contains(where: { $0.provider == saved.provider && $0.modelID == saved.modelID }) {
+                let modelOnly = RuntimeSelection(provider: saved.provider, modelID: saved.modelID)
+                let changingModel = !matchesSelection(modelOnly, session: view.controller.session)
+                if changingModel, !(await applySelection(modelOnly, to: id)) { return false }
+                if let thinking = saved.thinking, matchesSelection(modelOnly, session: view.controller.session),
+                   !matchesSelection(saved, session: view.controller.session) {
+                    // The advertised reasoning levels can change when the Agent selects the saved model.
+                    let levels = changingModel ? (try? await view.controller.thinkingLevels()) : available.thinkingLevels
+                    if levels?.contains(thinking) == true { return await applySelection(saved, to: id) }
+                }
+            }
         }
         synchronize(id)
         guard await flush() else { _ = await closeExecution(id); return false }
@@ -913,6 +1050,61 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         scheduleSave()
     }
 
+    public func approvalTimeoutRecovery(for id: UUID) -> ApprovalTimeoutRecovery? {
+        guard initialized, storageError == nil, !isOperating(on: id), isReadyViewedSession(id),
+              viewed?.executionIssue == nil, !retiringExecutions.contains(id),
+              let reference = selected, reference.isACPRuntime, reference.archivedAt == nil,
+              reference.remoteHistoryDeleted != true, reference.pendingSelection == nil,
+              reference.handoff?.delivered != false,
+              !reference.submissions.contains(where: { $0.needsReview || $0.delivery == .pending }),
+              let controller = execution(for: id), let recovery = controller.approvalTimeoutRecovery,
+              let directory = workingDirectory(for: id), matchesLaunchConfiguration(id, directory: directory) else { return nil }
+        return recovery
+    }
+
+    public func continueAfterApprovalTimeout(_ recovery: ApprovalTimeoutRecovery, in id: UUID) async {
+        guard approvalTimeoutRecovery(for: id) == recovery, let controller = execution(for: id),
+              let view = viewed, let reference = selected,
+              let project = state.projects.first(where: { $0.id == reference.projectID }) else { return }
+        sessionOperations.insert(id)
+        defer { endOperation(id) }
+        view.executionError = nil
+        guard let directory = await validatedExecutionDirectory(for: reference, in: project, view: view) else { return }
+
+        func targetIsCurrent() -> Bool {
+            guard !isShuttingDown, storageError == nil, !retiringExecutions.contains(id), isReadyViewedSession(id),
+                  execution(for: id) === controller, let current = selected, current.projectID == project.id,
+                  current.pendingSelection == nil, current.worktreePath == reference.worktreePath,
+                  !current.submissions.contains(where: \.needsReview),
+                  let currentProject = state.projects.first(where: { $0.id == project.id }),
+                  currentProject.path == project.path,
+                  current.workingDirectory(in: currentProject) == directory,
+                  matchesLaunchConfiguration(id, directory: directory) else { return false }
+            var exists: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: directory, isDirectory: &exists), exists.boolValue else {
+                view.executionError = String(localized: "工作目录不可用：\(directory)", bundle: #bundle)
+                return false
+            }
+            return true
+        }
+
+        guard targetIsCurrent(), controller.approvalTimeoutRecovery == recovery else { return }
+        acknowledgeUnreadCompletion(for: id)
+        let text = String(localized: "请从审批超时中断处继续任务。先核对已完成的工作与当前状态，再处理剩余事项。需要审批时，请重新发起审批。", bundle: #bundle)
+        await submit(.init(text: text, mode: .followUp), to: controller, in: id, continuingAfter: recovery) {
+            if let worktree = reference.worktreePath {
+                guard targetIsCurrent() else { return false }
+                guard await self.validateWorktree(project.path, directory) else {
+                    if targetIsCurrent() {
+                        view.executionError = String(localized: "工作树不可用：\(worktree)", bundle: #bundle)
+                    }
+                    return false
+                }
+            }
+            return targetIsCurrent()
+        }
+    }
+
     public func send(_ id: UUID, submitted: UserPrompt? = nil) async {
         guard initialized, !isOperating(on: id), storageError == nil,
               let reference = state.sessions.first(where: { $0.id == id && $0.archivedAt == nil }) else { return }
@@ -931,6 +1123,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         }
         let submitted = submitted ?? view.controller.draftPrompt
         guard submitted.hasContent else { return }
+        acknowledgeUnreadCompletion(for: id)
         sessionOperations.insert(id)
         view.handoffPreviewToken = nil
         let sendingHandoff = reference.handoff?.delivered == false
@@ -951,7 +1144,13 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         let context = reference.handoff.flatMap { $0.delivered ? nil : $0.context }
         let message = UserPrompt(id: submitted.id, text: submitted.text, mode: submitted.mode,
                                  files: submitted.files, handoffContext: context)
-        await controller.sendDraft(message)
+        await submit(message, to: controller, in: id)
+    }
+
+    private func submit(_ prompt: UserPrompt, to controller: SessionController, in id: UUID,
+                        continuingAfter recovery: ApprovalTimeoutRecovery? = nil,
+                        canSendRecovery: (@MainActor () async -> Bool)? = nil) async {
+        await controller.send(prompt, continuingAfter: recovery, canSendRecovery: canSendRecovery)
         synchronize(id)
         _ = await flush()
     }
@@ -964,6 +1163,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         guard await controller.disconnect(force: force) else { return false }
         activeExecutionIDs.remove(id)
         executionLaunches.removeValue(forKey: id)
+        retiringExecutions.remove(id)
         return true
     }
 
@@ -995,13 +1195,11 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
 
     public func beginShutdown() {
         isShuttingDown = true
-        for task in idleReapers.values { task.cancel() }
         for task in titleGenerationTasks.values { task.cancel() }
-        idleReapers.removeAll()
     }
     public func cancelShutdown() {
         isShuttingDown = false
-        for id in executionIDs { scheduleIdleReap(id) }
+        for id in retiringExecutions { finishRetirementWhenPossible(id) }
     }
 
     public func disconnectAll(force: Bool = false) async -> Bool {
@@ -1067,9 +1265,9 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
         let needsFreshACP = isFirstHandoff && reference.isACPRuntime && reference.runtimeSessionID != nil && reference.resumableSession != true
         if needsFreshACP {
             let closed = if execution(for: id) != nil {
-                await closeExecution(id, force: true)
+                await closeExecution(id, force: await view.controller.sharedConnectionImpact() == nil)
             } else {
-                await view.controller.disconnect(force: true)
+                await view.controller.disconnect(force: await view.controller.sharedConnectionImpact() == nil)
             }
             guard closed else {
                 view.executionError = view.controller.failure?.detail ?? String(localized: "请先确认此会话的运行时已清理。", bundle: #bundle)
@@ -1295,7 +1493,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             let marker = segment.incomingHandoff.flatMap { $0.delivered ? Self.handoffMarker($0) : nil }
             do {
                 let history = try await store.loadSessionHistory(segmentID: segment.id)
-                let timeline = history.timeline()
+                let timeline = history.timeline(frozenSegmentID: segment.id)
                 if let marker { items.append(marker) }
                 items.append(contentsOf: timeline.items)
                 rows.append(contentsOf: TranscriptDisplayRow.placingHandoff(marker, in: timeline.rows))
@@ -1653,9 +1851,8 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 self.state.sessions[i].processingStatus = .open
             }
             self.scheduleSave()
-            self.scheduleIdleReap(id)
         }
-        view.controller.onRuntimeActivityChanged = { [weak self] in self?.scheduleIdleReap(id) }
+        view.controller.onRuntimeActivityChanged = { [weak self] in self?.finishRetirementWhenPossible(id) }
         view.controller.onControlChanged = { [weak self] in
             guard let self else { return }
             let before = self.state.sessions.first { $0.id == id }?.recovered
@@ -1664,7 +1861,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 self.activeExecutionIDs.remove(id)
                 self.executionLaunches.removeValue(forKey: id)
             }
-            self.scheduleIdleReap(id)
+            self.finishRetirementWhenPossible(id)
             if before != self.state.sessions.first(where: { $0.id == id })?.recovered {
                 Task { _ = await self.flush() }
             } else { self.scheduleSave() }
@@ -1696,7 +1893,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             if let existing { turns[existing] = record }
             else {
                 turns.append(record)
-                if record.status == .completed {
+                if record.status == .completed && !self.isActivelyViewedInForeground(id) {
                     self.state.sessions[i].unreadCompletionTurnID = record.id
                 }
             }
@@ -1717,7 +1914,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
             self.state.sessions[i].recordedMessages = messages
             self.scheduleSave()
         }
-        view.controller.prepareSubmission = { [weak self, weak controller = view.controller] prompt in
+        view.controller.prepareSubmission = { [weak self, weak controller = view.controller] prompt, preservesDraft in
             guard let self, let controller, let i = self.state.sessions.firstIndex(where: { $0.id == id }), self.storageError == nil else { throw RuntimeFailure(.setup, String(localized: "工作台不可写。", bundle: #bundle)) }
             let submittedAt = self.clock.now()
             let originalDirectory = self.state.sessions[i].boundWorkingDirectory
@@ -1736,7 +1933,7 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 self.state.sessions[i].automaticTitleSubmissionID = prompt.id
             }
             self.synchronize(id)
-            if controller.matchesDraft(prompt) {
+            if !preservesDraft, controller.matchesDraft(prompt) {
                 self.state.sessions[i].draft = ""
                 self.state.sessions[i].draftFiles = nil
             }
@@ -1944,7 +2141,8 @@ public struct WorkspaceRuntimeLaunch: Sendable, Equatable {
                 sentAt: item.sentAt,
                 endedAt: (item.kind == .assistant || item.kind == .tool) ? item.turn?.endedAt : nil,
                 files: item.kind == .user && !item.attachedFiles.isEmpty ? item.attachedFiles : nil,
-                submissionID: item.kind == .user ? item.submissionID : nil
+                submissionID: item.kind == .user ? item.submissionID : nil,
+                delivery: item.kind == .user && item.delivery != .accepted ? item.delivery : nil
             )
         }
         if items.count > CachedTranscriptItem.maximumItemCount {

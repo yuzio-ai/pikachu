@@ -74,10 +74,10 @@ public final class RPCProcess: @unchecked Sendable {
             throw CocoaError(.fileNoSuchFile)
         }
         if supervised {
-            let helper = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("pikachu-supervisor")
-            guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw ProbeError.failure("Supervisor executable missing; build pikachu-supervisor") }
+            let helper = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent().appendingPathComponent("zivvi-supervisor")
+            guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw ProbeError.failure("Supervisor executable missing; build zivvi-supervisor") }
             let directory = (supervisionRoot ?? FileManager.default.temporaryDirectory)
-                .appendingPathComponent("pikachu-supervision-\(UUID().uuidString)")
+                .appendingPathComponent("zivvi-supervision-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             supervisionDirectory = directory
             supervisionStatusURL = directory.appendingPathComponent("status.json")
